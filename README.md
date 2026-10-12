@@ -1,4 +1,4 @@
-# Phantom
+# Phantom Tube
 
 An ultra-lightweight, privacy-focused alternative YouTube client for Android, built with Kotlin, Jetpack Compose, and native C++ core architecture.
 
