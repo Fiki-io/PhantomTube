@@ -1,8 +1,8 @@
-# Phantom Tube
+# PhantomTube
 
 An ultra-lightweight, privacy-focused alternative YouTube client for Android, built with Kotlin, Jetpack Compose, and native C++ core architecture.
 
-Repository: [https://github.com/Fiki-io/Phantom](https://github.com/Fiki-io/Phantom)  
+Repository: [https://github.com/Fiki-io/PhantomTube](https://github.com/Fiki-io/PhantomTube)  
 Package: `com.phantom.tube`  
 License: MIT
 
@@ -10,7 +10,7 @@ License: MIT
 
 ## Overview
 
-Phantom is an open-source, resource-efficient YouTube frontend client designed for Android devices. Unlike standard streaming applications that consume hundreds of megabytes of memory and storage, Phantom delivers a full-featured video and music streaming experience in an APK footprint of approximately 1.6 MB.
+PhantomTube is an open-source, resource-efficient YouTube frontend client designed for Android devices. Unlike standard streaming applications that consume hundreds of megabytes of memory and storage, PhantomTube delivers a full-featured video and music streaming experience in an APK footprint of approximately 1.6 MB.
 
 The project does not depend on proprietary Google Play Services or MicroG frameworks. It provides background audio playback, offline media downloading, frame-accurate thumbnail scrubbing, integrated SponsorBlock filtering, and full local data persistence via SQLite/Room.
 
@@ -162,8 +162,8 @@ com.phantom.tube/
 Clone the repository and build the release APK using Gradle:
 
 ```bash
-git clone https://github.com/Fiki-io/Phantom.git
-cd Phantom
+git clone https://github.com/Fiki-io/PhantomTube.git
+cd PhantomTube
 chmod +x gradlew
 ./gradlew assembleRelease
 ```
@@ -180,7 +180,7 @@ This repository includes an automated build pipeline configured in `.github/work
 
 ## Acknowledgements
 
-Phantom stands on the shoulders of the open-source community and privacy-focused developers worldwide. Sincere gratitude and respect go to:
+PhantomTube stands on the shoulders of the open-source community and privacy-focused developers worldwide. Sincere gratitude and respect go to:
 
 - **[SponsorBlock](https://sponsor.ajay.app)**: Created by Ajay Ramachandran and maintained by its global community. Thank you for providing the crowdsourced database and public API that makes seamless segment skipping possible.
 - **InnerTube & Open-Source Media Researchers**: Deep appreciation to the contributors of open-source projects such as NewPipe, yt-dlp, and Invidious for their foundational research, documentation, and parsing insights into YouTube InnerTube endpoints.
@@ -190,7 +190,7 @@ Phantom stands on the shoulders of the open-source community and privacy-focused
 
 ## Disclaimer
 
-This software is developed for educational and research purposes as a lightweight Android client. All product names, logos, and brands are property of their respective owners. YouTube is a trademark of Google LLC. Phantom is not affiliated with, endorsed by, or associated with Google LLC or YouTube.
+This software is developed for educational and research purposes as a lightweight Android client. All product names, logos, and brands are property of their respective owners. YouTube is a trademark of Google LLC. PhantomTube is not affiliated with, endorsed by, or associated with Google LLC or YouTube.
 
 ---
 
