@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
@@ -87,18 +89,58 @@ fun HomeScreen(
             "JP" -> "japan"
             "KR" -> "korea"
             "GB" -> "uk"
-            else -> "indonesia"
+            "ID" -> "indonesia"
+            "ES" -> "spain"
+            "RU" -> "russia"
+            else -> country.lowercase()
         }
+        val lang = repository.preferences?.appLanguage?.value ?: "en"
         return when (category) {
-            "Semua" -> "trending $suffix"
-            "Trending" -> "viral $suffix hari ini"
-            "Musik" -> "lagu hits $suffix terbaru"
-            "Gaming" -> "gaming trending $suffix"
-            "Berita" -> "berita terkini $suffix"
+            "Semua" -> if (country == "GLOBAL") "trending" else "trending $suffix"
+            "Trending" -> when (lang) {
+                "ja" -> "急上昇 $suffix"
+                "es" -> "tendencias $suffix"
+                "ru" -> "в тренде $suffix"
+                "id" -> "trending viral $suffix"
+                else -> "trending $suffix"
+            }
+            "Musik" -> when (lang) {
+                "ja" -> "音楽 $suffix"
+                "es" -> "música $suffix"
+                "ru" -> "музыка $suffix"
+                "id" -> "lagu hits $suffix"
+                else -> "music $suffix"
+            }
+            "Gaming" -> when (lang) {
+                "ja" -> "ゲーム $suffix"
+                "es" -> "videojuegos $suffix"
+                "ru" -> "игры $suffix"
+                "id" -> "gaming $suffix"
+                else -> "gaming $suffix"
+            }
+            "Berita" -> when (lang) {
+                "ja" -> "ニュース $suffix"
+                "es" -> "noticias $suffix"
+                "ru" -> "новости $suffix"
+                "id" -> "berita terkini $suffix"
+                else -> "news $suffix"
+            }
             "Podcast" -> "podcast $suffix"
-            "Teknologi" -> "gadget teknologi $suffix"
-            "Animasi" -> "animasi anime"
-            else -> category
+            "Teknologi" -> when (lang) {
+                "ja" -> "テクノロジー $suffix"
+                "es" -> "tecnología $suffix"
+                "ru" -> "технологии $suffix"
+                "id" -> "teknologi gadget $suffix"
+                else -> "technology $suffix"
+            }
+            "Animasi" -> when (lang) {
+                "ja" -> "アニメ"
+                "es" -> "animación"
+                "ru" -> "аниме"
+                "id" -> "animasi"
+                else -> "animation"
+            }
+            else -> "$category $suffix"
         }
     }
 
@@ -233,7 +275,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Memperbarui...",
+                        text = stringResource(R.string.common_updating),
                         color = TextPrimary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -251,7 +293,7 @@ fun HomeScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Gagal memuat video",
+                            text = stringResource(R.string.home_failed_load_video),
                             color = TextPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
@@ -259,7 +301,7 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         PhantomIconButton(
                             icon = Icons.Default.Refresh,
-                            contentDescription = "Coba Lagi",
+                            contentDescription = stringResource(R.string.common_retry),
                             onClick = { loadFeed(selectedCategory) }
                         )
                     }
@@ -309,7 +351,7 @@ fun HomeScreen(
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Text(
-                                            text = "Memuat...",
+                                            text = stringResource(R.string.common_loading),
                                             color = TextSecondary,
                                             fontSize = 12.sp
                                         )

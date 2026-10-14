@@ -69,6 +69,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.phantom.tube.core.database.DownloadEntity
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
@@ -275,12 +277,12 @@ fun OfflineVideoPlayerDialog(
                                         val newPos = (current - 10000).coerceAtLeast(0)
                                         vv.seekTo(newPos)
                                         currentPositionMs = newPos
-                                        seekNoticeText = "-10 Detik"
+                                        seekNoticeText = context.getString(R.string.player_seek_notice_rewind)
                                     } else {
                                         val newPos = (current + 10000).coerceAtMost(maxDur)
                                         vv.seekTo(newPos)
                                         currentPositionMs = newPos
-                                        seekNoticeText = "+10 Detik"
+                                        seekNoticeText = context.getString(R.string.player_seek_notice_forward)
                                     }
                                 }
                             }
@@ -347,7 +349,7 @@ fun OfflineVideoPlayerDialog(
                         IconButton(onClick = closePlayer) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Tutup",
+                                contentDescription = stringResource(R.string.player_close),
                                 tint = TextPrimary
                             )
                         }
@@ -372,7 +374,7 @@ fun OfflineVideoPlayerDialog(
                         IconButton(onClick = onOpenExternal) {
                             Icon(
                                 imageVector = Icons.Default.OpenInNew,
-                                contentDescription = "Buka di Pemutar Eksternal",
+                                contentDescription = stringResource(R.string.downloads_play_external),
                                 tint = TextSecondary
                             )
                         }
@@ -394,14 +396,14 @@ fun OfflineVideoPlayerDialog(
                                         val newPos = (vv.currentPosition - 10000).coerceAtLeast(0)
                                         vv.seekTo(newPos)
                                         currentPositionMs = newPos
-                                        seekNoticeText = "-10 Detik"
+                                        seekNoticeText = context.getString(R.string.player_seek_notice_rewind)
                                     }
                                 },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Replay10,
-                                contentDescription = "Mundur 10 Detik",
+                                contentDescription = stringResource(R.string.seek_rewind_10s),
                                 tint = TextPrimary,
                                 modifier = Modifier.size(26.dp)
                             )
@@ -427,7 +429,7 @@ fun OfflineVideoPlayerDialog(
                         ) {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.player_play),
                                 tint = Color.White,
                                 modifier = Modifier.size(38.dp)
                             )
@@ -444,14 +446,14 @@ fun OfflineVideoPlayerDialog(
                                         val newPos = (vv.currentPosition + 10000).coerceAtMost(maxDur)
                                         vv.seekTo(newPos)
                                         currentPositionMs = newPos
-                                        seekNoticeText = "+10 Detik"
+                                        seekNoticeText = context.getString(R.string.player_seek_notice_forward)
                                     }
                                 },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Forward10,
-                                contentDescription = "Maju 10 Detik",
+                                contentDescription = stringResource(R.string.seek_forward_10s),
                                 tint = TextPrimary,
                                 modifier = Modifier.size(26.dp)
                             )
@@ -523,7 +525,7 @@ fun OfflineVideoPlayerDialog(
                             ) {
                                 Icon(
                                     imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                                    contentDescription = if (isLandscape) "Keluar Layar Penuh" else "Layar Penuh",
+                                    contentDescription = stringResource(if (isLandscape) R.string.player_exit_fullscreen else R.string.player_fullscreen),
                                     tint = TextPrimary,
                                     modifier = Modifier.size(24.dp)
                                 )

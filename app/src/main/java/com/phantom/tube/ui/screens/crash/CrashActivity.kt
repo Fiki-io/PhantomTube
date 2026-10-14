@@ -51,6 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.phantom.tube.MainActivity
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.ObsidianDark
@@ -68,8 +70,8 @@ class CrashActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val crashReport = intent.getStringExtra(EXTRA_CRASH_REPORT) ?: "Tidak ada detail log crash yang tersimpan."
-        val errorMessage = intent.getStringExtra(EXTRA_ERROR_MESSAGE) ?: "Kesalahan yang tidak tertangani"
+        val crashReport = intent.getStringExtra(EXTRA_CRASH_REPORT) ?: getString(R.string.crash_no_report)
+        val errorMessage = intent.getStringExtra(EXTRA_ERROR_MESSAGE) ?: getString(R.string.player_error_load)
 
         setContent {
             PhantomTheme {
@@ -145,13 +147,13 @@ fun CrashScreen(
 
                 Column {
                     Text(
-                        text = "Aplikasi Terhenti",
+                        text = stringResource(R.string.crash_title),
                         color = TextPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Terjadi kesalahan pada aplikasi. Log dapat disalin untuk pelaporan bug.",
+                        text = stringResource(R.string.crash_desc),
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -244,7 +246,7 @@ fun CrashScreen(
                     val clip = ClipData.newPlainText("Phantom Crash Log", crashReport)
                     clipboard.setPrimaryClip(clip)
                     isCopied = true
-                    Toast.makeText(context, "Log berhasil disalin ke clipboard", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.crash_copied_toast), Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier
                     .weight(1f)
@@ -256,13 +258,13 @@ fun CrashScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.ContentCopy,
-                    contentDescription = "Salin Log",
+                    contentDescription = stringResource(R.string.crash_copy_log),
                     tint = TextPrimary,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isCopied) "Disalin!" else "Salin Log",
+                    text = if (isCopied) stringResource(R.string.crash_copied) else stringResource(R.string.crash_copy_log),
                     color = TextPrimary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp
@@ -282,13 +284,13 @@ fun CrashScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
-                    contentDescription = "Mulai Ulang",
+                    contentDescription = stringResource(R.string.crash_restart),
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Mulai Ulang",
+                    text = stringResource(R.string.crash_restart),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp

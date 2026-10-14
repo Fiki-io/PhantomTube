@@ -43,6 +43,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import coil.compose.AsyncImage
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -223,7 +225,7 @@ fun PhantomMiniPlayer(
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Jeda" else "Putar",
+                        contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.player_play),
                         tint = Color.White,
                         modifier = Modifier.size(22.dp)
                     )
@@ -241,7 +243,7 @@ fun PhantomMiniPlayer(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Tutup",
+                        contentDescription = stringResource(R.string.player_close),
                         tint = TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )

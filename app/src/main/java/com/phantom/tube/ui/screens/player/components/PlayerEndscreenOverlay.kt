@@ -38,6 +38,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.TextPrimary
@@ -77,7 +79,7 @@ fun PlayerEndscreenOverlay(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Tutup Rekomendasi",
+                    contentDescription = stringResource(R.string.player_close),
                     tint = TextPrimary,
                     modifier = Modifier.size(16.dp)
                 )

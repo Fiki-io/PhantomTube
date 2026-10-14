@@ -67,6 +67,8 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoComment
+import com.phantom.tube.R
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlin.math.roundToInt
@@ -147,7 +149,7 @@ fun CommentItemRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.ThumbUp,
-                        contentDescription = "Suka",
+                        contentDescription = stringResource(R.string.player_stat_likes),
                         tint = TextMuted,
                         modifier = Modifier.size(14.dp)
                     )
@@ -162,13 +164,13 @@ fun CommentItemRow(
                 }
                 Icon(
                     imageVector = Icons.Default.ThumbDown,
-                    contentDescription = "Tidak suka",
+                    contentDescription = stringResource(R.string.player_dislike),
                     tint = TextMuted,
                     modifier = Modifier.size(14.dp)
                 )
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Reply,
-                    contentDescription = "Balas",
+                    contentDescription = stringResource(R.string.player_reply),
                     tint = TextMuted,
                     modifier = Modifier.size(14.dp)
                 )
@@ -317,7 +319,7 @@ fun PlayerCommentsSheet(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Komentar",
+                                text = stringResource(R.string.player_comments),
                                 color = TextPrimary,
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold
@@ -334,7 +336,7 @@ fun PlayerCommentsSheet(
                         IconButton(onClick = onDismiss) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Tutup",
+                                contentDescription = stringResource(R.string.action_close),
                                 tint = TextSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -371,7 +373,7 @@ fun PlayerCommentsSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Tidak ada komentar untuk video ini",
+                                text = stringResource(R.string.player_no_comments_sheet),
                                 color = TextMuted,
                                 fontSize = 13.sp
                             )

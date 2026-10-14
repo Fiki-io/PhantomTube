@@ -51,7 +51,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.ObsidianDark
@@ -127,7 +129,7 @@ fun SubscriptionScreen(
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = "Koleksi & Unduhan",
+                text = stringResource(R.string.subscriptions_title),
                 color = TextPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
@@ -165,13 +167,17 @@ fun SubscriptionScreen(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Hasil Unduhan",
+                    text = stringResource(R.string.downloads_title),
                     color = TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = if (downloadsList.isEmpty()) "Belum ada file • Putar offline tanpa kuota" else "${downloadsList.size} file tersimpan • $totalMb",
+                    text = if (downloadsList.isEmpty()) {
+                        stringResource(R.string.downloads_empty_subtitle)
+                    } else {
+                        stringResource(R.string.downloads_count_format, downloadsList.size, totalMb)
+                    },
                     color = TextSecondary,
                     fontSize = 12.sp
                 )
@@ -210,7 +216,7 @@ fun SubscriptionScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Belum Ada Channel yang Dilanggan",
+                        text = stringResource(R.string.empty_subscriptions_title),
                         color = TextPrimary,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
@@ -220,7 +226,7 @@ fun SubscriptionScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Jelajahi video dan subscribe channel favoritmu untuk melihat video terbarunya di sini tanpa butuh akun Google.",
+                        text = stringResource(R.string.empty_subscriptions_desc),
                         color = TextSecondary,
                         fontSize = 13.5.sp,
                         textAlign = TextAlign.Center,
@@ -244,7 +250,7 @@ fun SubscriptionScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Jelajahi Beranda",
+                            text = stringResource(R.string.explore_home),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp
                         )
@@ -309,7 +315,7 @@ fun SubscriptionScreen(
                 // 2. Section divider / header
                 item(key = "feed_section_header") {
                     Text(
-                        text = "Video Terbaru",
+                        text = stringResource(R.string.channel_recent_videos),
                         color = TextPrimary,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,

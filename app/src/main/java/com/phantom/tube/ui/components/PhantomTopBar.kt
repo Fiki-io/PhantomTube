@@ -98,7 +98,7 @@ fun PhantomTopBar(
                 if (onRefreshClick != null) {
                     PhantomIconButton(
                         icon = Icons.Default.Refresh,
-                        contentDescription = "Segarkan",
+                        contentDescription = stringResource(R.string.common_refresh),
                         size = 38.dp,
                         iconSize = 20.dp,
                         onClick = onRefreshClick

@@ -80,7 +80,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import com.phantom.tube.R
 import com.phantom.tube.PhantomApp
 import com.phantom.tube.core.database.SubscriptionEntity
 import com.phantom.tube.core.theme.ObsidianDark
@@ -118,7 +120,10 @@ fun ChannelScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     var hasError by remember { mutableStateOf(false) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Beranda", "Video")
+    val tabs = listOf(
+        stringResource(R.string.channel_tab_home),
+        stringResource(R.string.channel_tab_videos)
+    )
 
     var videoTabVideos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var videoContinuationToken by remember { mutableStateOf<String?>(null) }
@@ -298,7 +303,7 @@ fun ChannelScreen(
                 IconButton(onClick = onBackClick) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali",
+                        contentDescription = stringResource(R.string.action_back),
                         tint = TextPrimary
                     )
                 }
@@ -318,7 +323,7 @@ fun ChannelScreen(
                 IconButton(onClick = { loadChannelData(isRefresh = true) }) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = "Muat Ulang",
+                        contentDescription = stringResource(R.string.common_refresh),
                         tint = TextPrimary
                     )
                 }
@@ -326,7 +331,7 @@ fun ChannelScreen(
                 IconButton(onClick = onSearchClick) {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = "Cari",
+                        contentDescription = stringResource(R.string.nav_search),
                         tint = TextPrimary
                     )
                 }
@@ -334,7 +339,7 @@ fun ChannelScreen(
                 IconButton(onClick = { /* Opsi lainnya */ }) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Menu Opsi",
+                        contentDescription = stringResource(R.string.nav_settings),
                         tint = TextPrimary
                     )
                 }
@@ -369,14 +374,14 @@ fun ChannelScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Gagal memuat channel",
+                                text = stringResource(R.string.channel_failed_load),
                                 color = TextPrimary,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Periksa koneksi internet Anda dan coba lagi",
+                                text = stringResource(R.string.channel_network_retry),
                                 color = TextSecondary,
                                 fontSize = 13.sp,
                                 textAlign = TextAlign.Center
@@ -390,7 +395,7 @@ fun ChannelScreen(
                                     .padding(horizontal = 24.dp, vertical = 10.dp)
                             ) {
                                 Text(
-                                    text = "Coba Lagi",
+                                    text = stringResource(R.string.common_retry),
                                     color = Color.Black,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
@@ -625,14 +630,14 @@ fun ChannelScreen(
                                                 )
                                                 Spacer(modifier = Modifier.width(6.dp))
                                                 Text(
-                                                    text = "Disubscribe",
+                                                    text = stringResource(R.string.channel_subscribed),
                                                     color = Color.White,
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.SemiBold
                                                 )
                                             } else {
                                                 Text(
-                                                    text = "Subscribe",
+                                                    text = stringResource(R.string.channel_subscribe),
                                                     color = Color.Black,
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.Bold
@@ -702,6 +707,12 @@ fun ChannelScreen(
                                     ) {
                                         items(sortChips) { chip ->
                                             val isSelected = selectedSortChip == chip.title
+                                            val chipDisplayName = when (chip.title.trim().lowercase()) {
+                                                "terbaru", "latest" -> stringResource(R.string.channel_sort_latest)
+                                                "populer", "popular" -> stringResource(R.string.channel_sort_popular)
+                                                "terlama", "oldest" -> stringResource(R.string.channel_sort_oldest)
+                                                else -> chip.title
+                                            }
                                             Box(
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(8.dp))
@@ -720,7 +731,7 @@ fun ChannelScreen(
                                                     .padding(horizontal = 14.dp, vertical = 6.dp)
                                             ) {
                                                 Text(
-                                                    text = chip.title,
+                                                    text = chipDisplayName,
                                                     color = if (isSelected) Color.Black else TextPrimary,
                                                     fontSize = 13.sp,
                                                     fontWeight = FontWeight.Medium
@@ -782,7 +793,7 @@ fun ChannelScreen(
                                 if (homeList.isNotEmpty()) {
                                     item(key = "recent_releases_header") {
                                         Text(
-                                            text = "Video Terbaru",
+                                            text = stringResource(R.string.channel_recent_videos),
                                             color = TextPrimary,
                                             fontSize = 17.sp,
                                             fontWeight = FontWeight.Bold,
@@ -877,7 +888,7 @@ fun ChannelScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Tentang Channel",
+                            text = stringResource(R.string.channel_about_title),
                             color = TextPrimary,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
@@ -885,7 +896,7 @@ fun ChannelScreen(
                         IconButton(onClick = { showDescriptionSheet = false }) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Tutup",
+                                contentDescription = stringResource(R.string.player_close),
                                 tint = TextSecondary
                             )
                         }
@@ -894,7 +905,7 @@ fun ChannelScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = profile?.description ?: "Tidak ada deskripsi",
+                        text = profile?.description ?: stringResource(R.string.channel_no_description),
                         color = TextSecondary,
                         fontSize = 14.sp,
                         lineHeight = 20.sp
@@ -904,7 +915,7 @@ fun ChannelScreen(
 
                     if (profile?.externalLinksText?.isNotBlank() == true) {
                         Text(
-                            text = "Tautan",
+                            text = stringResource(R.string.channel_links),
                             color = TextPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
@@ -1077,7 +1088,7 @@ fun ChannelVideoHorizontalItem(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            text = "Bagikan",
+                            text = stringResource(R.string.player_share),
                             color = TextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
@@ -1086,7 +1097,7 @@ fun ChannelVideoHorizontalItem(
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Share,
-                            contentDescription = "Bagikan",
+                            contentDescription = stringResource(R.string.player_share),
                             tint = TextPrimary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1099,7 +1110,7 @@ fun ChannelVideoHorizontalItem(
                             putExtra(Intent.EXTRA_TEXT, "${video.title}\nhttps://youtu.be/${video.id}")
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
-                        val shareIntent = Intent.createChooser(sendIntent, "Bagikan").apply {
+                        val shareIntent = Intent.createChooser(sendIntent, null).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                         context.startActivity(shareIntent)

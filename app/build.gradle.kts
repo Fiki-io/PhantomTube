@@ -29,7 +29,7 @@ android {
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
         }
-        resourceConfigurations += listOf("en", "id", "es", "ja", "ru")
+        resourceConfigurations += listOf("en", "id", "in", "es", "ja", "ru")
         externalNativeBuild {
             cmake {
                 arguments += listOf("-DANDROID_STL=none")

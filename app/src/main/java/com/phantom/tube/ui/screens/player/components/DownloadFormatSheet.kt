@@ -99,7 +99,7 @@ fun DownloadFormatSheet(
     fun triggerDownload(quality: AvailableQuality) {
         downloadState = DownloadState.Converting(quality.label)
         scope.launch {
-            Toast.makeText(context, "Menyiapkan unduhan ${quality.label}...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.download_prep_toast, quality.label), Toast.LENGTH_SHORT).show()
             val convertResult = PhantomDownloadEngine.convertMedia(video.id, quality)
             convertResult.onSuccess { dlRes ->
                 downloadState = DownloadState.Downloading(quality.label, 0, 0L, 0L)
@@ -136,14 +136,14 @@ fun DownloadFormatSheet(
                         fileSize = fileInfo.fileSize
                     )
                     repository.saveDownload(entity)
-                    Toast.makeText(context, "Tersimpan di ${fileInfo.filePath}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.download_saved_toast, fileInfo.filePath), Toast.LENGTH_LONG).show()
                 }.onFailure { dlErr ->
-                    val msg = dlErr.message ?: "Gagal mengunduh file media"
+                    val msg = dlErr.message ?: context.getString(R.string.download_error_general)
                     downloadState = DownloadState.Error(msg)
                     Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                 }
             }.onFailure { convErr ->
-                val msg = convErr.message ?: "Gagal memproses konversi video"
+                val msg = convErr.message ?: context.getString(R.string.download_error_convert)
                 downloadState = DownloadState.Error(msg)
                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
             }
@@ -202,7 +202,7 @@ fun DownloadFormatSheet(
                     Spacer(modifier = Modifier.width(10.dp))
 
                     Text(
-                        text = "Unduh Media Offline",
+                        text = stringResource(R.string.download_sheet_title),
                         color = TextPrimary,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
@@ -211,7 +211,7 @@ fun DownloadFormatSheet(
 
                 PhantomIconButton(
                     icon = Icons.Default.Close,
-                    contentDescription = "Tutup",
+                    contentDescription = stringResource(R.string.action_close),
                     size = 32.dp,
                     iconSize = 18.dp,
                     onClick = onDismiss
@@ -311,7 +311,7 @@ fun DownloadFormatSheet(
                                     .padding(4.dp)
                             ) {
                                 FormatTabItem(
-                                    title = "Audio Musik (MP3)",
+                                    title = stringResource(R.string.download_audio_tab),
                                     icon = Icons.Default.MusicNote,
                                     isSelected = selectedFormatTab == 0,
                                     onClick = { selectedFormatTab = 0 },
@@ -321,7 +321,7 @@ fun DownloadFormatSheet(
                                 Spacer(modifier = Modifier.width(6.dp))
 
                                 FormatTabItem(
-                                    title = "Video (MP4)",
+                                    title = stringResource(R.string.download_video_tab),
                                     icon = Icons.Default.Movie,
                                     isSelected = selectedFormatTab == 1,
                                     onClick = { selectedFormatTab = 1 },
@@ -361,14 +361,14 @@ fun DownloadFormatSheet(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Menyiapkan ${state.qualityLabel}...",
+                                text = stringResource(R.string.download_prep_title, state.qualityLabel),
                                 color = TextPrimary,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Menghubungkan ke server konversi media...",
+                                text = stringResource(R.string.download_prep_connecting),
                                 color = TextMuted,
                                 fontSize = 12.sp
                             )
@@ -393,7 +393,7 @@ fun DownloadFormatSheet(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Mengunduh ${state.qualityLabel}",
+                                    text = stringResource(R.string.download_progress_title, state.qualityLabel),
                                     color = TextPrimary,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
@@ -433,7 +433,7 @@ fun DownloadFormatSheet(
                             Spacer(modifier = Modifier.height(10.dp))
 
                             Text(
-                                text = "$downloadedMb MB / $totalMb • Berjalan di latar belakang",
+                                text = "$downloadedMb MB / $totalMb • " + stringResource(R.string.download_progress_bg_note),
                                 color = TextSecondary,
                                 fontSize = 12.sp
                             )
@@ -468,7 +468,7 @@ fun DownloadFormatSheet(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
-                                text = "Unduhan Berhasil Disimpan!",
+                                text = stringResource(R.string.download_success_title),
                                 color = TextPrimary,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
@@ -487,7 +487,7 @@ fun DownloadFormatSheet(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = "Lokasi: ${state.filePath}\nOtomatis terdeteksi oleh pemutar musik & galeri Anda.",
+                                text = "${stringResource(R.string.download_saved_toast, state.filePath)}\n${stringResource(R.string.download_success_detected_note)}",
                                 color = TextMuted,
                                 fontSize = 11.sp,
                                 lineHeight = 15.sp,
@@ -510,7 +510,7 @@ fun DownloadFormatSheet(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "Tutup",
+                                        text = stringResource(R.string.action_close),
                                         color = TextPrimary,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold
@@ -541,7 +541,7 @@ fun DownloadFormatSheet(
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "Buka File",
+                                            text = stringResource(R.string.download_open_file),
                                             color = Color.White,
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold
@@ -580,7 +580,7 @@ fun DownloadFormatSheet(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
-                                text = "Gagal Memproses Unduhan",
+                                text = stringResource(R.string.download_failed_title),
                                 color = TextPrimary,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
@@ -605,7 +605,7 @@ fun DownloadFormatSheet(
                                     .padding(horizontal = 20.dp, vertical = 9.dp)
                             ) {
                                 Text(
-                                    text = "Coba Lagi",
+                                    text = stringResource(R.string.common_retry),
                                     color = TextPrimary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -716,7 +716,7 @@ private fun QualityCardItem(
         ) {
             Icon(
                 imageVector = Icons.Default.Download,
-                contentDescription = "Unduh",
+                contentDescription = stringResource(R.string.player_download),
                 tint = TextPrimary,
                 modifier = Modifier.size(15.dp)
             )

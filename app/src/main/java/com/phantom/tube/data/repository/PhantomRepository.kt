@@ -37,7 +37,10 @@ class PhantomRepository(
 ) {
     init {
         innerTubeClient.regionCodeProvider = {
-            preferences?.contentCountry?.value ?: "ID"
+            preferences?.contentCountry?.value ?: "GLOBAL"
+        }
+        innerTubeClient.languageCodeProvider = {
+            preferences?.appLanguage?.value ?: "en"
         }
     }
     suspend fun getHomeRecommendations(

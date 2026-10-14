@@ -20,3 +20,4 @@ debug.keystore.base64
 .build-outputs/
 release-*/
 *.apk
+metadata.json

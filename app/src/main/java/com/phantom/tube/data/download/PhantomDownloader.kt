@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import com.phantom.tube.R
 import com.phantom.tube.core.security.PhantomNative
 import java.io.File
 import java.io.FileOutputStream
@@ -42,10 +43,10 @@ object PhantomDownloader {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                CHANNEL_NAME,
+                context.getString(R.string.downloads_title),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Status dan progres unduhan media Phantom"
+                description = context.getString(R.string.downloads_title)
                 setShowBadge(false)
             }
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -109,7 +110,7 @@ object PhantomDownloader {
 
                 val notif = NotificationCompat.Builder(context, CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                    .setContentTitle("Unduhan Berhasil Disimpan")
+                    .setContentTitle(context.getString(R.string.download_success_title))
                     .setContentText(cleanName)
                     .setSubText(displayPath)
                     .setOngoing(false)

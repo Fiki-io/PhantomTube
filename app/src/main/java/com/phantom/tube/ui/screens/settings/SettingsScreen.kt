@@ -195,7 +195,7 @@ fun SettingsScreen(
         ) {
             PhantomIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Kembali",
+                contentDescription = stringResource(R.string.action_back),
                 size = 40.dp,
                 iconSize = 22.dp,
                 onClick = onBackClick
@@ -252,7 +252,11 @@ fun SettingsScreen(
             SettingsSectionHeader(title = stringResource(R.string.settings_section_playback))
 
             SettingsCard {
-                val currentQualityLabel = QUALITY_OPTIONS.firstOrNull { it.code == defaultQuality }?.label ?: defaultQuality
+                val currentQualityLabel = if (defaultQuality == "auto") {
+                    stringResource(R.string.settings_quality_auto)
+                } else {
+                    QUALITY_OPTIONS.firstOrNull { it.code == defaultQuality }?.label ?: defaultQuality
+                }
                 SettingsItemClickable(
                     icon = Icons.Default.HighQuality,
                     title = stringResource(R.string.settings_default_quality),
@@ -262,7 +266,7 @@ fun SettingsScreen(
 
                 SettingsDivider()
 
-                val currentSpeedLabel = if (defaultSpeed == 1.0f) "1.0x" else "${defaultSpeed}x"
+                val currentSpeedLabel = if (defaultSpeed == 1.0f) stringResource(R.string.settings_speed_normal) else "${defaultSpeed}x"
                 SettingsItemClickable(
                     icon = Icons.Default.Speed,
                     title = stringResource(R.string.settings_default_speed),
@@ -311,8 +315,8 @@ fun SettingsScreen(
 
                         SettingsItemSwitch(
                             icon = Icons.Default.PlayArrow,
-                            title = "Lewati Secara Otomatis",
-                            subtitle = if (sbAutoSkip) "Segmen langsung di-skip tanpa konfirmasi" else "Tampilkan tombol lewati manual",
+                            title = stringResource(R.string.settings_sponsorblock_auto_skip),
+                            subtitle = if (sbAutoSkip) stringResource(R.string.settings_sponsorblock_auto_skip_desc) else stringResource(R.string.settings_sponsorblock_manual_skip_desc),
                             checked = sbAutoSkip,
                             onCheckedChange = { preferences.setSponsorBlockAutoSkip(it) }
                         )
@@ -320,7 +324,7 @@ fun SettingsScreen(
                         SettingsDivider()
 
                         Text(
-                            text = "Kategori yang di-skip:",
+                            text = stringResource(R.string.settings_sponsorblock_categories_title),
                             color = TextMuted,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -418,7 +422,7 @@ fun SettingsScreen(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                        contentDescription = "Logo Phantom",
+                        contentDescription = stringResource(R.string.app_name),
                         modifier = Modifier
                             .size(46.dp)
                             .clip(RoundedCornerShape(12.dp))
@@ -435,7 +439,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Versi $appVersionName",
+                            text = stringResource(R.string.settings_version_format, appVersionName),
                             color = TextSecondary,
                             fontSize = 12.sp
                         )
@@ -446,8 +450,8 @@ fun SettingsScreen(
 
                 SettingsItemClickable(
                     icon = Icons.Default.Info,
-                    title = "Kebijakan Privasi",
-                    subtitle = "Aplikasi memproses seluruh data secara lokal di perangkat Anda tanpa pelacakan.",
+                    title = stringResource(R.string.settings_privacy_policy_title),
+                    subtitle = stringResource(R.string.settings_privacy_policy_desc),
                     onClick = {
                         try {
                             val intent = Intent(
@@ -456,7 +460,7 @@ fun SettingsScreen(
                             )
                             context.startActivity(intent)
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Tidak dapat membuka peramban", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.settings_browser_error), Toast.LENGTH_SHORT).show()
                         }
                     }
                 )
@@ -465,8 +469,8 @@ fun SettingsScreen(
 
                 SettingsItemClickable(
                     icon = Icons.Default.SystemUpdate,
-                    title = "Periksa Pembaruan",
-                    subtitle = "Periksa versi terbaru aplikasi",
+                    title = stringResource(R.string.settings_check_update),
+                    subtitle = stringResource(R.string.settings_check_update_desc),
                     onClick = onCheckUpdateClick
                 )
 
@@ -492,7 +496,7 @@ fun SettingsScreen(
     if (showQualityDialog) {
         AlertDialog(
             onDismissRequest = { showQualityDialog = false },
-            title = { Text(text = "Kualitas Default Video", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            title = { Text(text = stringResource(R.string.settings_default_quality), color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     QUALITY_OPTIONS.forEach { opt ->
@@ -517,7 +521,7 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = opt.label,
+                                text = if (opt.code == "auto") stringResource(R.string.settings_quality_auto) else opt.label,
                                 color = if (isSelected) TextPrimary else TextSecondary,
                                 fontSize = 14.sp,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
@@ -528,7 +532,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showQualityDialog = false }) {
-                    Text("Tutup", color = YouTubeRed)
+                    Text(stringResource(R.string.player_close), color = YouTubeRed)
                 }
             },
             containerColor = YouTubeSurface
@@ -539,12 +543,12 @@ fun SettingsScreen(
     if (showSpeedDialog) {
         AlertDialog(
             onDismissRequest = { showSpeedDialog = false },
-            title = { Text(text = "Kecepatan Putar Default", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            title = { Text(text = stringResource(R.string.settings_default_speed), color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     SPEED_OPTIONS.forEach { speed ->
                         val isSelected = defaultSpeed == speed
-                        val speedText = if (speed == 1.0f) "1.0x (Normal)" else "${speed}x"
+                        val speedText = if (speed == 1.0f) stringResource(R.string.settings_speed_normal) else "${speed}x"
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -576,7 +580,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showSpeedDialog = false }) {
-                    Text("Tutup", color = YouTubeRed)
+                    Text(stringResource(R.string.player_close), color = YouTubeRed)
                 }
             },
             containerColor = YouTubeSurface
@@ -641,7 +645,7 @@ fun SettingsScreen(
     if (showRegionDialog) {
         AlertDialog(
             onDismissRequest = { showRegionDialog = false },
-            title = { Text(text = "Wilayah Rekomendasi", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            title = { Text(text = stringResource(R.string.settings_content_region), color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     REGION_OPTIONS.forEach { reg ->
@@ -883,22 +887,22 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         val catLabel = when (feedbackCategory) {
-                            0 -> "Laporan Bug"
-                            1 -> "Permintaan Fitur"
-                            else -> "Masukan Umum"
+                            0 -> context.getString(R.string.settings_feedback_subject_bug)
+                            1 -> context.getString(R.string.settings_feedback_subject_feature)
+                            else -> context.getString(R.string.settings_feedback_subject_general)
                         }
                         val subject = "[Phantom] $catLabel"
                         val emailBody = buildString {
-                            appendLine(messageText.ifBlank { "Halo Developer Phantom," })
+                            appendLine(messageText.ifBlank { "Hello Phantom Team," })
                             appendLine()
                             appendLine("==============================")
-                            appendLine("INFORMASI PERANGKAT & APLIKASI")
+                            appendLine("DEVICE & APP INFORMATION")
                             appendLine("==============================")
-                            appendLine("Versi Phantom: v$appVersionName")
-                            appendLine("Perangkat: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE})")
-                            appendLine("Versi Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
-                            appendLine("Bahasa Aplikasi: $appLanguage")
-                            appendLine("Wilayah Konten: $contentCountry")
+                            appendLine("Phantom Version: v$appVersionName")
+                            appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE})")
+                            appendLine("Android OS: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+                            appendLine("App Language: $appLanguage")
+                            appendLine("Content Region: $contentCountry")
                             appendLine("Tanggal: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}")
                         }
 
@@ -928,7 +932,7 @@ fun SettingsScreen(
                                     putExtra(Intent.EXTRA_TEXT, emailBody)
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 }
-                                context.startActivity(Intent.createChooser(sendToChooser, "Kirim masukan via...").apply {
+                                context.startActivity(Intent.createChooser(sendToChooser, context.getString(R.string.settings_feedback_chooser)).apply {
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 })
                                 isSent = true
@@ -945,7 +949,7 @@ fun SettingsScreen(
                                     putExtra(Intent.EXTRA_TEXT, emailBody)
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 }
-                                context.startActivity(Intent.createChooser(sendIntent, "Kirim masukan via...").apply {
+                                context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.settings_feedback_chooser)).apply {
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 })
                                 isSent = true
@@ -962,7 +966,7 @@ fun SettingsScreen(
                                     putExtra(Intent.EXTRA_TEXT, emailBody)
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 }
-                                context.startActivity(Intent.createChooser(textIntent, "Kirim masukan via...").apply {
+                                context.startActivity(Intent.createChooser(textIntent, context.getString(R.string.settings_feedback_chooser)).apply {
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 })
                                 isSent = true

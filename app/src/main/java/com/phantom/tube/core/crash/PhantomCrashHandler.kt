@@ -40,13 +40,13 @@ class PhantomCrashHandler private constructor(private val context: Context) : Th
 
             val crashReport = buildString {
                 appendLine("=== PHANTOM CRASH LOG ===")
-                appendLine("Waktu       : $timestamp")
-                appendLine("Perangkat   : ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE})")
+                appendLine("Timestamp   : $timestamp")
+                appendLine("Device      : ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE})")
                 appendLine("Android OS  : ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
                 appendLine("App Version : $versionName ($versionCode)")
                 appendLine("Thread      : ${thread.name} (ID: ${thread.id})")
                 appendLine("Exception   : ${throwable.javaClass.name}")
-                appendLine("Pesan Error : ${throwable.message ?: "Tidak ada detail pesan"}")
+                appendLine("Error Msg   : ${throwable.message ?: "No message details"}")
                 appendLine("=========================")
                 appendLine()
                 appendLine("STACK TRACE:")

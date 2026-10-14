@@ -68,6 +68,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -165,7 +167,7 @@ fun DownloadsScreen(
             IconButton(onClick = onBackClick) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Kembali",
+                    contentDescription = stringResource(R.string.action_back),
                     tint = TextPrimary
                 )
             }
@@ -174,13 +176,13 @@ fun DownloadsScreen(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Unduhan Saya",
+                    text = stringResource(R.string.downloads_title),
                     color = TextPrimary,
                     fontSize = 19.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${downloads.size} file tersimpan • $totalSizeMb",
+                    text = stringResource(R.string.library_files_count, downloads.size, totalSizeMb),
                     color = TextSecondary,
                     fontSize = 12.sp
                 )
@@ -189,7 +191,7 @@ fun DownloadsScreen(
             IconButton(onClick = { isSearchActive = !isSearchActive }) {
                 Icon(
                     imageVector = if (isSearchActive) Icons.Default.Clear else Icons.Default.Search,
-                    contentDescription = "Cari Unduhan",
+                    contentDescription = stringResource(R.string.nav_search),
                     tint = if (isSearchActive) YouTubeRed else TextSecondary
                 )
             }
@@ -205,7 +207,7 @@ fun DownloadsScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Cari judul lagu atau video...", color = TextMuted, fontSize = 14.sp) },
+                    placeholder = { Text(stringResource(R.string.downloads_search_hint), color = TextMuted, fontSize = 14.sp) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = TextPrimary,
@@ -232,7 +234,7 @@ fun DownloadsScreen(
             FilterChip(
                 selected = selectedFilter == DownloadFilter.ALL,
                 onClick = { selectedFilter = DownloadFilter.ALL },
-                label = { Text("Semua (${downloads.size})", fontSize = 12.sp) },
+                label = { Text(stringResource(R.string.downloads_filter_all, downloads.size), fontSize = 12.sp) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = YouTubeRed,
                     selectedLabelColor = Color.White,
@@ -245,7 +247,7 @@ fun DownloadsScreen(
             FilterChip(
                 selected = selectedFilter == DownloadFilter.AUDIO,
                 onClick = { selectedFilter = DownloadFilter.AUDIO },
-                label = { Text("Musik MP3 (${downloads.count { it.format.equals("MP3", true) }})", fontSize = 12.sp) },
+                label = { Text(stringResource(R.string.downloads_filter_audio, downloads.count { it.format.equals("MP3", true) }), fontSize = 12.sp) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = YouTubeRed,
                     selectedLabelColor = Color.White,
@@ -258,7 +260,7 @@ fun DownloadsScreen(
             FilterChip(
                 selected = selectedFilter == DownloadFilter.VIDEO,
                 onClick = { selectedFilter = DownloadFilter.VIDEO },
-                label = { Text("Video MP4 (${downloads.count { it.format.equals("MP4", true) }})", fontSize = 12.sp) },
+                label = { Text(stringResource(R.string.downloads_filter_video, downloads.count { it.format.equals("MP4", true) }), fontSize = 12.sp) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = YouTubeRed,
                     selectedLabelColor = Color.White,
@@ -283,7 +285,7 @@ fun DownloadsScreen(
                     onClick = {
                         val tracksToPlay = if (isShuffle) audioTracks.shuffled() else audioTracks
                         OfflineAudioPlayerManager.playQueue(context, tracksToPlay, 0)
-                        Toast.makeText(context, "Memutar ${tracksToPlay.size} musik offline", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.downloads_toast_playing, tracksToPlay.size), Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = YouTubeRed),
                     shape = RoundedCornerShape(24.dp),
@@ -297,7 +299,7 @@ fun DownloadsScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Putar Semua (${audioTracks.size})",
+                        text = stringResource(R.string.downloads_play_all_count, audioTracks.size),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -319,7 +321,7 @@ fun DownloadsScreen(
                                 OfflineAudioPlayerManager.toggleShuffle(context)
                                 Toast.makeText(
                                     context,
-                                    if (!isShuffle) "Acak lagu diaktifkan" else "Acak lagu dinonaktifkan",
+                                    if (!isShuffle) context.getString(R.string.downloads_shuffle_on) else context.getString(R.string.downloads_shuffle_off),
                                     Toast.LENGTH_SHORT
                                 ).show()
                             },
@@ -327,7 +329,7 @@ fun DownloadsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
-                            contentDescription = "Acak Lagu",
+                            contentDescription = stringResource(R.string.downloads_shuffle_on),
                             tint = if (isShuffle) YouTubeRed else TextSecondary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -343,9 +345,9 @@ fun DownloadsScreen(
                             .clickable {
                                 OfflineAudioPlayerManager.toggleRepeatMode(context)
                                 val msg = when (OfflineAudioPlayerManager.repeatMode.value) {
-                                    com.phantom.tube.player.offline.OfflineRepeatMode.OFF -> "Ulangi: Nonaktif"
-                                    com.phantom.tube.player.offline.OfflineRepeatMode.ALL -> "Ulangi: Semua antrean"
-                                    com.phantom.tube.player.offline.OfflineRepeatMode.ONE -> "Ulangi: Lagu ini (Loop 1)"
+                                    com.phantom.tube.player.offline.OfflineRepeatMode.OFF -> context.getString(R.string.downloads_repeat_off)
+                                    com.phantom.tube.player.offline.OfflineRepeatMode.ALL -> context.getString(R.string.downloads_repeat_all)
+                                    com.phantom.tube.player.offline.OfflineRepeatMode.ONE -> context.getString(R.string.downloads_repeat_one)
                                 }
                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                             },
@@ -353,7 +355,7 @@ fun DownloadsScreen(
                     ) {
                         Icon(
                             imageVector = if (repeatMode == com.phantom.tube.player.offline.OfflineRepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
-                            contentDescription = "Ulangi Lagu",
+                            contentDescription = stringResource(R.string.downloads_repeat_all),
                             tint = if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed else TextSecondary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -389,14 +391,14 @@ fun DownloadsScreen(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = if (searchQuery.isNotBlank()) "Tidak ada hasil pencarian" else "Belum Ada Unduhan",
+                        text = if (searchQuery.isNotBlank()) stringResource(R.string.downloads_search_no_results) else stringResource(R.string.downloads_empty_title),
                         color = TextPrimary,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = if (searchQuery.isNotBlank()) "Coba kata kunci lain" else "Unduh musik atau video favoritmu untuk diputar secara offline kapan saja tanpa kuota.",
+                        text = if (searchQuery.isNotBlank()) stringResource(R.string.downloads_search_try_again) else stringResource(R.string.downloads_empty_desc),
                         color = TextSecondary,
                         fontSize = 13.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -459,10 +461,10 @@ fun DownloadsScreen(
     itemToDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { itemToDelete = null },
-            title = { Text("Hapus Unduhan?", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.downloads_delete_title), color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    text = "File '${item.title}' akan dihapus dari penyimpanan perangkat dan daftar unduhan.",
+                    text = stringResource(R.string.downloads_delete_confirm_desc, item.title),
                     color = TextSecondary
                 )
             },
@@ -476,17 +478,17 @@ fun DownloadsScreen(
                                 OfflineAudioPlayerManager.stop(context)
                             }
                             itemToDelete = null
-                            Toast.makeText(context, "Unduhan berhasil dihapus", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.downloads_toast_deleted), Toast.LENGTH_SHORT).show()
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = YouTubeRed)
                 ) {
-                    Text("Hapus", color = Color.White)
+                    Text(stringResource(R.string.dialog_delete), color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { itemToDelete = null }) {
-                    Text("Batal", color = TextSecondary)
+                    Text(stringResource(R.string.dialog_cancel), color = TextSecondary)
                 }
             },
             containerColor = YouTubeDark
@@ -601,7 +603,7 @@ private fun DownloadItemRow(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "$sizeMb • Tersimpan offline",
+                text = "$sizeMb • " + stringResource(R.string.downloads_saved_offline),
                 color = TextMuted,
                 fontSize = 10.sp
             )
@@ -612,7 +614,7 @@ private fun DownloadItemRow(
             IconButton(onClick = { showMenu = true }) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Opsi",
+                    contentDescription = stringResource(R.string.settings_player_title),
                     tint = TextSecondary,
                     modifier = Modifier.size(20.dp)
                 )
@@ -624,7 +626,7 @@ private fun DownloadItemRow(
                 modifier = Modifier.background(YouTubeDark)
             ) {
                 DropdownMenuItem(
-                    text = { Text("Putar di Pemutar Luar", color = TextPrimary, fontSize = 13.sp) },
+                    text = { Text(stringResource(R.string.downloads_play_external), color = TextPrimary, fontSize = 13.sp) },
                     leadingIcon = { Icon(Icons.Default.OpenInNew, null, tint = TextSecondary, modifier = Modifier.size(18.dp)) },
                     onClick = {
                         showMenu = false
@@ -632,7 +634,7 @@ private fun DownloadItemRow(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Bagikan File", color = TextPrimary, fontSize = 13.sp) },
+                    text = { Text(stringResource(R.string.downloads_share_file), color = TextPrimary, fontSize = 13.sp) },
                     leadingIcon = { Icon(Icons.Default.Share, null, tint = TextSecondary, modifier = Modifier.size(18.dp)) },
                     onClick = {
                         showMenu = false
@@ -640,7 +642,7 @@ private fun DownloadItemRow(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Hapus Unduhan", color = YouTubeRed, fontSize = 13.sp) },
+                    text = { Text(stringResource(R.string.downloads_delete_title), color = YouTubeRed, fontSize = 13.sp) },
                     leadingIcon = { Icon(Icons.Default.Delete, null, tint = YouTubeRed, modifier = Modifier.size(18.dp)) },
                     onClick = {
                         showMenu = false
@@ -660,12 +662,12 @@ private fun openInExternalPlayer(context: Context, item: DownloadEntity) {
             setDataAndType(uri, mimeType)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        val chooser = Intent.createChooser(intent, "Putar dengan...").apply {
+        val chooser = Intent.createChooser(intent, context.getString(R.string.downloads_chooser_play)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(chooser)
     } catch (_: Exception) {
-        Toast.makeText(context, "Tidak ada pemutar eksternal yang kompatibel", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.downloads_toast_no_external), Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -678,12 +680,12 @@ private fun shareMediaFile(context: Context, item: DownloadEntity) {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        val chooser = Intent.createChooser(intent, "Bagikan '${item.title}'").apply {
+        val chooser = Intent.createChooser(intent, context.getString(R.string.downloads_chooser_share, item.title)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(chooser)
     } catch (_: Exception) {
-        Toast.makeText(context, "Gagal membagikan file", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.downloads_toast_share_failed), Toast.LENGTH_SHORT).show()
     }
 }
 

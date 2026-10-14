@@ -144,4 +144,245 @@
     <string name="downloads_play_all">Play All</string>
     <string name="downloads_empty_title">No Downloads Yet</string>
     <string name="downloads_empty_desc">Download your favorite music or videos to play offline anytime without using data.</string>
+
+    <!-- Player Stats & Sheets -->
+    <string name="player_stat_likes">Likes</string>
+    <string name="player_stat_dislike">Dislike</string>
+    <string name="player_stat_views">Views</string>
+    <string name="player_stat_published">Release Date</string>
+    <string name="player_no_description">No description available for this video.</string>
+    <string name="player_tap_to_view_comments">Tap to view comments...</string>
+    <string name="player_no_comments_sheet">No comments for this video</string>
+    <string name="player_more_details">...more</string>
+    <string name="player_up_next_short">Up Next</string>
+    <string name="action_close">Close</string>
+    <string name="action_back">Back</string>
+    <string name="action_loading">Loading...</string>
+    <string name="settings_player_title">Settings</string>
+    <string name="settings_sleep_timer">Sleep Timer</string>
+    <string name="settings_double_tap_seek">Double-tap to seek</string>
+    <string name="settings_loop_video">Loop video</string>
+    <string name="settings_loop_video_desc">Play video continuously</string>
+    <string name="settings_audio_only">Audio-Only Mode (AMOLED)</string>
+    <string name="settings_audio_only_desc">Listen to audio without loading video to save data and battery</string>
+    <string name="search_for_prefix">Search for</string>
+
+    <!-- Channel & Feed Additions -->
+    <string name="action_refresh">Refresh</string>
+    <string name="channel_for_you">For You</string>
+    <string name="channel_recent_videos">Latest Videos</string>
+    <string name="channel_tab_home">Home</string>
+    <string name="channel_tab_videos">Videos</string>
+    <string name="channel_sort_latest">Latest</string>
+    <string name="channel_sort_popular">Popular</string>
+    <string name="channel_sort_oldest">Oldest</string>
+    <string name="channel_about_title">About Channel</string>
+    <string name="channel_links">Links</string>
+    <string name="channel_load_failed">Failed to load channel</string>
+    <string name="channel_load_failed_hint">Check your internet connection and try again</string>
+    <string name="action_retry">Retry</string>
+
+    <!-- Library & Subscriptions Additions -->
+    <string name="library_downloads">Downloads</string>
+    <string name="library_downloads_empty">No files yet • Play offline anytime</string>
+    <string name="library_files_count">%1$s files saved • %2$s</string>
+    <string name="subscriptions_empty_title">No Subscriptions Yet</string>
+    <string name="subscriptions_empty_desc">Explore videos and subscribe to your favorite channels to see their latest uploads here without a Google account.</string>
+    <string name="subscriptions_explore_button">Explore Home</string>
+
+    <!-- Search Additions -->
+    <string name="search_no_results_for">No results for "%1$s"</string>
+    <string name="search_open_channel">Open channel</string>
+    <string name="search_history_badge">History</string>
+    <string name="search_suggestion_badge">Suggestion</string>
+    <string name="search_clear_query">Clear query</string>
+
+    <!-- Player Controls & Notices -->
+    <string name="player_minimize">Minimize Player</string>
+    <string name="player_captions_on">Captions enabled</string>
+    <string name="player_captions_off">Captions disabled</string>
+    <string name="player_captions_turn_on">Turn on captions</string>
+    <string name="player_captions_turn_off">Turn off captions</string>
+    <string name="player_zoom_fill">Zoomed to fill</string>
+    <string name="player_zoom_original">Original ratio</string>
+    <string name="player_prev_video">Previous Video</string>
+    <string name="player_next_video">Next Video</string>
+    <string name="player_play">Play</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_selected">Selected</string>
+    <string name="player_fullscreen">Fullscreen</string>
+    <string name="player_exit_fullscreen">Exit Fullscreen</string>
+    <string name="player_rewind_10s">Rewind 10 Seconds</string>
+    <string name="player_forward_10s">Forward 10 Seconds</string>
+    <string name="player_seek_notice_rewind">-10 Seconds</string>
+    <string name="player_seek_notice_forward">+10 Seconds</string>
+
+    <!-- Player Settings & Sleep Timer -->
+    <string name="settings_quality_auto">Auto (Recommended)</string>
+    <string name="settings_quality_highest">Highest Quality</string>
+    <string name="settings_quality_saver">144p (Data Saver)</string>
+    <string name="settings_sleep_timer_off">Off</string>
+    <string name="settings_sleep_timer_15m">15 Minutes</string>
+    <string name="settings_sleep_timer_30m">30 Minutes</string>
+    <string name="settings_sleep_timer_45m">45 Minutes</string>
+    <string name="settings_sleep_timer_60m">60 Minutes</string>
+    <string name="settings_sleep_timer_end">End of video</string>
+    <string name="settings_sleep_timer_active">Sleep timer active</string>
+    <string name="settings_sleep_timer_stopping_in">Stopping in %1$s</string>
+    <string name="settings_sleep_timer_cancel">Cancel Timer</string>
+    <string name="settings_seek_seconds_default">%1$s Seconds (Default)</string>
+    <string name="settings_seek_seconds">%1$s Seconds</string>
+    <string name="settings_speed_normal">1.0x (Normal)</string>
+    <string name="settings_audio_only_player_title">Audio-only mode</string>
+    <string name="settings_audio_only_player_desc">Turn off video to save power</string>
+    <string name="settings_auto_play_next_desc">Automatically play next video</string>
+
+    <!-- Downloads Screen & Actions -->
+    <string name="downloads_search_hint">Search songs or videos...</string>
+    <string name="downloads_filter_all">All (%1$s)</string>
+    <string name="downloads_filter_audio">MP3 Audio (%1$s)</string>
+    <string name="downloads_filter_video">MP4 Video (%1$s)</string>
+    <string name="downloads_play_all_count">Play All (%1$s)</string>
+    <string name="downloads_shuffle_on">Shuffle enabled</string>
+    <string name="downloads_shuffle_off">Shuffle disabled</string>
+    <string name="downloads_repeat_off">Repeat: Off</string>
+    <string name="downloads_repeat_all">Repeat: All</string>
+    <string name="downloads_repeat_one">Repeat: Current track</string>
+    <string name="downloads_search_no_results">No search results</string>
+    <string name="downloads_search_try_again">Try different keywords</string>
+    <string name="downloads_saved_offline">Saved offline</string>
+    <string name="downloads_play_external">Play in External Player</string>
+    <string name="downloads_share_file">Share File</string>
+    <string name="downloads_delete_title">Delete Download?</string>
+    <string name="downloads_delete_confirm_desc">"%1$s" will be deleted from device storage and download list.</string>
+    <string name="downloads_toast_playing">Playing %1$s offline tracks</string>
+    <string name="downloads_toast_deleted">Download deleted successfully</string>
+    <string name="downloads_toast_no_external">No compatible external player found</string>
+    <string name="downloads_toast_share_failed">Failed to share file</string>
+    <string name="downloads_chooser_play">Play with...</string>
+    <string name="downloads_chooser_share">Share "%1$s"</string>
+
+    <!-- Offline Audio Player Sheet -->
+    <string name="offline_audio_playing_banner">PLAYING OFFLINE MUSIC</string>
+    <string name="offline_audio_track_counter">Track %1$s of %2$s</string>
+    <string name="offline_audio_queue_title">Playback Queue (%1$s)</string>
+    <string name="offline_audio_auto_next">Auto-Next Active</string>
+
+    <!-- Download Format Sheet -->
+    <string name="download_prep_toast">Preparing download for %1$s...</string>
+    <string name="download_saved_toast">Saved to %1$s</string>
+    <string name="download_error_general">Failed to download media file</string>
+    <string name="download_error_convert">Failed to process video conversion</string>
+    <string name="download_prep_title">Preparing %1$s...</string>
+    <string name="download_prep_connecting">Connecting to media conversion server...</string>
+    <string name="download_progress_title">Downloading %1$s</string>
+    <string name="download_progress_bg_note">Running in background</string>
+    <string name="download_success_title">Download Saved Successfully!</string>
+    <string name="download_success_detected_note">Automatically detected by your music player and gallery.</string>
+    <string name="download_open_file">Open File</string>
+    <string name="download_failed_title">Download Failed</string>
+
+    <!-- Update Dialog -->
+    <string name="update_dialog_mandatory_title">Mandatory Update</string>
+    <string name="update_dialog_available_title">Update Available</string>
+    <string name="update_dialog_mandatory_desc">The current version is no longer supported. Please update to version %1$s to continue.</string>
+    <string name="update_dialog_available_desc">Version %1$s is now available</string>
+    <string name="update_dialog_changelog_title">Changelog:</string>
+    <string name="update_dialog_later">Later</string>
+    <string name="update_dialog_exit">Exit</string>
+    <string name="update_dialog_update_now">Update Now</string>
+    <string name="update_dialog_downloading_title">Downloading Update...</string>
+    <string name="update_dialog_percent_done">%1$s%% completed</string>
+    <string name="update_dialog_prep_download">Preparing download...</string>
+    <string name="update_dialog_auto_install_note">The app will automatically prompt for installation once downloaded.</string>
+    <string name="update_dialog_perm_title">Install Permission Required</string>
+    <string name="update_dialog_perm_desc">To update Phantom automatically, please grant install unknown apps permission in your device settings.</string>
+    <string name="update_dialog_open_settings">Open Settings</string>
+    <string name="update_dialog_failed_title">Update Failed</string>
+    <string name="update_dialog_download_failed">Failed to download APK. Please check your internet connection.</string>
+
+    <!-- Settings & Privacy & Feedback -->
+    <string name="settings_privacy_policy_title">Privacy Policy</string>
+    <string name="settings_privacy_policy_desc">All data is processed locally on your device without tracking.</string>
+    <string name="settings_check_update_desc">Check for the latest app release</string>
+    <string name="settings_browser_error">Cannot open web browser</string>
+    <string name="settings_feedback_chooser">Send feedback via...</string>
+    <string name="settings_feedback_subject_bug">Bug Report</string>
+    <string name="settings_feedback_subject_feature">Feature Request</string>
+    <string name="settings_feedback_subject_general">General Feedback</string>
+    <string name="settings_checking_update_toast">Checking for updates...</string>
+    <string name="settings_up_to_date_toast">App is up to date (%1$s)</string>
+    <string name="settings_update_check_failed_toast">Failed to check for updates: %1$s</string>
+
+
+    <!-- Additional Localized Strings -->
+    <string name="home_refreshing">Updating...</string>
+    <string name="home_load_failed">Failed to load videos</string>
+    <string name="player_no_captions">This video does not have captions</string>
+    <string name="player_err_not_available">Video unavailable</string>
+    <string name="player_err_restricted">Playback restricted on this device</string>
+    <string name="player_err_unsupported">Video format not supported</string>
+    <string name="player_err_invalid">Invalid parameter</string>
+    <string name="player_mix_next">Next: %1$s</string>
+    <string name="player_mix_open_queue">Open Queue</string>
+    <string name="player_reply">Reply</string>
+    <string name="player_replies_count">%1$s replies</string>
+    <string name="channel_no_description">No description</string>
+    <string name="crash_title">App Stopped</string>
+    <string name="crash_desc">An error occurred in the application. Logs can be copied for bug reporting.</string>
+    <string name="crash_copy_log">Copy Log</string>
+    <string name="crash_copied">Copied!</string>
+    <string name="crash_toast_copied">Log copied to clipboard</string>
+    <string name="crash_restart">Restart App</string>
+    <string name="crash_no_log">No crash log details saved.</string>
+    <string name="crash_unhandled">Unhandled error</string>
+    <string name="settings_quality_title">Default Video Quality</string>
+    <string name="settings_speed_title">Default Playback Speed</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="action_insert_search">Insert into search</string>
+
+    <string name="common_updating">Updating...</string>
+    <string name="home_failed_load_video">Failed to load videos</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_loading">Loading...</string>
+    <string name="common_refresh">Refresh</string>
+    <string name="common_delete">Delete</string>
+    <string name="subscriptions_title">Library &amp; Subscriptions</string>
+    <string name="downloads_empty_subtitle">No downloaded files • Offline playback</string>
+    <string name="downloads_count_format">%1$d files saved • %2$s</string>
+    <string name="empty_subscriptions_title">No Subscribed Channels</string>
+    <string name="empty_subscriptions_desc">Explore videos and subscribe to favorite channels to see their latest videos here.</string>
+    <string name="explore_home">Explore Home</string>
+    <string name="player_like">Like</string>
+    <string name="player_dislike">Dislike</string>
+    <string name="player_download">Download</string>
+    <string name="player_downloaded">Downloaded</string>
+    <string name="player_comments_hint">Tap to view comments...</string>
+    <string name="player_queue_format">Play Queue (%1$d)</string>
+    <string name="player_close">Close</string>
+    <string name="player_cancel">Cancel</string>
+    <string name="seek_rewind_10s">Rewind 10 seconds</string>
+    <string name="seek_forward_10s">Forward 10 seconds</string>
+    <string name="player_quality_format">Quality: %1$s</string>
+    <string name="player_error_load">Failed to load video</string>
+    <string name="channel_failed_load">Failed to load channel</string>
+    <string name="channel_network_retry">Check your internet connection and try again</string>
+    <string name="crash_copied_toast">Log copied to clipboard</string>
+    <string name="crash_no_report">No crash report details saved.</string>
+    <string name="search_history_tag">History</string>
+    <string name="search_suggestion_tag">Suggestion</string>
+    <string name="search_insert_query">Insert into search</string>
+    <string name="settings_sponsorblock_auto_skip">Auto-skip</string>
+    <string name="settings_sponsorblock_auto_skip_desc">Skip segments directly without confirmation</string>
+    <string name="settings_sponsorblock_manual_skip_desc">Show manual skip button</string>
+    <string name="settings_sponsorblock_categories_title">Categories to skip:</string>
+    <string name="settings_version_format">Version %1$s</string>
+    <string name="sponsor_pill_detected">%1$s detected (%2$s)</string>
+    <string name="sponsor_pill_skipped">%1$s skipped (%2$s)</string>
+    <string name="sponsor_pill_skip_button">Skip</string>
+    <string name="sponsor_category_sponsor">Sponsor</string>
+    <string name="sponsor_category_intro">Intro</string>
+    <string name="sponsor_category_outro">Outro</string>
+    <string name="sponsor_category_selfpromo">Promo</string>
+    <string name="sponsor_category_interaction">Interaction</string>
 </resources>

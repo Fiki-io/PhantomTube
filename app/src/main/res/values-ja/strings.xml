@@ -144,4 +144,245 @@
     <string name="downloads_play_all">すべて再生</string>
     <string name="downloads_empty_title">ダウンロードはありません</string>
     <string name="downloads_empty_desc">お気に入りの音楽や動画をダウンロードして、通信量を消費せずにいつでもオフライン再生できます。</string>
+
+    <!-- Player Stats & Sheets -->
+    <string name="player_stat_likes">高評価</string>
+    <string name="player_stat_dislike">低評価</string>
+    <string name="player_stat_views">回視聴</string>
+    <string name="player_stat_published">公開日</string>
+    <string name="player_no_description">この動画には説明がありません。</string>
+    <string name="player_tap_to_view_comments">タップしてコメントを表示...</string>
+    <string name="player_no_comments_sheet">この動画にはコメントがありません</string>
+    <string name="player_more_details">...もっと見る</string>
+    <string name="player_up_next_short">次の動画</string>
+    <string name="action_close">閉じる</string>
+    <string name="action_back">戻る</string>
+    <string name="action_loading">読み込み中...</string>
+    <string name="settings_player_title">設定</string>
+    <string name="settings_sleep_timer">スリープタイマー</string>
+    <string name="settings_double_tap_seek">ダブルタップでスキップ</string>
+    <string name="settings_loop_video">動画のループ再生</string>
+    <string name="settings_loop_video_desc">動画を連続して再生します</string>
+    <string name="settings_audio_only">音声のみモード (AMOLED)</string>
+    <string name="settings_audio_only_desc">データとバッテリーを節約するため動画を読み込まず音声のみ再生します</string>
+    <string name="search_for_prefix">検索:</string>
+
+    <!-- Channel & Feed Additions -->
+    <string name="action_refresh">更新</string>
+    <string name="channel_for_you">あなたへ</string>
+    <string name="channel_recent_videos">最新の動画</string>
+    <string name="channel_tab_home">ホーム</string>
+    <string name="channel_tab_videos">動画</string>
+    <string name="channel_sort_latest">最新</string>
+    <string name="channel_sort_popular">人気</string>
+    <string name="channel_sort_oldest">古い順</string>
+    <string name="channel_about_title">チャンネル概要</string>
+    <string name="channel_links">リンク</string>
+    <string name="channel_load_failed">チャンネルの読み込みに失敗しました</string>
+    <string name="channel_load_failed_hint">インターネット接続を確認して再試行してください</string>
+    <string name="action_retry">再試行</string>
+
+    <!-- Library & Subscriptions Additions -->
+    <string name="library_downloads">ダウンロード</string>
+    <string name="library_downloads_empty">ファイルはありません • オフライン再生可能</string>
+    <string name="library_files_count">%1$s件保存済み • %2$s</string>
+    <string name="subscriptions_empty_title">登録チャンネルはありません</string>
+    <string name="subscriptions_empty_desc">動画を探索してお気に入りのチャンネルを登録すると、Googleアカウント不要で最新の動画を確認できます。</string>
+    <string name="subscriptions_explore_button">ホームを探索</string>
+
+    <!-- Search Additions -->
+    <string name="search_no_results_for">「%1$s」の検索結果はありません</string>
+    <string name="search_open_channel">チャンネルを開く</string>
+    <string name="search_history_badge">履歴</string>
+    <string name="search_suggestion_badge">候補</string>
+    <string name="search_clear_query">検索語句を消去</string>
+
+    <!-- Player Controls & Notices -->
+    <string name="player_minimize">プレーヤーを最小化</string>
+    <string name="player_captions_on">字幕を有効化</string>
+    <string name="player_captions_off">字幕を無効化</string>
+    <string name="player_captions_turn_on">字幕をオン</string>
+    <string name="player_captions_turn_off">字幕をオフ</string>
+    <string name="player_zoom_fill">画面に合わせてズーム</string>
+    <string name="player_zoom_original">オリジナル比率</string>
+    <string name="player_prev_video">前の動画</string>
+    <string name="player_next_video">次の動画</string>
+    <string name="player_play">再生</string>
+    <string name="player_pause">一時停止</string>
+    <string name="player_selected">選択中</string>
+    <string name="player_fullscreen">全画面表示</string>
+    <string name="player_exit_fullscreen">全画面表示を終了</string>
+    <string name="player_rewind_10s">10秒戻る</string>
+    <string name="player_forward_10s">10秒進む</string>
+    <string name="player_seek_notice_rewind">-10秒</string>
+    <string name="player_seek_notice_forward">+10秒</string>
+
+    <!-- Player Settings & Sleep Timer -->
+    <string name="settings_quality_auto">自動（推奨）</string>
+    <string name="settings_quality_highest">最高画質</string>
+    <string name="settings_quality_saver">144p（データ節約）</string>
+    <string name="settings_sleep_timer_off">オフ</string>
+    <string name="settings_sleep_timer_15m">15分</string>
+    <string name="settings_sleep_timer_30m">30分</string>
+    <string name="settings_sleep_timer_45m">45分</string>
+    <string name="settings_sleep_timer_60m">60分</string>
+    <string name="settings_sleep_timer_end">動画の終了時</string>
+    <string name="settings_sleep_timer_active">スリープタイマー作動中</string>
+    <string name="settings_sleep_timer_stopping_in">%1$s後に停止</string>
+    <string name="settings_sleep_timer_cancel">タイマーをキャンセル</string>
+    <string name="settings_seek_seconds_default">%1$s秒（デフォルト）</string>
+    <string name="settings_seek_seconds">%1$s秒</string>
+    <string name="settings_speed_normal">1.0x（標準）</string>
+    <string name="settings_audio_only_player_title">音声のみモード</string>
+    <string name="settings_audio_only_player_desc">動画をオフにして節電</string>
+    <string name="settings_auto_play_next_desc">次の動画を自動再生</string>
+
+    <!-- Downloads Screen & Actions -->
+    <string name="downloads_search_hint">曲や動画を検索...</string>
+    <string name="downloads_filter_all">すべて (%1$s)</string>
+    <string name="downloads_filter_audio">音楽 MP3 (%1$s)</string>
+    <string name="downloads_filter_video">動画 MP4 (%1$s)</string>
+    <string name="downloads_play_all_count">すべて再生 (%1$s)</string>
+    <string name="downloads_shuffle_on">シャッフルを有効化</string>
+    <string name="downloads_shuffle_off">シャッフルを無効化</string>
+    <string name="downloads_repeat_off">リピート: オフ</string>
+    <string name="downloads_repeat_all">リピート: すべて</string>
+    <string name="downloads_repeat_one">リピート: 1曲</string>
+    <string name="downloads_search_no_results">検索結果がありません</string>
+    <string name="downloads_search_try_again">別のキーワードをお試しください</string>
+    <string name="downloads_saved_offline">オフライン保存済み</string>
+    <string name="downloads_play_external">外部プレーヤーで再生</string>
+    <string name="downloads_share_file">ファイルを共有</string>
+    <string name="downloads_delete_title">ダウンロードを削除しますか？</string>
+    <string name="downloads_delete_confirm_desc">「%1$s」を端末ストレージおよびダウンロードリストから削除します。</string>
+    <string name="downloads_toast_playing">オフライン音楽%1$s曲を再生中</string>
+    <string name="downloads_toast_deleted">ダウンロードを削除しました</string>
+    <string name="downloads_toast_no_external">対応する外部プレーヤーが見つかりません</string>
+    <string name="downloads_toast_share_failed">ファイルの共有に失敗しました</string>
+    <string name="downloads_chooser_play">アプリを選択して再生...</string>
+    <string name="downloads_chooser_share">「%1$s」を共有</string>
+
+    <!-- Offline Audio Player Sheet -->
+    <string name="offline_audio_playing_banner">オフライン音楽を再生中</string>
+    <string name="offline_audio_track_counter">%1$s曲目 / 全%2$s曲</string>
+    <string name="offline_audio_queue_title">再生キュー (%1$s)</string>
+    <string name="offline_audio_auto_next">自動次曲再生中</string>
+
+    <!-- Download Format Sheet -->
+    <string name="download_prep_toast">%1$sのダウンロードを準備中...</string>
+    <string name="download_saved_toast">%1$sに保存しました</string>
+    <string name="download_error_general">メディアファイルのダウンロードに失敗しました</string>
+    <string name="download_error_convert">動画変換の処理に失敗しました</string>
+    <string name="download_prep_title">%1$sを準備中...</string>
+    <string name="download_prep_connecting">変換サーバーに接続中...</string>
+    <string name="download_progress_title">%1$sをダウンロード中</string>
+    <string name="download_progress_bg_note">バックグラウンドで実行中</string>
+    <string name="download_success_title">ダウンロードが正常に保存されました</string>
+    <string name="download_success_detected_note">音楽プレーヤーやギャラリーで自動的に認識されます。</string>
+    <string name="download_open_file">ファイルを開く</string>
+    <string name="download_failed_title">ダウンロードの処理に失敗しました</string>
+
+    <!-- Update Dialog -->
+    <string name="update_dialog_mandatory_title">必須アップデート</string>
+    <string name="update_dialog_available_title">アップデートがあります</string>
+    <string name="update_dialog_mandatory_desc">現在のバージョンはサポートされていません。続行するにはバージョン%1$sにアップデートしてください。</string>
+    <string name="update_dialog_available_desc">バージョン%1$sが利用可能です</string>
+    <string name="update_dialog_changelog_title">更新履歴:</string>
+    <string name="update_dialog_later">後で</string>
+    <string name="update_dialog_exit">終了</string>
+    <string name="update_dialog_update_now">今すぐ更新</string>
+    <string name="update_dialog_downloading_title">アップデートをダウンロード中...</string>
+    <string name="update_dialog_percent_done">%1$s%%完了</string>
+    <string name="update_dialog_prep_download">ダウンロードの準備中...</string>
+    <string name="update_dialog_auto_install_note">ダウンロード完了後、自動的にインストール画面が表示されます。</string>
+    <string name="update_dialog_perm_title">インストール権限が必要です</string>
+    <string name="update_dialog_perm_desc">Phantomを自動更新するには、端末設定でこの提供元からのアプリインストールを許可してください。</string>
+    <string name="update_dialog_open_settings">設定を開く</string>
+    <string name="update_dialog_failed_title">アップデートに失敗しました</string>
+    <string name="update_dialog_download_failed">APKファイルのダウンロードに失敗しました。接続状況を確認してください。</string>
+
+    <!-- Settings & Privacy & Feedback -->
+    <string name="settings_privacy_policy_title">プライバシーポリシー</string>
+    <string name="settings_privacy_policy_desc">すべてのデータは追跡なしで端末ローカルで処理されます。</string>
+    <string name="settings_check_update_desc">最新バージョンの有無を確認します</string>
+    <string name="settings_browser_error">ブラウザを開けません</string>
+    <string name="settings_feedback_chooser">フィードバックを送信...</string>
+    <string name="settings_feedback_subject_bug">不具合報告</string>
+    <string name="settings_feedback_subject_feature">機能リクエスト</string>
+    <string name="settings_feedback_subject_general">一般的なご意見</string>
+    <string name="settings_checking_update_toast">アップデートを確認中...</string>
+    <string name="settings_up_to_date_toast">アプリは最新バージョンです (%1$s)</string>
+    <string name="settings_update_check_failed_toast">アップデートの確認に失敗しました: %1$s</string>
+
+
+    <!-- Additional Localized Strings -->
+    <string name="home_refreshing">更新中...</string>
+    <string name="home_load_failed">動画の読み込みに失敗しました</string>
+    <string name="player_no_captions">この動画には字幕がありません</string>
+    <string name="player_err_not_available">動画を利用できません</string>
+    <string name="player_err_restricted">このデバイスでの再生は制限されています</string>
+    <string name="player_err_unsupported">サポートされていない動画形式です</string>
+    <string name="player_err_invalid">無効なパラメータ</string>
+    <string name="player_mix_next">次: %1$s</string>
+    <string name="player_mix_open_queue">キューを開く</string>
+    <string name="player_reply">返信</string>
+    <string name="player_replies_count">%1$s件の返信</string>
+    <string name="channel_no_description">説明はありません</string>
+    <string name="crash_title">アプリが停止しました</string>
+    <string name="crash_desc">エラーが発生しました。ログをコピーしてバグ報告できます。</string>
+    <string name="crash_copy_log">ログをコピー</string>
+    <string name="crash_copied">コピー完了</string>
+    <string name="crash_toast_copied">クリップボードにコピーしました</string>
+    <string name="crash_restart">アプリを再起動</string>
+    <string name="crash_no_log">クラッシュログの詳細がありません。</string>
+    <string name="crash_unhandled">未処理のエラー</string>
+    <string name="settings_quality_title">デフォルトの画質</string>
+    <string name="settings_speed_title">デフォルトの再生速度</string>
+    <string name="about_version">バージョン %1$s</string>
+    <string name="action_insert_search">検索に入力</string>
+
+    <string name="common_updating">更新中...</string>
+    <string name="home_failed_load_video">動画の読み込みに失敗しました</string>
+    <string name="common_retry">再試行</string>
+    <string name="common_loading">読み込み中...</string>
+    <string name="common_refresh">更新</string>
+    <string name="common_delete">削除</string>
+    <string name="subscriptions_title">ライブラリと登録チャンネル</string>
+    <string name="downloads_empty_subtitle">保存済みファイルはありません • オフライン再生</string>
+    <string name="downloads_count_format">%1$d 件の保存済みファイル • %2$s</string>
+    <string name="empty_subscriptions_title">登録チャンネルはありません</string>
+    <string name="empty_subscriptions_desc">動画を探索し、お気に入りのチャンネルを登録して最新動画を確認しましょう。</string>
+    <string name="explore_home">ホームを探索</string>
+    <string name="player_like">高評価</string>
+    <string name="player_dislike">低評価</string>
+    <string name="player_download">ダウンロード</string>
+    <string name="player_downloaded">ダウンロード済み</string>
+    <string name="player_comments_hint">タップしてコメントを表示...</string>
+    <string name="player_queue_format">再生キュー (%1$d)</string>
+    <string name="player_close">閉じる</string>
+    <string name="player_cancel">キャンセル</string>
+    <string name="seek_rewind_10s">10秒戻る</string>
+    <string name="seek_forward_10s">10秒進む</string>
+    <string name="player_quality_format">画質: %1$s</string>
+    <string name="player_error_load">動画の読み込みに失敗しました</string>
+    <string name="channel_failed_load">チャンネルの読み込みに失敗しました</string>
+    <string name="channel_network_retry">インターネット接続を確認して再試行してください</string>
+    <string name="crash_copied_toast">ログをクリップボードにコピーしました</string>
+    <string name="crash_no_report">クラッシュログの詳細はありません。</string>
+    <string name="search_history_tag">履歴</string>
+    <string name="search_suggestion_tag">候補</string>
+    <string name="search_insert_query">検索に挿入</string>
+    <string name="settings_sponsorblock_auto_skip">自動スキップ</string>
+    <string name="settings_sponsorblock_auto_skip_desc">確認なしで直接スキップします</string>
+    <string name="settings_sponsorblock_manual_skip_desc">手動スキップボタンを表示</string>
+    <string name="settings_sponsorblock_categories_title">スキップするカテゴリ:</string>
+    <string name="settings_version_format">バージョン %1$s</string>
+    <string name="sponsor_pill_detected">%1$s を検出 (%2$s秒)</string>
+    <string name="sponsor_pill_skipped">%1$s をスキップ (%2$s秒)</string>
+    <string name="sponsor_pill_skip_button">スキップ</string>
+    <string name="sponsor_category_sponsor">スポンサー</string>
+    <string name="sponsor_category_intro">イントロ</string>
+    <string name="sponsor_category_outro">アウトロ</string>
+    <string name="sponsor_category_selfpromo">自己宣伝</string>
+    <string name="sponsor_category_interaction">高評価・登録のお願い</string>
 </resources>

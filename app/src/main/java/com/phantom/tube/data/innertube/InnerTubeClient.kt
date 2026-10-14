@@ -24,17 +24,33 @@ class InnerTubeClient(
     private val userAgent = com.phantom.tube.core.security.PhantomNative.getDesktopUserAgent()
 
     var regionCodeProvider: (() -> String)? = null
+    var languageCodeProvider: (() -> String)? = null
 
     private fun createClientContext(): JSONObject {
-        val region = regionCodeProvider?.invoke() ?: "ID"
-        val (hl, gl) = when (region.uppercase()) {
-            "US" -> "en" to "US"
-            "JP" -> "ja" to "JP"
-            "KR" -> "ko" to "KR"
-            "GB" -> "en-GB" to "GB"
-            "GLOBAL" -> "en" to "US"
-            else -> "id" to "ID"
+        val region = regionCodeProvider?.invoke() ?: "GLOBAL"
+        val lang = languageCodeProvider?.invoke() ?: "en"
+
+        val gl = when (region.uppercase()) {
+            "GLOBAL" -> "US"
+            "US" -> "US"
+            "JP" -> "JP"
+            "KR" -> "KR"
+            "GB" -> "GB"
+            "ID" -> "ID"
+            "ES" -> "ES"
+            "RU" -> "RU"
+            else -> region.uppercase()
         }
+
+        val hl = when (lang.lowercase()) {
+            "en" -> "en"
+            "ja" -> "ja"
+            "es" -> "es"
+            "ru" -> "ru"
+            "id" -> "id"
+            else -> lang.lowercase()
+        }
+
         val client = JSONObject().apply {
             put("clientName", "WEB")
             put("clientVersion", "2.20240901.00.00")
@@ -234,14 +250,26 @@ class InnerTubeClient(
         val trimmed = query.trim()
         if (trimmed.isBlank()) return@withContext emptyList()
         try {
-            val region = regionCodeProvider?.invoke() ?: "ID"
-            val (hl, gl) = when (region.uppercase()) {
-                "US" -> "en" to "US"
-                "JP" -> "ja" to "JP"
-                "KR" -> "ko" to "KR"
-                "GB" -> "en-GB" to "GB"
-                "GLOBAL" -> "en" to "US"
-                else -> "id" to "ID"
+            val region = regionCodeProvider?.invoke() ?: "GLOBAL"
+            val lang = languageCodeProvider?.invoke() ?: "en"
+            val gl = when (region.uppercase()) {
+                "GLOBAL" -> "US"
+                "US" -> "US"
+                "JP" -> "JP"
+                "KR" -> "KR"
+                "GB" -> "GB"
+                "ID" -> "ID"
+                "ES" -> "ES"
+                "RU" -> "RU"
+                else -> region.uppercase()
+            }
+            val hl = when (lang.lowercase()) {
+                "en" -> "en"
+                "ja" -> "ja"
+                "es" -> "es"
+                "ru" -> "ru"
+                "id" -> "id"
+                else -> lang.lowercase()
             }
             val encoded = java.net.URLEncoder.encode(trimmed, "UTF-8")
             val endpoints = com.phantom.tube.core.security.PhantomNative.getSuggestEndpoints(encoded, hl, gl)

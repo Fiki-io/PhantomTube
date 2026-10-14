@@ -64,6 +64,8 @@ import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoItem
+import com.phantom.tube.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlin.math.roundToInt
 
@@ -177,7 +179,7 @@ fun PlayerDescriptionSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Deskripsi",
+                            text = stringResource(R.string.player_description),
                             color = TextPrimary,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold
@@ -185,7 +187,7 @@ fun PlayerDescriptionSheet(
                         IconButton(onClick = onDismiss) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Tutup",
+                                contentDescription = stringResource(R.string.action_close),
                                 tint = TextSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -269,7 +271,7 @@ fun PlayerDescriptionSheet(
                                         .padding(horizontal = 14.dp, vertical = 7.dp)
                                 ) {
                                     Text(
-                                        text = if (isSubscribed) "Disubscribe" else "Subscribe",
+                                        text = if (isSubscribed) stringResource(R.string.channel_subscribed) else stringResource(R.string.channel_subscribe),
                                         color = if (isSubscribed) Color.White else Color.Black,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold
@@ -322,7 +324,7 @@ fun PlayerDescriptionSheet(
                                             fontWeight = FontWeight.Bold
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text(text = "Suka", color = TextMuted, fontSize = 11.sp)
+                                        Text(text = stringResource(R.string.player_stat_likes), color = TextMuted, fontSize = 11.sp)
                                     }
 
                                     Box(
@@ -343,7 +345,7 @@ fun PlayerDescriptionSheet(
                                             fontWeight = FontWeight.Bold
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text(text = "Penayangan", color = TextMuted, fontSize = 11.sp)
+                                        Text(text = stringResource(R.string.player_stat_views), color = TextMuted, fontSize = 11.sp)
                                     }
 
                                     Box(
@@ -366,7 +368,7 @@ fun PlayerDescriptionSheet(
                                             overflow = TextOverflow.Ellipsis
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text(text = "Tanggal Rilis", color = TextMuted, fontSize = 11.sp)
+                                        Text(text = stringResource(R.string.player_stat_published), color = TextMuted, fontSize = 11.sp)
                                     }
                                 }
                             }
@@ -374,8 +376,8 @@ fun PlayerDescriptionSheet(
 
                         // 4. Description Content (Clean Readable Card)
                         item {
-                            val desc = nextQueueData?.description?.ifBlank { "Tidak ada deskripsi untuk video ini." }
-                                ?: "Tidak ada deskripsi untuk video ini."
+                            val emptyDesc = stringResource(R.string.player_no_description)
+                            val desc = nextQueueData?.description?.ifBlank { emptyDesc } ?: emptyDesc
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()

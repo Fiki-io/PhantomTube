@@ -296,7 +296,7 @@ fun SearchScreen(
         ) {
             PhantomIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Kembali",
+                contentDescription = stringResource(R.string.action_back),
                 size = 38.dp,
                 iconSize = 20.dp,
                 onClick = onBackClick
@@ -357,7 +357,7 @@ fun SearchScreen(
                     if (searchQuery.isNotEmpty()) {
                         Icon(
                             imageVector = Icons.Default.Clear,
-                            contentDescription = "Hapus",
+                            contentDescription = stringResource(R.string.search_clear_query),
                             tint = TextSecondary,
                             modifier = Modifier
                                 .size(18.dp)
@@ -522,7 +522,7 @@ fun SearchScreen(
                                         ) {
                                             Icon(
                                                 imageVector = if (item.isHistory) Icons.Default.History else Icons.Default.Search,
-                                                contentDescription = if (item.isHistory) "Riwayat" else "Saran",
+                                                contentDescription = stringResource(if (item.isHistory) R.string.search_history_tag else R.string.search_suggestion_tag),
                                                 tint = if (item.isHistory) TextSecondary else TextMuted,
                                                 modifier = Modifier.size(18.dp)
                                             )
@@ -538,7 +538,7 @@ fun SearchScreen(
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Icon(
                                                 imageVector = Icons.Default.NorthWest,
-                                                contentDescription = "Gunakan kueri",
+                                                contentDescription = stringResource(R.string.search_insert_query),
                                                 tint = TextMuted,
                                                 modifier = Modifier
                                                     .size(16.dp)
@@ -550,7 +550,7 @@ fun SearchScreen(
                                                 Spacer(modifier = Modifier.width(12.dp))
                                                 Icon(
                                                     imageVector = Icons.Default.Close,
-                                                    contentDescription = "Hapus kueri",
+                                                    contentDescription = stringResource(R.string.search_clear_query),
                                                     tint = TextMuted,
                                                     modifier = Modifier
                                                         .size(16.dp)
@@ -630,7 +630,7 @@ fun SearchScreen(
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Text(
-                                            text = "Memuat...",
+                                            text = stringResource(R.string.common_loading),
                                             color = TextSecondary,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Medium
@@ -644,7 +644,7 @@ fun SearchScreen(
                 hasSearched && searchResults.isEmpty() && searchChannels.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = "Tidak ada hasil untuk \"${searchQuery.trim()}\"",
+                            text = stringResource(R.string.search_no_results_for, searchQuery.trim()),
                             color = TextMuted,
                             fontSize = 14.sp
                         )
@@ -728,7 +728,7 @@ fun SearchScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Icon(
                                         imageVector = Icons.Default.NorthWest,
-                                        contentDescription = "Masukkan ke pencarian",
+                                        contentDescription = stringResource(R.string.search_insert_query),
                                         tint = TextMuted,
                                         modifier = Modifier
                                             .size(16.dp)
@@ -739,7 +739,7 @@ fun SearchScreen(
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Hapus",
+                                        contentDescription = stringResource(R.string.common_delete),
                                         tint = TextMuted,
                                         modifier = Modifier
                                             .size(16.dp)

@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
@@ -44,11 +46,11 @@ fun SponsorSkipPill(
     modifier: Modifier = Modifier
 ) {
     val categoryLabel = when (category) {
-        "intro" -> "Intro"
-        "outro" -> "Outro"
-        "selfpromo" -> "Promo"
-        "interaction" -> "Interaksi"
-        else -> "Sponsor"
+        "intro" -> stringResource(R.string.sponsor_category_intro)
+        "outro" -> stringResource(R.string.sponsor_category_outro)
+        "selfpromo" -> stringResource(R.string.sponsor_category_selfpromo)
+        "interaction" -> stringResource(R.string.sponsor_category_interaction)
+        else -> stringResource(R.string.sponsor_category_sponsor)
     }
 
     AnimatedVisibility(
@@ -78,7 +80,11 @@ fun SponsorSkipPill(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = if (isManualMode) "$categoryLabel terdeteksi (${skippedSeconds}d)" else "$categoryLabel dilewati (${skippedSeconds}d)",
+                    text = if (isManualMode) {
+                        stringResource(R.string.sponsor_pill_detected, categoryLabel, skippedSeconds)
+                    } else {
+                        stringResource(R.string.sponsor_pill_skipped, categoryLabel, skippedSeconds)
+                    },
                     color = TextPrimary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -97,7 +103,7 @@ fun SponsorSkipPill(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Lewati",
+                            text = stringResource(R.string.sponsor_pill_skip_button),
                             color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
@@ -115,13 +121,13 @@ fun SponsorSkipPill(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Undo,
-                            contentDescription = "Batalkan",
+                            contentDescription = stringResource(R.string.player_cancel),
                             tint = Color.White,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Batal",
+                            text = stringResource(R.string.player_cancel),
                             color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold

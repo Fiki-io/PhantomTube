@@ -1,0 +1,388 @@
+<resources>
+    <string name="app_name">Phantom</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Beranda</string>
+    <string name="nav_search">Cari</string>
+    <string name="nav_library">Koleksi</string>
+    <string name="nav_history">Riwayat</string>
+    <string name="nav_settings">Pengaturan</string>
+
+    <!-- Categories -->
+    <string name="cat_all">Semua</string>
+    <string name="cat_trending">Trending</string>
+    <string name="cat_music">Musik</string>
+    <string name="cat_gaming">Gaming</string>
+    <string name="cat_news">Berita</string>
+    <string name="cat_podcast">Podcast</string>
+    <string name="cat_tech">Teknologi</string>
+    <string name="cat_animation">Animasi</string>
+
+    <!-- Search -->
+    <string name="search_hint">Cari video, channel, atau musik...</string>
+    <string name="search_history_title">Riwayat Pencarian</string>
+    <string name="search_history_clear">Hapus Semua</string>
+    <string name="search_channel_badge">Channel</string>
+    <string name="search_subscribers">subscriber</string>
+    <string name="search_no_results">Tidak ada hasil ditemukan</string>
+    <string name="empty_search">Ketik kata kunci untuk mencari video</string>
+
+    <!-- Player & Video -->
+    <string name="player_quality">Kualitas Video</string>
+    <string name="player_speed">Kecepatan</string>
+    <string name="player_auto_play">Putar Otomatis</string>
+    <string name="player_comments">Komentar</string>
+    <string name="player_no_comments">Belum ada komentar</string>
+    <string name="player_description">Deskripsi</string>
+    <string name="player_share">Bagikan</string>
+    <string name="player_copy_link">Salin Tautan</string>
+    <string name="player_save">Simpan</string>
+    <string name="player_saved">Disimpan ke Koleksi</string>
+    <string name="player_removed">Dihapus dari Koleksi</string>
+    <string name="player_up_next">Video Berikutnya</string>
+    <string name="up_next">Video Berikutnya</string>
+    <string name="player_sponsor_skip">Bagian sponsor dilewati</string>
+    <string name="sponsor_skipped">Bagian sponsor dilewati</string>
+    <string name="undo">Batalkan</string>
+    <string name="player_pip">Picture-in-Picture</string>
+
+    <!-- Channel -->
+    <string name="channel_subscribe">Langganan</string>
+    <string name="channel_subscribed">Berlangganan</string>
+    <string name="channel_videos">Video</string>
+    <string name="channel_shorts">Shorts</string>
+    <string name="channel_about">Tentang</string>
+    <string name="channel_no_videos">Belum ada video di channel ini</string>
+
+    <!-- Library -->
+    <string name="library_title">Koleksi</string>
+    <string name="library_favorites">Video Disukai</string>
+    <string name="library_history">Riwayat Tontonan</string>
+    <string name="library_subscriptions">Langganan</string>
+    <string name="library_empty_fav">Belum ada video favorit yang disimpan</string>
+    <string name="library_empty_history">Belum ada riwayat tontonan</string>
+    <string name="empty_history">Belum ada riwayat tontonan</string>
+    <string name="library_empty_subs">Belum berlangganan ke channel apa pun</string>
+    <string name="library_clear_history">Kosongkan Riwayat</string>
+
+    <!-- Settings General -->
+    <string name="settings_title">Pengaturan</string>
+    <string name="settings_section_general">Umum &amp; Tampilan</string>
+    <string name="settings_app_language">Bahasa Aplikasi</string>
+    <string name="settings_app_language_desc">Pilih bahasa tampilan antarmuka</string>
+    <string name="settings_content_region">Wilayah Konten</string>
+    <string name="settings_content_region_desc">Mengatur trending dan feed sesuai negara</string>
+
+    <!-- Settings Playback -->
+    <string name="settings_section_playback">Pemutaran &amp; Kualitas</string>
+    <string name="settings_default_quality">Kualitas Video Default</string>
+    <string name="settings_default_speed">Kecepatan Pemutaran Default</string>
+    <string name="settings_bg_playback">Putar di Latar Belakang</string>
+    <string name="settings_bg_playback_desc">Tetap putar saat layar mati atau aplikasi diminimalkan</string>
+    <string name="settings_auto_pip">Otomatis PiP (Picture-in-Picture)</string>
+    <string name="settings_auto_pip_desc">Masuk mode jendela melayang saat menekan tombol Home</string>
+
+    <!-- Settings SponsorBlock -->
+    <string name="settings_section_sponsorblock">SponsorBlock</string>
+    <string name="settings_sponsorblock_enable">Aktifkan SponsorBlock</string>
+    <string name="settings_sponsorblock_desc">Lewati sponsor terintegrasi dalam video secara otomatis</string>
+    <string name="settings_skip_sponsor">Segmen Sponsor</string>
+    <string name="settings_skip_selfpromo">Promosi Sendiri (Self-Promotion)</string>
+    <string name="settings_skip_interaction">Pengingat Interaksi (Like &amp; Sub)</string>
+    <string name="settings_skip_intro">Intro / Pembuka Video</string>
+    <string name="settings_skip_outro">Outro / Penutup Video</string>
+
+    <!-- Settings Privacy -->
+    <string name="settings_section_privacy">Privasi &amp; Penyimpanan</string>
+    <string name="settings_pause_history">Jeda Riwayat Tontonan</string>
+    <string name="settings_pause_history_desc">Jangan simpan video yang ditonton ke riwayat</string>
+    <string name="settings_clear_watch_history">Hapus Riwayat Tontonan</string>
+    <string name="settings_clear_search_history">Hapus Riwayat Pencarian</string>
+    <string name="settings_clear_cache">Bersihkan Cache Aplikasi</string>
+    <string name="settings_cache_size">Ukuran cache saat ini</string>
+
+    <!-- Settings About -->
+    <string name="settings_section_about">Tentang Aplikasi</string>
+    <string name="settings_app_version">Versi Phantom</string>
+    <string name="settings_check_update">Periksa Pembaruan</string>
+    <string name="settings_github">Repositori GitHub Resmi</string>
+
+    <!-- Dialogs & Actions -->
+    <string name="dialog_cancel">Batal</string>
+    <string name="dialog_delete">Hapus</string>
+    <string name="dialog_clean">Bersihkan</string>
+    <string name="dialog_confirm_clear_history">Hapus semua riwayat tontonan?</string>
+    <string name="dialog_confirm_clear_search">Hapus semua riwayat pencarian?</string>
+    <string name="dialog_confirm_clear_cache">Bersihkan seluruh cache aplikasi?</string>
+    <string name="toast_cache_cleared">Cache berhasil dibersihkan</string>
+    <string name="toast_history_cleared">Riwayat berhasil dihapus</string>
+    <string name="toast_link_copied">Tautan disalin ke papan klip</string>
+
+    <!-- Feedback -->
+    <string name="settings_feedback">Kirim Masukan &amp; Bug</string>
+    <string name="settings_feedback_desc">Kirim saran, laporan kendala, atau permintaan fitur langsung ke developer</string>
+    <string name="feedback_dialog_title">Kirim Masukan ke Pengembang</string>
+    <string name="feedback_type_bug">Bug / Kendala</string>
+    <string name="feedback_type_feature">Permintaan Fitur</string>
+    <string name="feedback_type_general">Masukan Umum</string>
+    <string name="feedback_message_hint">Jelaskan masukan atau kendala yang Anda alami secara rinci...</string>
+    <string name="feedback_device_info_note">Info teknis perangkat akan otomatis dilampirkan untuk mempermudah perbaikan.</string>
+    <string name="feedback_send_button">Kirim via Email</string>
+    <string name="feedback_no_email_app">Tidak ada aplikasi email ditemukan. Email pengembang disalin ke papan klip: totoyu379@gmail.com</string>
+
+    <!-- Downloads -->
+    <string name="action_download">Download</string>
+    <string name="action_downloaded">Terunduh</string>
+    <string name="download_sheet_title">Unduh Media Offline</string>
+    <string name="download_audio_tab">Audio Musik (MP3)</string>
+    <string name="download_video_tab">Video (MP4)</string>
+    <string name="download_storage_note">Download MP3/MP4 &amp; nikmati pemutaran offline kapan saja</string>
+    <string name="settings_section_downloads">Unduhan Media</string>
+    <string name="settings_downloads_list">Daftar File Terunduh</string>
+    <string name="settings_open_downloads_folder">Buka Folder Unduhan</string>
+    <string name="downloads_title">Unduhan Saya</string>
+    <string name="downloads_play_all">Putar Semua</string>
+    <string name="downloads_empty_title">Belum Ada Unduhan</string>
+    <string name="downloads_empty_desc">Unduh musik atau video favoritmu untuk diputar secara offline kapan saja tanpa kuota.</string>
+
+    <!-- Player Stats & Sheets -->
+    <string name="player_stat_likes">Suka</string>
+    <string name="player_stat_dislike">Tidak suka</string>
+    <string name="player_stat_views">Penayangan</string>
+    <string name="player_stat_published">Tanggal Rilis</string>
+    <string name="player_no_description">Tidak ada deskripsi untuk video ini.</string>
+    <string name="player_tap_to_view_comments">Ketuk untuk melihat komentar...</string>
+    <string name="player_no_comments_sheet">Tidak ada komentar untuk video ini</string>
+    <string name="player_more_details">...selengkapnya</string>
+    <string name="player_up_next_short">Berikutnya</string>
+    <string name="action_close">Tutup</string>
+    <string name="action_back">Kembali</string>
+    <string name="action_loading">Memuat...</string>
+    <string name="settings_player_title">Setelan</string>
+    <string name="settings_sleep_timer">Timer tidur</string>
+    <string name="settings_double_tap_seek">Ketuk dua kali untuk mencari</string>
+    <string name="settings_loop_video">Putar ulang video</string>
+    <string name="settings_loop_video_desc">Putar video secara terus-menerus</string>
+    <string name="settings_audio_only">Mode Hanya Audio (AMOLED)</string>
+    <string name="settings_audio_only_desc">Dengarkan musik tanpa memuat video untuk hemat kuota dan baterai</string>
+    <string name="search_for_prefix">Telusuri</string>
+
+    <!-- Channel & Feed Additions -->
+    <string name="action_refresh">Segarkan</string>
+    <string name="channel_for_you">Untuk Anda</string>
+    <string name="channel_recent_videos">Video Terbaru</string>
+    <string name="channel_tab_home">Beranda</string>
+    <string name="channel_tab_videos">Video</string>
+    <string name="channel_sort_latest">Terbaru</string>
+    <string name="channel_sort_popular">Populer</string>
+    <string name="channel_sort_oldest">Terlama</string>
+    <string name="channel_about_title">Tentang Channel</string>
+    <string name="channel_links">Tautan</string>
+    <string name="channel_load_failed">Gagal memuat channel</string>
+    <string name="channel_load_failed_hint">Periksa koneksi internet Anda dan coba lagi</string>
+    <string name="action_retry">Coba Lagi</string>
+
+    <!-- Library & Subscriptions Additions -->
+    <string name="library_downloads">Hasil Unduhan</string>
+    <string name="library_downloads_empty">Belum ada file • Putar offline tanpa kuota</string>
+    <string name="library_files_count">%1$s file tersimpan • %2$s</string>
+    <string name="subscriptions_empty_title">Belum Ada Channel yang Dilanggan</string>
+    <string name="subscriptions_empty_desc">Jelajahi video dan subscribe channel favoritmu untuk melihat video terbarunya di sini tanpa butuh akun Google.</string>
+    <string name="subscriptions_explore_button">Jelajahi Beranda</string>
+
+    <!-- Search Additions -->
+    <string name="search_no_results_for">Tidak ada hasil untuk "%1$s"</string>
+    <string name="search_open_channel">Buka channel</string>
+    <string name="search_history_badge">Riwayat</string>
+    <string name="search_suggestion_badge">Saran</string>
+    <string name="search_clear_query">Hapus kueri</string>
+
+    <!-- Player Controls & Notices -->
+    <string name="player_minimize">Perkecil Player</string>
+    <string name="player_captions_on">Teks diaktifkan</string>
+    <string name="player_captions_off">Teks dinonaktifkan</string>
+    <string name="player_captions_turn_on">Hidupkan Teks</string>
+    <string name="player_captions_turn_off">Matikan Teks</string>
+    <string name="player_zoom_fill">Di-zoom untuk memenuhi</string>
+    <string name="player_zoom_original">Rasio Asli</string>
+    <string name="player_prev_video">Video Sebelumnya</string>
+    <string name="player_next_video">Video Berikutnya</string>
+    <string name="player_play">Putar</string>
+    <string name="player_pause">Jeda</string>
+    <string name="player_selected">Terpilih</string>
+    <string name="player_fullscreen">Layar Penuh</string>
+    <string name="player_exit_fullscreen">Keluar Layar Penuh</string>
+    <string name="player_rewind_10s">Mundur 10 Detik</string>
+    <string name="player_forward_10s">Maju 10 Detik</string>
+    <string name="player_seek_notice_rewind">-10 Detik</string>
+    <string name="player_seek_notice_forward">+10 Detik</string>
+
+    <!-- Player Settings & Sleep Timer -->
+    <string name="settings_quality_auto">Otomatis (Disarankan)</string>
+    <string name="settings_quality_highest">Kualitas Tertinggi</string>
+    <string name="settings_quality_saver">144p (Hemat Kuota)</string>
+    <string name="settings_sleep_timer_off">Nonaktif</string>
+    <string name="settings_sleep_timer_15m">15 Menit</string>
+    <string name="settings_sleep_timer_30m">30 Menit</string>
+    <string name="settings_sleep_timer_45m">45 Menit</string>
+    <string name="settings_sleep_timer_60m">60 Menit</string>
+    <string name="settings_sleep_timer_end">Di akhir video</string>
+    <string name="settings_sleep_timer_active">Timer tidur aktif</string>
+    <string name="settings_sleep_timer_stopping_in">Berhenti dalam %1$s</string>
+    <string name="settings_sleep_timer_cancel">Batalkan Timer</string>
+    <string name="settings_seek_seconds_default">%1$s Detik (Bawaan)</string>
+    <string name="settings_seek_seconds">%1$s Detik</string>
+    <string name="settings_speed_normal">1.0x (Normal)</string>
+    <string name="settings_audio_only_player_title">Mode audio saja</string>
+    <string name="settings_audio_only_player_desc">Matikan video untuk menghemat daya</string>
+    <string name="settings_auto_play_next_desc">Putar video berikutnya secara otomatis</string>
+
+    <!-- Downloads Screen & Actions -->
+    <string name="downloads_search_hint">Cari judul lagu atau video...</string>
+    <string name="downloads_filter_all">Semua (%1$s)</string>
+    <string name="downloads_filter_audio">Musik MP3 (%1$s)</string>
+    <string name="downloads_filter_video">Video MP4 (%1$s)</string>
+    <string name="downloads_play_all_count">Putar Semua (%1$s)</string>
+    <string name="downloads_shuffle_on">Acak lagu diaktifkan</string>
+    <string name="downloads_shuffle_off">Acak lagu dinonaktifkan</string>
+    <string name="downloads_repeat_off">Ulangi: Nonaktif</string>
+    <string name="downloads_repeat_all">Ulangi: Semua antrean</string>
+    <string name="downloads_repeat_one">Ulangi: Lagu ini (Loop 1)</string>
+    <string name="downloads_search_no_results">Tidak ada hasil pencarian</string>
+    <string name="downloads_search_try_again">Coba kata kunci lain</string>
+    <string name="downloads_saved_offline">Tersimpan offline</string>
+    <string name="downloads_play_external">Putar di Pemutar Luar</string>
+    <string name="downloads_share_file">Bagikan File</string>
+    <string name="downloads_delete_title">Hapus Unduhan?</string>
+    <string name="downloads_delete_confirm_desc">File "%1$s" akan dihapus dari penyimpanan perangkat dan daftar unduhan.</string>
+    <string name="downloads_toast_playing">Memutar %1$s musik offline</string>
+    <string name="downloads_toast_deleted">Unduhan berhasil dihapus</string>
+    <string name="downloads_toast_no_external">Tidak ada pemutar eksternal yang kompatibel</string>
+    <string name="downloads_toast_share_failed">Gagal membagikan file</string>
+    <string name="downloads_chooser_play">Putar dengan...</string>
+    <string name="downloads_chooser_share">Bagikan "%1$s"</string>
+
+    <!-- Offline Audio Player Sheet -->
+    <string name="offline_audio_playing_banner">MEMUTAR MUSIK OFFLINE</string>
+    <string name="offline_audio_track_counter">Lagu %1$s dari %2$s</string>
+    <string name="offline_audio_queue_title">Daftar Antrean Putar (%1$s)</string>
+    <string name="offline_audio_auto_next">Auto-Next Aktif</string>
+
+    <!-- Download Format Sheet -->
+    <string name="download_prep_toast">Menyiapkan unduhan %1$s...</string>
+    <string name="download_saved_toast">Tersimpan di %1$s</string>
+    <string name="download_error_general">Gagal mengunduh file media</string>
+    <string name="download_error_convert">Gagal memproses konversi video</string>
+    <string name="download_prep_title">Menyiapkan %1$s...</string>
+    <string name="download_prep_connecting">Menghubungkan ke server konversi media...</string>
+    <string name="download_progress_title">Mengunduh %1$s</string>
+    <string name="download_progress_bg_note">Berjalan di latar belakang</string>
+    <string name="download_success_title">Unduhan Berhasil Disimpan!</string>
+    <string name="download_success_detected_note">Otomatis terdeteksi oleh pemutar musik &amp; galeri Anda.</string>
+    <string name="download_open_file">Buka File</string>
+    <string name="download_failed_title">Gagal Memproses Unduhan</string>
+
+    <!-- Update Dialog -->
+    <string name="update_dialog_mandatory_title">Pembaruan Wajib</string>
+    <string name="update_dialog_available_title">Pembaruan Tersedia</string>
+    <string name="update_dialog_mandatory_desc">Versi aplikasi saat ini tidak lagi didukung. Silakan perbarui ke versi %1$s untuk melanjutkan.</string>
+    <string name="update_dialog_available_desc">Versi %1$s kini telah dirilis</string>
+    <string name="update_dialog_changelog_title">Catatan Pembaruan:</string>
+    <string name="update_dialog_later">Nanti</string>
+    <string name="update_dialog_exit">Keluar</string>
+    <string name="update_dialog_update_now">Perbarui Sekarang</string>
+    <string name="update_dialog_downloading_title">Mengunduh Pembaruan...</string>
+    <string name="update_dialog_percent_done">%1$s%% selesai</string>
+    <string name="update_dialog_prep_download">Menyiapkan unduhan...</string>
+    <string name="update_dialog_auto_install_note">Aplikasi akan otomatis menginstal setelah unduhan selesai.</string>
+    <string name="update_dialog_perm_title">Izin Instalasi Diperlukan</string>
+    <string name="update_dialog_perm_desc">Untuk memperbarui Phantom secara otomatis, izinkan instalasi aplikasi dari sumber ini pada pengaturan perangkat Anda.</string>
+    <string name="update_dialog_open_settings">Buka Pengaturan</string>
+    <string name="update_dialog_failed_title">Pembaruan Gagal</string>
+    <string name="update_dialog_download_failed">Gagal mengunduh file APK. Pastikan koneksi internet stabil.</string>
+
+    <!-- Settings & Privacy & Feedback -->
+    <string name="settings_privacy_policy_title">Kebijakan Privasi</string>
+    <string name="settings_privacy_policy_desc">Seluruh data diproses secara lokal di perangkat Anda tanpa pelacakan.</string>
+    <string name="settings_check_update_desc">Periksa versi terbaru aplikasi</string>
+    <string name="settings_browser_error">Tidak dapat membuka peramban</string>
+    <string name="settings_feedback_chooser">Kirim masukan via...</string>
+    <string name="settings_feedback_subject_bug">Laporan Bug</string>
+    <string name="settings_feedback_subject_feature">Permintaan Fitur</string>
+    <string name="settings_feedback_subject_general">Masukan Umum</string>
+    <string name="settings_checking_update_toast">Memeriksa pembaruan...</string>
+    <string name="settings_up_to_date_toast">Aplikasi sudah versi terbaru (%1$s)</string>
+    <string name="settings_update_check_failed_toast">Gagal memeriksa pembaruan: %1$s</string>
+
+
+    <!-- Additional Localized Strings -->
+    <string name="home_refreshing">Memperbarui...</string>
+    <string name="home_load_failed">Gagal memuat video</string>
+    <string name="player_no_captions">Video ini tidak menyediakan teks</string>
+    <string name="player_err_not_available">Video tidak tersedia</string>
+    <string name="player_err_restricted">Pemutaran dibatasi pada perangkat ini</string>
+    <string name="player_err_unsupported">Format video tidak didukung</string>
+    <string name="player_err_invalid">Parameter tidak valid</string>
+    <string name="player_mix_next">Berikutnya: %1$s</string>
+    <string name="player_mix_open_queue">Buka Antrean</string>
+    <string name="player_reply">Balas</string>
+    <string name="player_replies_count">%1$s balasan</string>
+    <string name="channel_no_description">Tidak ada deskripsi</string>
+    <string name="crash_title">Aplikasi Terhenti</string>
+    <string name="crash_desc">Terjadi kesalahan pada aplikasi. Log dapat disalin untuk pelaporan bug.</string>
+    <string name="crash_copy_log">Salin Log</string>
+    <string name="crash_copied">Disalin!</string>
+    <string name="crash_toast_copied">Log berhasil disalin ke clipboard</string>
+    <string name="crash_restart">Mulai Ulang Aplikasi</string>
+    <string name="crash_no_log">Tidak ada detail log crash yang tersimpan.</string>
+    <string name="crash_unhandled">Kesalahan yang tidak tertangani</string>
+    <string name="settings_quality_title">Kualitas Default Video</string>
+    <string name="settings_speed_title">Kecepatan Putar Default</string>
+    <string name="about_version">Versi %1$s</string>
+    <string name="action_insert_search">Masukkan ke pencarian</string>
+
+    <string name="common_updating">Memperbarui...</string>
+    <string name="home_failed_load_video">Gagal memuat video</string>
+    <string name="common_retry">Coba Lagi</string>
+    <string name="common_loading">Memuat...</string>
+    <string name="common_refresh">Segarkan</string>
+    <string name="common_delete">Hapus</string>
+    <string name="subscriptions_title">Koleksi &amp; Unduhan</string>
+    <string name="downloads_empty_subtitle">Belum ada file • Putar offline tanpa kuota</string>
+    <string name="downloads_count_format">%1$d file tersimpan • %2$s</string>
+    <string name="empty_subscriptions_title">Belum Ada Channel yang Dilanggan</string>
+    <string name="empty_subscriptions_desc">Jelajahi video dan subscribe channel favoritmu untuk melihat video terbarunya di sini tanpa butuh akun Google.</string>
+    <string name="explore_home">Jelajahi Beranda</string>
+    <string name="player_like">Suka</string>
+    <string name="player_dislike">Tidak suka</string>
+    <string name="player_download">Download</string>
+    <string name="player_downloaded">Terunduh</string>
+    <string name="player_comments_hint">Ketuk untuk melihat komentar...</string>
+    <string name="player_queue_format">Daftar Antrean Putar (%1$d)</string>
+    <string name="player_close">Tutup</string>
+    <string name="player_cancel">Batal</string>
+    <string name="seek_rewind_10s">Mundur 10 Detik</string>
+    <string name="seek_forward_10s">Maju 10 Detik</string>
+    <string name="player_quality_format">Kualitas: %1$s</string>
+    <string name="player_error_load">Gagal memuat video</string>
+    <string name="channel_failed_load">Gagal memuat channel</string>
+    <string name="channel_network_retry">Periksa koneksi internet Anda dan coba lagi</string>
+    <string name="crash_copied_toast">Log berhasil disalin ke clipboard</string>
+    <string name="crash_no_report">Tidak ada detail log crash yang tersimpan.</string>
+    <string name="search_history_tag">Riwayat</string>
+    <string name="search_suggestion_tag">Saran</string>
+    <string name="search_insert_query">Masukkan ke pencarian</string>
+    <string name="settings_sponsorblock_auto_skip">Lewati Secara Otomatis</string>
+    <string name="settings_sponsorblock_auto_skip_desc">Segmen langsung di-skip tanpa konfirmasi</string>
+    <string name="settings_sponsorblock_manual_skip_desc">Tampilkan tombol lewati manual</string>
+    <string name="settings_sponsorblock_categories_title">Kategori yang di-skip:</string>
+    <string name="settings_version_format">Versi %1$s</string>
+    <string name="sponsor_pill_detected">%1$s terdeteksi (%2$s)</string>
+    <string name="sponsor_pill_skipped">%1$s dilewati (%2$s)</string>
+    <string name="sponsor_pill_skip_button">Lewati</string>
+    <string name="sponsor_category_sponsor">Sponsor</string>
+    <string name="sponsor_category_intro">Intro</string>
+    <string name="sponsor_category_outro">Outro</string>
+    <string name="sponsor_category_selfpromo">Promo</string>
+    <string name="sponsor_category_interaction">Interaksi</string>
+</resources>

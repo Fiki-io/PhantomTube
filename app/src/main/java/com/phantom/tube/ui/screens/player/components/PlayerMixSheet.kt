@@ -70,6 +70,8 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import kotlin.math.roundToInt
 
 @Composable
@@ -212,7 +214,7 @@ fun FloatingMixBar(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Berikutnya: ${nextVideo.title}",
+                    text = stringResource(R.string.player_mix_next, nextVideo.title),
                     color = TextPrimary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -233,7 +235,7 @@ fun FloatingMixBar(
 
             Icon(
                 imageVector = Icons.Default.ExpandLess,
-                contentDescription = "Buka Antrean",
+                contentDescription = stringResource(R.string.player_mix_open_queue),
                 tint = TextSecondary,
                 modifier = Modifier.size(22.dp)
             )
@@ -368,7 +370,7 @@ fun PlayerMixSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Tutup",
+                                contentDescription = stringResource(R.string.player_close),
                                 tint = TextSecondary,
                                 modifier = Modifier.size(20.dp)
                             )

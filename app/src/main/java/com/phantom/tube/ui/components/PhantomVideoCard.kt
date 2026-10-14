@@ -47,7 +47,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import com.phantom.tube.R
 import com.phantom.tube.PhantomApp
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -347,7 +349,7 @@ fun PhantomVideoCard(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = "Bagikan",
+                                text = stringResource(R.string.player_share),
                                 color = TextPrimary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium
@@ -356,7 +358,7 @@ fun PhantomVideoCard(
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Share,
-                                contentDescription = "Bagikan",
+                                contentDescription = stringResource(R.string.player_share),
                                 tint = TextPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -369,7 +371,7 @@ fun PhantomVideoCard(
                                 putExtra(Intent.EXTRA_TEXT, "${video.title}\nhttps://youtu.be/${video.id}")
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
-                            val shareIntent = Intent.createChooser(sendIntent, "Bagikan").apply {
+                            val shareIntent = Intent.createChooser(sendIntent, null).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
                             context.startActivity(shareIntent)

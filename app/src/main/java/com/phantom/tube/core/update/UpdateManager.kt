@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import com.phantom.tube.R
 import com.phantom.tube.core.security.PhantomNative
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -115,7 +116,7 @@ class UpdateManager(
                 UpdateCheckResult.UpToDate
             }
         } catch (e: Exception) {
-            UpdateCheckResult.Error(e.message ?: "Gagal memeriksa pembaruan")
+            UpdateCheckResult.Error(e.message ?: context.getString(R.string.settings_update_check_failed_toast))
         }
     }
 

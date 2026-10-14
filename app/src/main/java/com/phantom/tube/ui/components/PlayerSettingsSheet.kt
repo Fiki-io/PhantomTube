@@ -82,6 +82,8 @@ import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import kotlin.math.roundToInt
 
 enum class SettingsSheetPage {
@@ -90,6 +92,31 @@ enum class SettingsSheetPage {
     DOUBLE_TAP_SEEK,
     SPEED,
     SLEEP_TIMER
+}
+
+@Composable
+fun SleepTimerOption.getLocalizedLabel(): String = when (this) {
+    SleepTimerOption.OFF -> stringResource(R.string.settings_sleep_timer_off)
+    SleepTimerOption.MINUTES_15 -> stringResource(R.string.settings_sleep_timer_15m)
+    SleepTimerOption.MINUTES_30 -> stringResource(R.string.settings_sleep_timer_30m)
+    SleepTimerOption.MINUTES_45 -> stringResource(R.string.settings_sleep_timer_45m)
+    SleepTimerOption.MINUTES_60 -> stringResource(R.string.settings_sleep_timer_60m)
+    SleepTimerOption.END_OF_VIDEO -> stringResource(R.string.settings_sleep_timer_end)
+}
+
+@Composable
+fun getLocalizedQualityLabel(code: String): String = when (code) {
+    "auto" -> stringResource(R.string.settings_quality_auto)
+    "highres" -> stringResource(R.string.settings_quality_highest) + " (4K / 2K)"
+    "tiny" -> stringResource(R.string.settings_quality_saver)
+    "hd2160" -> "2160p (4K UHD)"
+    "hd1440" -> "1440p (QHD)"
+    "hd1080" -> "1080p (Full HD)"
+    "hd720" -> "720p (HD)"
+    "large" -> "480p"
+    "medium" -> "360p"
+    "small" -> "240p"
+    else -> code
 }
 
 data class VideoQualityOption(
@@ -353,7 +380,7 @@ private fun MainSettingsContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Setelan",
+                text = stringResource(R.string.settings_player_title),
                 color = TextPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
@@ -364,7 +391,7 @@ private fun MainSettingsContent(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Tutup",
+                    contentDescription = stringResource(R.string.action_close),
                     tint = TextSecondary,
                     modifier = Modifier.size(20.dp)
                 )
@@ -380,47 +407,35 @@ private fun MainSettingsContent(
         LazyColumn(
             modifier = Modifier.fillMaxSize()
         ) {
-            val qualitySubtitle = when (currentQuality) {
-                "auto" -> "Otomatis"
-                "highres" -> "2160p / 1440p"
-                "hd2160" -> "2160p (4K)"
-                "hd1440" -> "1440p (2K)"
-                "hd1080" -> "1080p (FHD)"
-                "hd720" -> "720p (HD)"
-                "large" -> "480p"
-                "medium" -> "360p"
-                "small" -> "240p"
-                "tiny" -> "144p"
-                else -> currentQuality
-            }
             item {
+                val qualitySubtitle = getLocalizedQualityLabel(currentQuality)
                 SettingsNavigationRow(
                     icon = Icons.Default.HighQuality,
-                    title = "Kualitas Video",
+                    title = stringResource(R.string.player_quality),
                     subtitle = qualitySubtitle,
                     onClick = { onNavigate(SettingsSheetPage.QUALITY) }
                 )
             }
 
-            val speedLabel = if (currentSpeed == 1.0f) "1.0x (Normal)" else "${currentSpeed}x"
             item {
+                val speedLabel = if (currentSpeed == 1.0f) stringResource(R.string.settings_speed_normal) else "${currentSpeed}x"
                 SettingsNavigationRow(
                     icon = Icons.Default.Speed,
-                    title = "Kecepatan Pemutaran",
+                    title = stringResource(R.string.player_speed),
                     subtitle = speedLabel,
                     onClick = { onNavigate(SettingsSheetPage.SPEED) }
                 )
             }
 
-            val sleepSubtitle = if (sleepTimerRemainingSec != null && sleepTimerRemainingSec > 0) {
-                "Aktif (${formatSeconds(sleepTimerRemainingSec.toLong())} tersisa)"
-            } else {
-                sleepTimerOption.label
-            }
             item {
+                val sleepSubtitle = if (sleepTimerRemainingSec != null && sleepTimerRemainingSec > 0) {
+                    "${stringResource(R.string.settings_sleep_timer_active)} (${formatSeconds(sleepTimerRemainingSec.toLong())})"
+                } else {
+                    sleepTimerOption.getLocalizedLabel()
+                }
                 SettingsNavigationRow(
                     icon = Icons.Default.Bedtime,
-                    title = "Timer tidur",
+                    title = stringResource(R.string.settings_sleep_timer),
                     subtitle = sleepSubtitle,
                     onClick = { onNavigate(SettingsSheetPage.SLEEP_TIMER) }
                 )
@@ -429,8 +444,8 @@ private fun MainSettingsContent(
             item {
                 SettingsNavigationRow(
                     icon = Icons.Default.FastForward,
-                    title = "Ketuk dua kali untuk mencari",
-                    subtitle = "$doubleTapSeekSeconds Detik",
+                    title = stringResource(R.string.settings_double_tap_seek),
+                    subtitle = stringResource(R.string.settings_seek_seconds, doubleTapSeekSeconds),
                     onClick = { onNavigate(SettingsSheetPage.DOUBLE_TAP_SEEK) }
                 )
             }
@@ -446,8 +461,8 @@ private fun MainSettingsContent(
             item {
                 SettingsSwitchRow(
                     icon = Icons.Default.Repeat,
-                    title = "Putar ulang video",
-                    subtitle = "Putar video secara terus-menerus",
+                    title = stringResource(R.string.settings_loop_video),
+                    subtitle = stringResource(R.string.settings_loop_video_desc),
                     checked = isLoopEnabled,
                     onCheckedChange = onLoopToggle
                 )
@@ -456,8 +471,8 @@ private fun MainSettingsContent(
             item {
                 SettingsSwitchRow(
                     icon = Icons.Default.PlayCircle,
-                    title = "Putar otomatis",
-                    subtitle = "Putar video berikutnya secara otomatis",
+                    title = stringResource(R.string.player_auto_play),
+                    subtitle = stringResource(R.string.settings_auto_play_next_desc),
                     checked = isAutoplayNext,
                     onCheckedChange = onAutoplayToggle
                 )
@@ -466,8 +481,8 @@ private fun MainSettingsContent(
             item {
                 SettingsSwitchRow(
                     icon = Icons.Default.Headphones,
-                    title = "Mode audio saja",
-                    subtitle = "Matikan video untuk menghemat daya",
+                    title = stringResource(R.string.settings_audio_only_player_title),
+                    subtitle = stringResource(R.string.settings_audio_only_player_desc),
                     checked = isAudioOnly,
                     onCheckedChange = onAudioOnlyToggle
                 )
@@ -492,14 +507,14 @@ private fun DoubleTapSeekSettingsContent(
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Kembali",
+                    contentDescription = stringResource(R.string.action_back),
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Ketuk dua kali untuk mencari",
+                text = stringResource(R.string.settings_double_tap_seek),
                 color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -517,7 +532,7 @@ private fun DoubleTapSeekSettingsContent(
         ) {
             items(AVAILABLE_SEEK_DURATIONS) { seconds ->
                 val isSelected = seconds == currentSeconds
-                val label = if (seconds == 10) "$seconds Detik (Bawaan)" else "$seconds Detik"
+                val label = if (seconds == 10) stringResource(R.string.settings_seek_seconds_default, seconds) else stringResource(R.string.settings_seek_seconds, seconds)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -535,7 +550,7 @@ private fun DoubleTapSeekSettingsContent(
                     if (isSelected) {
                         Icon(
                             imageVector = Icons.Default.Check,
-                            contentDescription = "Terpilih",
+                            contentDescription = stringResource(R.string.player_selected),
                             tint = YouTubeRed,
                             modifier = Modifier.size(20.dp)
                         )
@@ -562,14 +577,14 @@ private fun SpeedSettingsContent(
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Kembali",
+                    contentDescription = stringResource(R.string.action_back),
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Kecepatan Pemutaran",
+                text = stringResource(R.string.player_speed),
                 color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -587,7 +602,7 @@ private fun SpeedSettingsContent(
         ) {
             items(AVAILABLE_SPEEDS) { speed ->
                 val isSelected = (speed == currentSpeed)
-                val label = if (speed == 1.0f) "1.0x (Normal)" else "${speed}x"
+                val label = if (speed == 1.0f) stringResource(R.string.settings_speed_normal) else "${speed}x"
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -605,7 +620,7 @@ private fun SpeedSettingsContent(
                     if (isSelected) {
                         Icon(
                             imageVector = Icons.Default.Check,
-                            contentDescription = "Terpilih",
+                            contentDescription = stringResource(R.string.player_selected),
                             tint = YouTubeRed,
                             modifier = Modifier.size(20.dp)
                         )
@@ -633,14 +648,14 @@ private fun SleepTimerSettingsContent(
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Kembali",
+                    contentDescription = stringResource(R.string.action_back),
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Timer tidur",
+                text = stringResource(R.string.settings_sleep_timer),
                 color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -669,13 +684,13 @@ private fun SleepTimerSettingsContent(
                 ) {
                     Column {
                         Text(
-                            text = "Timer tidur aktif",
+                            text = stringResource(R.string.settings_sleep_timer_active),
                             color = YouTubeRed,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Berhenti dalam ${formatSeconds(remainingSec.toLong())}",
+                            text = stringResource(R.string.settings_sleep_timer_stopping_in, formatSeconds(remainingSec.toLong())),
                             color = TextPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
@@ -687,7 +702,7 @@ private fun SleepTimerSettingsContent(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Batalkan Timer",
+                            contentDescription = stringResource(R.string.settings_sleep_timer_cancel),
                             tint = YouTubeRed,
                             modifier = Modifier.size(18.dp)
                         )
@@ -710,7 +725,7 @@ private fun SleepTimerSettingsContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = option.label,
+                        text = option.getLocalizedLabel(),
                         color = if (isSelected) YouTubeRed else TextPrimary,
                         fontSize = 15.sp,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
@@ -718,7 +733,7 @@ private fun SleepTimerSettingsContent(
                     if (isSelected) {
                         Icon(
                             imageVector = Icons.Default.Check,
-                            contentDescription = "Terpilih",
+                            contentDescription = stringResource(R.string.player_selected),
                             tint = YouTubeRed,
                             modifier = Modifier.size(20.dp)
                         )
@@ -862,14 +877,14 @@ private fun QualitySettingsContent(
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Kembali",
+                    contentDescription = stringResource(R.string.action_back),
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Kualitas Video",
+                text = stringResource(R.string.player_quality),
                 color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -896,7 +911,7 @@ private fun QualitySettingsContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = opt.label,
+                        text = getLocalizedQualityLabel(opt.code),
                         color = if (isSelected) YouTubeRed else TextPrimary,
                         fontSize = 15.sp,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
@@ -904,7 +919,7 @@ private fun QualitySettingsContent(
                     if (isSelected) {
                         Icon(
                             imageVector = Icons.Default.Check,
-                            contentDescription = "Terpilih",
+                            contentDescription = stringResource(R.string.player_selected),
                             tint = YouTubeRed,
                             modifier = Modifier.size(20.dp)
                         )

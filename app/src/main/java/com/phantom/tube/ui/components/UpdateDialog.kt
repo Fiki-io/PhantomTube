@@ -36,10 +36,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.phantom.tube.R
 import com.phantom.tube.core.security.PhantomNative
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.ObsidianSurface
@@ -121,7 +123,7 @@ fun UpdateDialog(
                 when (state) {
                     is UpdateDialogState.Available -> {
                         Text(
-                            text = if (isForceUpdate) "Pembaruan Wajib" else "Pembaruan Tersedia",
+                            text = if (isForceUpdate) stringResource(R.string.update_dialog_mandatory_title) else stringResource(R.string.update_dialog_available_title),
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
@@ -130,9 +132,9 @@ fun UpdateDialog(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (isForceUpdate) {
-                                "Versi aplikasi saat ini tidak lagi didukung. Silakan perbarui ke versi ${state.info.versionName} untuk melanjutkan."
+                                stringResource(R.string.update_dialog_mandatory_desc, state.info.versionName)
                             } else {
-                                "Versi ${state.info.versionName} kini telah dirilis"
+                                stringResource(R.string.update_dialog_available_desc, state.info.versionName)
                             },
                             style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondary)
                         )
@@ -154,7 +156,7 @@ fun UpdateDialog(
                                         .verticalScroll(rememberScrollState())
                                 ) {
                                     Text(
-                                        text = "Catatan Pembaruan:",
+                                        text = stringResource(R.string.update_dialog_changelog_title),
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             color = YouTubeRed,
                                             fontWeight = FontWeight.SemiBold
@@ -179,7 +181,7 @@ fun UpdateDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             TextButton(onClick = { handleDismissOrExit() }) {
-                                Text(if (isCancellable) "Nanti" else "Keluar", color = TextMuted)
+                                Text(if (isCancellable) stringResource(R.string.update_dialog_later) else stringResource(R.string.update_dialog_exit), color = TextMuted)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Button(
@@ -190,14 +192,14 @@ fun UpdateDialog(
                                 ),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Perbarui Sekarang", fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.update_dialog_update_now), fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
 
                     is UpdateDialogState.Downloading -> {
                         Text(
-                            text = "Mengunduh Pembaruan...",
+                            text = stringResource(R.string.update_dialog_downloading_title),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
@@ -206,7 +208,7 @@ fun UpdateDialog(
                         Spacer(modifier = Modifier.height(6.dp))
                         val percent = (state.progress * 100).toInt()
                         Text(
-                            text = if (state.progress > 0f) "$percent% selesai" else "Menyiapkan unduhan...",
+                            text = if (state.progress > 0f) stringResource(R.string.update_dialog_percent_done, percent) else stringResource(R.string.update_dialog_prep_download),
                             style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondary)
                         )
 
@@ -235,14 +237,14 @@ fun UpdateDialog(
 
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Aplikasi akan otomatis menginstal setelah unduhan selesai.",
+                            text = stringResource(R.string.update_dialog_auto_install_note),
                             style = MaterialTheme.typography.labelSmall.copy(color = TextMuted)
                         )
                     }
 
                     is UpdateDialogState.PermissionRequired -> {
                         Text(
-                            text = "Izin Instalasi Diperlukan",
+                            text = stringResource(R.string.update_dialog_perm_title),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
@@ -250,7 +252,7 @@ fun UpdateDialog(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Untuk memperbarui Phantom secara otomatis, izinkan instalasi aplikasi dari sumber ini pada pengaturan perangkat Anda.",
+                            text = stringResource(R.string.update_dialog_perm_desc),
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = TextSecondary,
                                 lineHeight = 18.sp
@@ -264,7 +266,7 @@ fun UpdateDialog(
                             horizontalArrangement = Arrangement.End
                         ) {
                             TextButton(onClick = { handleDismissOrExit() }) {
-                                Text(if (isCancellable) "Batal" else "Keluar", color = TextMuted)
+                                Text(if (isCancellable) stringResource(R.string.dialog_cancel) else stringResource(R.string.update_dialog_exit), color = TextMuted)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Button(
@@ -275,14 +277,14 @@ fun UpdateDialog(
                                 ),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Buka Pengaturan", fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.update_dialog_open_settings), fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
 
                     is UpdateDialogState.Error -> {
                         Text(
-                            text = "Pembaruan Gagal",
+                            text = stringResource(R.string.update_dialog_failed_title),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
@@ -301,7 +303,7 @@ fun UpdateDialog(
                             horizontalArrangement = Arrangement.End
                         ) {
                             TextButton(onClick = { handleDismissOrExit() }) {
-                                Text(if (isCancellable) "Tutup" else "Keluar", color = TextMuted)
+                                Text(if (isCancellable) stringResource(R.string.action_close) else stringResource(R.string.update_dialog_exit), color = TextMuted)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Button(
@@ -312,7 +314,7 @@ fun UpdateDialog(
                                 ),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Coba Lagi", fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.action_retry), fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }

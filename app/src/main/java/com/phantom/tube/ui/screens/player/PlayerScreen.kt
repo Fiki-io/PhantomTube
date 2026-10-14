@@ -18,6 +18,9 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
+import com.phantom.tube.ui.components.getLocalizedQualityLabel
 import com.phantom.tube.core.util.findActivity
 import com.phantom.tube.player.service.PhantomMediaService
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
@@ -714,12 +717,12 @@ fun PlayerScreen(
             },
             onErrorCallback = { errorCode ->
                 val msg = when (errorCode) {
-                    100 -> "Video tidak tersedia"
-                    101, 150 -> "Pemutaran dibatasi pada perangkat ini"
-                    152 -> "Format video tidak didukung"
-                    2 -> "Parameter tidak valid"
-                    5 -> "Gagal memuat video"
-                    else -> "Kesalahan pemutaran ($errorCode)"
+                    100 -> context.getString(R.string.player_err_not_available)
+                    101, 150 -> context.getString(R.string.player_err_restricted)
+                    152 -> context.getString(R.string.player_err_unsupported)
+                    2 -> context.getString(R.string.player_err_invalid)
+                    5 -> context.getString(R.string.player_error_load)
+                    else -> "${context.getString(R.string.player_error_load)} ($errorCode)"
                 }
                 playerState = playerState.copy(isBuffering = false, errorCode = msg)
             },
@@ -1662,12 +1665,12 @@ fun PlayerScreen(
                                     )
                                     .iosBounceClick(scaleDown = 0.90f) {
                                         if (!hasCaptions) {
-                                            showNotice("Video ini tidak menyediakan teks")
+                                            showNotice(context.getString(R.string.player_no_captions))
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         } else {
                                             isCaptionsEnabled = !isCaptionsEnabled
                                             controller.setCaptionsEnabled(isCaptionsEnabled)
-                                            showNotice(if (isCaptionsEnabled) "Teks diaktifkan" else "Teks dinonaktifkan")
+                                            showNotice(if (isCaptionsEnabled) context.getString(R.string.player_captions_on) else context.getString(R.string.player_captions_off))
                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         }
                                     },
@@ -1715,7 +1718,7 @@ fun PlayerScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.HighQuality,
-                                            contentDescription = "Kualitas Video: $currentQualityBadge",
+                                            contentDescription = stringResource(R.string.player_quality_format, currentQualityBadge),
                                             tint = if (isQualityMenuExpanded) YouTubeRed else if (isHighQuality) Color.White else Color.White.copy(alpha = 0.85f),
                                             modifier = Modifier.size(17.dp)
                                         )
@@ -1753,7 +1756,7 @@ fun PlayerScreen(
                                         DropdownMenuItem(
                                             text = {
                                                 Text(
-                                                    text = opt.label,
+                                                    text = getLocalizedQualityLabel(opt.code),
                                                     color = if (isSelected) YouTubeRed else TextPrimary,
                                                     fontSize = 13.sp,
                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
@@ -1763,7 +1766,7 @@ fun PlayerScreen(
                                                 {
                                                     Icon(
                                                         imageVector = Icons.Default.Check,
-                                                        contentDescription = "Terpilih",
+                                                        contentDescription = stringResource(R.string.player_selected),
                                                         tint = YouTubeRed,
                                                         modifier = Modifier.size(16.dp)
                                                     )
@@ -1773,7 +1776,7 @@ fun PlayerScreen(
                                                 playerState = playerState.copy(currentQuality = opt.code)
                                                 controller.setPlaybackQuality(opt.code)
                                                 isQualityMenuExpanded = false
-                                                showNotice("Kualitas: ${opt.label}")
+                                                showNotice(context.getString(R.string.player_quality_format, opt.label))
                                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             },
                                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)
@@ -1836,7 +1839,7 @@ fun PlayerScreen(
                             // Settings Button
                             PhantomIconButton(
                                 icon = Icons.Default.Settings,
-                                contentDescription = "Pengaturan",
+                                contentDescription = stringResource(R.string.nav_settings),
                                 size = 36.dp,
                                 iconSize = 20.dp,
                                 onClick = {
@@ -1862,7 +1865,7 @@ fun PlayerScreen(
                     ) {
                         PhantomIconButton(
                             icon = Icons.Default.SkipPrevious,
-                            contentDescription = "Video Sebelumnya",
+                            contentDescription = stringResource(R.string.player_prev_video),
                             size = 42.dp,
                             iconSize = 22.dp,
                             onClick = { playPrevious() }
@@ -1870,7 +1873,7 @@ fun PlayerScreen(
 
                         PhantomIconButton(
                             icon = Icons.Default.Replay10,
-                            contentDescription = "Mundur 10 Detik",
+                            contentDescription = stringResource(R.string.seek_rewind_10s),
                             size = 42.dp,
                             iconSize = 22.dp,
                             onClick = {
@@ -1883,7 +1886,7 @@ fun PlayerScreen(
 
                         PhantomIconButton(
                             icon = if (playerState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (playerState.isPlaying) "Pause" else "Play",
+                            contentDescription = stringResource(if (playerState.isPlaying) R.string.player_pause else R.string.player_play),
                             size = 64.dp,
                             iconSize = 36.dp,
                             onClick = {
@@ -1897,7 +1900,7 @@ fun PlayerScreen(
 
                         PhantomIconButton(
                             icon = Icons.Default.Forward10,
-                            contentDescription = "Maju 10 Detik",
+                            contentDescription = stringResource(R.string.seek_forward_10s),
                             size = 42.dp,
                             iconSize = 22.dp,
                             onClick = {
@@ -1910,7 +1913,7 @@ fun PlayerScreen(
 
                         PhantomIconButton(
                             icon = Icons.Default.SkipNext,
-                            contentDescription = "Video Berikutnya",
+                            contentDescription = stringResource(R.string.player_next_video),
                             size = 42.dp,
                             iconSize = 22.dp,
                             onClick = { playNext() }
@@ -2122,7 +2125,10 @@ fun PlayerScreen(
                                         append(" • ")
                                     }
                                     if (activeLikeCount.isNotBlank()) {
-                                        append("$activeLikeCount suka • ")
+                                        append(activeLikeCount)
+                                        append(" ")
+                                        append(stringResource(R.string.player_stat_likes).lowercase())
+                                        append(" • ")
                                     }
                                     if (activeViews.isNotBlank()) {
                                         append("$activeViews • ")
@@ -2131,7 +2137,7 @@ fun PlayerScreen(
                                         append("$activeDate • ")
                                     }
                                     withStyle(SpanStyle(color = TextPrimary, fontWeight = FontWeight.Bold)) {
-                                        append("...selengkapnya")
+                                        append(stringResource(R.string.player_more_details))
                                     }
                                 },
                                 color = TextMuted,
@@ -2242,7 +2248,7 @@ fun PlayerScreen(
                                     .padding(horizontal = 14.dp, vertical = 7.dp)
                             ) {
                                 Text(
-                                    text = if (isSubscribed) "Disubscribe" else "Subscribe",
+                                    text = if (isSubscribed) stringResource(R.string.channel_subscribed) else stringResource(R.string.channel_subscribe),
                                     color = if (isSubscribed) Color.White else Color.Black,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
@@ -2271,13 +2277,13 @@ fun PlayerScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.ThumbUp,
-                                    contentDescription = "Suka",
+                                    contentDescription = stringResource(R.string.player_like),
                                     tint = TextPrimary,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = activeLikeCount.ifBlank { "Suka" },
+                                    text = activeLikeCount.ifBlank { stringResource(R.string.player_like) },
                                     color = TextPrimary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -2292,7 +2298,7 @@ fun PlayerScreen(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Icon(
                                     imageVector = Icons.Default.ThumbDown,
-                                    contentDescription = "Tidak suka",
+                                    contentDescription = stringResource(R.string.player_dislike),
                                     tint = TextPrimary,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -2310,7 +2316,7 @@ fun PlayerScreen(
                                             putExtra(Intent.EXTRA_TEXT, "$activeTitle\nhttps://youtu.be/${video.id}")
                                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                         }
-                                        val shareIntent = Intent.createChooser(sendIntent, "Bagikan").apply {
+                                        val shareIntent = Intent.createChooser(sendIntent, null).apply {
                                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                         }
                                         context.startActivity(shareIntent)
@@ -2320,13 +2326,13 @@ fun PlayerScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Share,
-                                    contentDescription = "Bagikan",
+                                    contentDescription = stringResource(R.string.player_share),
                                     tint = TextPrimary,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Bagikan",
+                                    text = stringResource(R.string.player_share),
                                     color = TextPrimary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -2347,13 +2353,13 @@ fun PlayerScreen(
                             ) {
                                 Icon(
                                     imageVector = if (isDownloaded) Icons.Default.Check else Icons.Default.Download,
-                                    contentDescription = "Download",
+                                    contentDescription = stringResource(if (isDownloaded) R.string.player_downloaded else R.string.player_download),
                                     tint = if (isDownloaded) Color(0xFF4CAF50) else TextPrimary,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (isDownloaded) "Terunduh" else "Download",
+                                    text = stringResource(if (isDownloaded) R.string.player_downloaded else R.string.player_download),
                                     color = if (isDownloaded) Color(0xFF4CAF50) else TextPrimary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -2369,7 +2375,7 @@ fun PlayerScreen(
                         }
                         val topCommentSnippet = commentsList.firstOrNull()?.contentText
                             ?: nextQueueData?.topComment?.contentText
-                            ?: "Ketuk untuk melihat komentar..."
+                            ?: stringResource(R.string.player_comments_hint)
                         val topCommentAvatar = commentsList.firstOrNull()?.authorAvatarUrl
                             ?: nextQueueData?.topComment?.authorAvatarUrl
                             ?: ""
@@ -2394,7 +2400,7 @@ fun PlayerScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Komentar",
+                                        text = stringResource(R.string.player_comments),
                                         color = TextPrimary,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold
@@ -2445,7 +2451,7 @@ fun PlayerScreen(
                 item {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Berikutnya",
+                        text = stringResource(R.string.player_up_next_short),
                         color = TextPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
@@ -2508,7 +2514,7 @@ fun PlayerScreen(
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
-                                        text = "Memuat...",
+                                        text = stringResource(R.string.common_loading),
                                         color = TextSecondary,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium

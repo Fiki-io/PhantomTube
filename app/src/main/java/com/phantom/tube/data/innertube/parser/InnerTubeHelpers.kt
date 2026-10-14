@@ -20,44 +20,19 @@ object InnerTubeHelpers {
     }
 
     /**
-     * Standardizes raw YouTube view count strings so that Home, Search, Channel,
-     * and Related video feeds display uniform formatting (e.g. "98 jt x ditonton" or "10 rb x ditonton").
+     * Standardizes raw YouTube view count strings and preserves localized formats
+     * returned directly by YouTube InnerTube based on the user's selected language.
      */
     fun normalizeViewCount(raw: String): String {
-        val trimmed = raw.trim()
-        if (trimmed.isBlank()) return ""
-        val lower = trimmed.lowercase()
-        // If already formatted with view indicator or live status, leave as is
-        if (lower.contains("ditonton") || lower.contains("view") || lower.contains("live") || lower.contains("streaming")) {
-            return trimmed
-        }
-        // If it's a short count like "98 jt", "10 rb", "1,2 jt", "500K", or digits
-        return "$trimmed x ditonton"
+        return raw.trim()
     }
 
     /**
-     * Standardizes raw YouTube relative time strings so that Home, Search, Channel,
-     * and Related video feeds display uniform formatting (e.g. "4 tahun lalu" or "2 minggu lalu").
+     * Standardizes raw YouTube relative time strings and preserves localized formats
+     * returned directly by YouTube InnerTube based on the user's selected language.
      */
     fun normalizePublishedTime(raw: String): String {
-        val trimmed = raw.trim()
-        if (trimmed.isBlank()) return ""
-        val lower = trimmed.lowercase()
-        // If already formatted with relative time indicator
-        if (lower.contains("lalu") || lower.contains("ago") || lower.contains("kemarin") || lower.contains("hari ini")) {
-            return trimmed
-        }
-        // Indonesian time units without "lalu" (common in modern lockupViewModel)
-        val indonesianUnits = listOf("tahun", "thn", "bulan", "bln", "minggu", "mgg", "hari", "hr", "jam", "menit", "mnt", "detik", "dtk")
-        if (indonesianUnits.any { lower.contains(it) }) {
-            return "$trimmed lalu"
-        }
-        // English time units without "ago"
-        val englishUnits = listOf("year", "years", "month", "months", "week", "weeks", "day", "days", "hour", "hours", "minute", "minutes", "second", "seconds")
-        if (englishUnits.any { lower.contains(it) }) {
-            return "$trimmed ago"
-        }
-        return trimmed
+        return raw.trim()
     }
 
     /**

@@ -65,6 +65,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import coil.compose.AsyncImage
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
@@ -131,7 +133,7 @@ fun OfflineAudioPlayerSheet(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Tutup",
+                        contentDescription = stringResource(R.string.player_close),
                         tint = TextSecondary,
                         modifier = Modifier.size(28.dp)
                     )
@@ -139,14 +141,14 @@ fun OfflineAudioPlayerSheet(
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "MEMUTAR MUSIK OFFLINE",
+                        text = stringResource(R.string.downloads_title).uppercase(),
                         color = YouTubeRed,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     )
                     Text(
-                        text = "Lagu ${currentIndex + 1} dari ${queue.size.coerceAtLeast(1)}",
+                        text = stringResource(R.string.offline_audio_track_counter, currentIndex + 1, queue.size.coerceAtLeast(1)),
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -155,7 +157,7 @@ fun OfflineAudioPlayerSheet(
                 IconButton(onClick = { showQueue = !showQueue }) {
                     Icon(
                         imageVector = Icons.Default.QueueMusic,
-                        contentDescription = "Antrean Lagu",
+                        contentDescription = stringResource(R.string.player_mix_open_queue),
                         tint = if (showQueue) YouTubeRed else TextSecondary,
                         modifier = Modifier.size(24.dp)
                     )
@@ -315,7 +317,7 @@ fun OfflineAudioPlayerSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
-                            contentDescription = "Lagu Berikutnya",
+                            contentDescription = stringResource(R.string.player_next_video),
                             tint = TextPrimary,
                             modifier = Modifier.size(32.dp)
                         )
@@ -325,15 +327,15 @@ fun OfflineAudioPlayerSheet(
                     IconButton(onClick = {
                         OfflineAudioPlayerManager.toggleRepeatMode(context)
                         val msg = when (OfflineAudioPlayerManager.repeatMode.value) {
-                            com.phantom.tube.player.offline.OfflineRepeatMode.OFF -> "Ulangi: Nonaktif"
-                            com.phantom.tube.player.offline.OfflineRepeatMode.ALL -> "Ulangi: Semua antrean"
-                            com.phantom.tube.player.offline.OfflineRepeatMode.ONE -> "Ulangi: Lagu ini (Loop 1)"
+                            com.phantom.tube.player.offline.OfflineRepeatMode.OFF -> context.getString(R.string.downloads_repeat_off)
+                            com.phantom.tube.player.offline.OfflineRepeatMode.ALL -> context.getString(R.string.downloads_repeat_all)
+                            com.phantom.tube.player.offline.OfflineRepeatMode.ONE -> context.getString(R.string.downloads_repeat_one)
                         }
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     }) {
                         Icon(
                             imageVector = if (repeatMode == com.phantom.tube.player.offline.OfflineRepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
-                            contentDescription = "Ulangi",
+                            contentDescription = stringResource(R.string.downloads_repeat_all),
                             tint = if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed else TextMuted,
                             modifier = Modifier.size(24.dp)
                         )
@@ -354,13 +356,13 @@ fun OfflineAudioPlayerSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Daftar Antrean Putar (${queue.size})",
+                            text = stringResource(R.string.player_queue_format, queue.size),
                             color = TextPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Auto-Next Aktif",
+                            text = stringResource(R.string.player_auto_play),
                             color = YouTubeRed,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium

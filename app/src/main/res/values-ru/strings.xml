@@ -144,4 +144,245 @@
     <string name="downloads_play_all">Воспроизвести все</string>
     <string name="downloads_empty_title">Загрузок пока нет</string>
     <string name="downloads_empty_desc">Скачивайте любимую музыку или видео, чтобы слушать и смотреть офлайн в любое время без интернета.</string>
+
+    <!-- Player Stats & Sheets -->
+    <string name="player_stat_likes">Нравится</string>
+    <string name="player_stat_dislike">Не нравится</string>
+    <string name="player_stat_views">Просмотры</string>
+    <string name="player_stat_published">Дата публикации</string>
+    <string name="player_no_description">Описание для этого видео отсутствует.</string>
+    <string name="player_tap_to_view_comments">Нажмите, чтобы просмотреть комментарии...</string>
+    <string name="player_no_comments_sheet">Для этого видео нет комментариев</string>
+    <string name="player_more_details">...ещё</string>
+    <string name="player_up_next_short">Следующее</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_back">Назад</string>
+    <string name="action_loading">Загрузка...</string>
+    <string name="settings_player_title">Настройки</string>
+    <string name="settings_sleep_timer">Таймер сна</string>
+    <string name="settings_double_tap_seek">Перемотка двойным нажатием</string>
+    <string name="settings_loop_video">Зацикливание видео</string>
+    <string name="settings_loop_video_desc">Воспроизводить видео непрерывно</string>
+    <string name="settings_audio_only">Режим только аудио (AMOLED)</string>
+    <string name="settings_audio_only_desc">Слушать только аудио без загрузки видео для экономии данных и батареи</string>
+    <string name="search_for_prefix">Искать:</string>
+
+    <!-- Channel & Feed Additions -->
+    <string name="action_refresh">Обновить</string>
+    <string name="channel_for_you">Для вас</string>
+    <string name="channel_recent_videos">Новые видео</string>
+    <string name="channel_tab_home">Главная</string>
+    <string name="channel_tab_videos">Видео</string>
+    <string name="channel_sort_latest">Новые</string>
+    <string name="channel_sort_popular">Популярные</string>
+    <string name="channel_sort_oldest">Старые</string>
+    <string name="channel_about_title">О канале</string>
+    <string name="channel_links">Ссылки</string>
+    <string name="channel_load_failed">Не удалось загрузить канал</string>
+    <string name="channel_load_failed_hint">Проверьте подключение к интернету и повторите попытку</string>
+    <string name="action_retry">Повторить</string>
+
+    <!-- Library & Subscriptions Additions -->
+    <string name="library_downloads">Загрузки</string>
+    <string name="library_downloads_empty">Нет файлов • Воспроизведение офлайн</string>
+    <string name="library_files_count">Сохранено файлов: %1$s • %2$s</string>
+    <string name="subscriptions_empty_title">Нет подписок</string>
+    <string name="subscriptions_empty_desc">Находите видео и подписывайтесь на каналы, чтобы смотреть их новые публикации без аккаунта Google.</string>
+    <string name="subscriptions_explore_button">На главную</string>
+
+    <!-- Search Additions -->
+    <string name="search_no_results_for">Нет результатов для "%1$s"</string>
+    <string name="search_open_channel">Открыть канал</string>
+    <string name="search_history_badge">История</string>
+    <string name="search_suggestion_badge">Подсказка</string>
+    <string name="search_clear_query">Очистить запрос</string>
+
+    <!-- Player Controls & Notices -->
+    <string name="player_minimize">Свернуть плеер</string>
+    <string name="player_captions_on">Субтитры включены</string>
+    <string name="player_captions_off">Субтитры выключены</string>
+    <string name="player_captions_turn_on">Включить субтитры</string>
+    <string name="player_captions_turn_off">Выключить субтитры</string>
+    <string name="player_zoom_fill">Масштабировать по экрану</string>
+    <string name="player_zoom_original">Исходный размер</string>
+    <string name="player_prev_video">Предыдущее видео</string>
+    <string name="player_next_video">Следующее видео</string>
+    <string name="player_play">Воспроизвести</string>
+    <string name="player_pause">Пауза</string>
+    <string name="player_selected">Выбрано</string>
+    <string name="player_fullscreen">Полный экран</string>
+    <string name="player_exit_fullscreen">Выйти из полноэкранного режима</string>
+    <string name="player_rewind_10s">Назад на 10 секунд</string>
+    <string name="player_forward_10s">Вперед на 10 секунд</string>
+    <string name="player_seek_notice_rewind">-10 секунд</string>
+    <string name="player_seek_notice_forward">+10 секунд</string>
+
+    <!-- Player Settings & Sleep Timer -->
+    <string name="settings_quality_auto">Авто (Рекомендуется)</string>
+    <string name="settings_quality_highest">Максимальное качество</string>
+    <string name="settings_quality_saver">144p (Экономия трафика)</string>
+    <string name="settings_sleep_timer_off">Выкл</string>
+    <string name="settings_sleep_timer_15m">15 минут</string>
+    <string name="settings_sleep_timer_30m">30 минут</string>
+    <string name="settings_sleep_timer_45m">45 минут</string>
+    <string name="settings_sleep_timer_60m">60 минут</string>
+    <string name="settings_sleep_timer_end">В конце видео</string>
+    <string name="settings_sleep_timer_active">Таймер сна активен</string>
+    <string name="settings_sleep_timer_stopping_in">Остановка через %1$s</string>
+    <string name="settings_sleep_timer_cancel">Отменить таймер</string>
+    <string name="settings_seek_seconds_default">%1$s сек (По умолчанию)</string>
+    <string name="settings_seek_seconds">%1$s сек</string>
+    <string name="settings_speed_normal">1.0x (Обычная)</string>
+    <string name="settings_audio_only_player_title">Режим только аудио</string>
+    <string name="settings_audio_only_player_desc">Отключить видео для экономии энергии</string>
+    <string name="settings_auto_play_next_desc">Автоматически воспроизводить следующее видео</string>
+
+    <!-- Downloads Screen & Actions -->
+    <string name="downloads_search_hint">Поиск песен или видео...</string>
+    <string name="downloads_filter_all">Все (%1$s)</string>
+    <string name="downloads_filter_audio">Аудио MP3 (%1$s)</string>
+    <string name="downloads_filter_video">Видео MP4 (%1$s)</string>
+    <string name="downloads_play_all_count">Воспроизвести все (%1$s)</string>
+    <string name="downloads_shuffle_on">Перемешивание включено</string>
+    <string name="downloads_shuffle_off">Перемешивание выключено</string>
+    <string name="downloads_repeat_off">Повтор: Выкл</string>
+    <string name="downloads_repeat_all">Повтор: Все</string>
+    <string name="downloads_repeat_one">Повтор: Один трек</string>
+    <string name="downloads_search_no_results">Результаты поиска не найдены</string>
+    <string name="downloads_search_try_again">Попробуйте другие ключевые слова</string>
+    <string name="downloads_saved_offline">Сохранено офлайн</string>
+    <string name="downloads_play_external">Воспроизвести во внешнем плеере</string>
+    <string name="downloads_share_file">Поделиться файлом</string>
+    <string name="downloads_delete_title">Удалить загрузку?</string>
+    <string name="downloads_delete_confirm_desc">Файл «%1$s» будет удален из памяти устройства и списка загрузок.</string>
+    <string name="downloads_toast_playing">Воспроизведение %1$s офлайн-треков</string>
+    <string name="downloads_toast_deleted">Загрузка удалена</string>
+    <string name="downloads_toast_no_external">Совместимый внешний плеер не найден</string>
+    <string name="downloads_toast_share_failed">Не удалось поделиться файлом</string>
+    <string name="downloads_chooser_play">Воспроизвести с помощью...</string>
+    <string name="downloads_chooser_share">Поделиться «%1$s»</string>
+
+    <!-- Offline Audio Player Sheet -->
+    <string name="offline_audio_playing_banner">ВОСПРОИЗВЕДЕНИЕ ОФЛАЙН</string>
+    <string name="offline_audio_track_counter">Трек %1$s из %2$s</string>
+    <string name="offline_audio_queue_title">Очередь воспроизведения (%1$s)</string>
+    <string name="offline_audio_auto_next">Автопереход активен</string>
+
+    <!-- Download Format Sheet -->
+    <string name="download_prep_toast">Подготовка загрузки %1$s...</string>
+    <string name="download_saved_toast">Сохранено в %1$s</string>
+    <string name="download_error_general">Не удалось загрузить медиафайл</string>
+    <string name="download_error_convert">Не удалось выполнить конвертацию видео</string>
+    <string name="download_prep_title">Подготовка %1$s...</string>
+    <string name="download_prep_connecting">Подключение к серверу конвертации...</string>
+    <string name="download_progress_title">Загрузка %1$s</string>
+    <string name="download_progress_bg_note">Работает в фоновом режиме</string>
+    <string name="download_success_title">Загрузка успешно сохранена!</string>
+    <string name="download_success_detected_note">Автоматически отображается в музыкальном плеере и галерее.</string>
+    <string name="download_open_file">Открыть файл</string>
+    <string name="download_failed_title">Не удалось обработать загрузку</string>
+
+    <!-- Update Dialog -->
+    <string name="update_dialog_mandatory_title">Обязательное обновление</string>
+    <string name="update_dialog_available_title">Доступно обновление</string>
+    <string name="update_dialog_mandatory_desc">Текущая версия больше не поддерживается. Обновите до версии %1$s для продолжения.</string>
+    <string name="update_dialog_available_desc">Доступна версия %1$s</string>
+    <string name="update_dialog_changelog_title">Список изменений:</string>
+    <string name="update_dialog_later">Позже</string>
+    <string name="update_dialog_exit">Выход</string>
+    <string name="update_dialog_update_now">Обновить сейчас</string>
+    <string name="update_dialog_downloading_title">Загрузка обновления...</string>
+    <string name="update_dialog_percent_done">%1$s%% завершено</string>
+    <string name="update_dialog_prep_download">Подготовка загрузки...</string>
+    <string name="update_dialog_auto_install_note">Приложение автоматически предложит установку после завершения загрузки.</string>
+    <string name="update_dialog_perm_title">Требуется разрешение на установку</string>
+    <string name="update_dialog_perm_desc">Чтобы обновить Phantom автоматически, разрешите установку приложений из этого источника в настройках устройства.</string>
+    <string name="update_dialog_open_settings">Открыть настройки</string>
+    <string name="update_dialog_failed_title">Ошибка обновления</string>
+    <string name="update_dialog_download_failed">Не удалось скачать APK. Проверьте подключение к интернету.</string>
+
+    <!-- Settings & Privacy & Feedback -->
+    <string name="settings_privacy_policy_title">Политика конфиденциальности</string>
+    <string name="settings_privacy_policy_desc">Все данные обрабатываются локально без отслеживания.</string>
+    <string name="settings_check_update_desc">Проверить наличие новой версии</string>
+    <string name="settings_browser_error">Не удалось открыть браузер</string>
+    <string name="settings_feedback_chooser">Отправить отзыв через...</string>
+    <string name="settings_feedback_subject_bug">Отчет об ошибке</string>
+    <string name="settings_feedback_subject_feature">Запрос функции</string>
+    <string name="settings_feedback_subject_general">Общий отзыв</string>
+    <string name="settings_checking_update_toast">Проверка обновлений...</string>
+    <string name="settings_up_to_date_toast">Установлена последняя версия (%1$s)</string>
+    <string name="settings_update_check_failed_toast">Не удалось проверить обновления: %1$s</string>
+
+
+    <!-- Additional Localized Strings -->
+    <string name="home_refreshing">Обновление...</string>
+    <string name="home_load_failed">Не удалось загрузить видео</string>
+    <string name="player_no_captions">У этого видео нет субтитров</string>
+    <string name="player_err_not_available">Видео недоступно</string>
+    <string name="player_err_restricted">Воспроизведение ограничено на этом устройстве</string>
+    <string name="player_err_unsupported">Формат видео не поддерживается</string>
+    <string name="player_err_invalid">Недопустимый параметр</string>
+    <string name="player_mix_next">Далее: %1$s</string>
+    <string name="player_mix_open_queue">Открыть очередь</string>
+    <string name="player_reply">Ответить</string>
+    <string name="player_replies_count">Ответов: %1$s</string>
+    <string name="channel_no_description">Нет описания</string>
+    <string name="crash_title">Приложение остановлено</string>
+    <string name="crash_desc">Произошла ошибка в приложении. Журнал можно скопировать для отчета.</string>
+    <string name="crash_copy_log">Скопировать журнал</string>
+    <string name="crash_copied">Скопировано!</string>
+    <string name="crash_toast_copied">Журнал скопирован в буфер обмена</string>
+    <string name="crash_restart">Перезапустить приложение</string>
+    <string name="crash_no_log">Сведения журнала сбоев не сохранены.</string>
+    <string name="crash_unhandled">Необработанная ошибка</string>
+    <string name="settings_quality_title">Качество видео по умолчанию</string>
+    <string name="settings_speed_title">Скорость воспроизведения по умолчанию</string>
+    <string name="about_version">Версия %1$s</string>
+    <string name="action_insert_search">Вставить в поиск</string>
+
+    <string name="common_updating">Обновление...</string>
+    <string name="home_failed_load_video">Не удалось загрузить видео</string>
+    <string name="common_retry">Повторить</string>
+    <string name="common_loading">Загрузка...</string>
+    <string name="common_refresh">Обновить</string>
+    <string name="common_delete">Удалить</string>
+    <string name="subscriptions_title">Библиотека и подписки</string>
+    <string name="downloads_empty_subtitle">Нет загрузок • Офлайн воспроизведение</string>
+    <string name="downloads_count_format">%1$d файлов сохранено • %2$s</string>
+    <string name="empty_subscriptions_title">Нет подписок на каналы</string>
+    <string name="empty_subscriptions_desc">Смотрите видео и подписывайтесь на любимые каналы, чтобы следить за новинками здесь.</string>
+    <string name="explore_home">Главная страница</string>
+    <string name="player_like">Нравится</string>
+    <string name="player_dislike">Не нравится</string>
+    <string name="player_download">Скачать</string>
+    <string name="player_downloaded">Скачано</string>
+    <string name="player_comments_hint">Нажмите, чтобы открыть комментарии...</string>
+    <string name="player_queue_format">Очередь воспроизведения (%1$d)</string>
+    <string name="player_close">Закрыть</string>
+    <string name="player_cancel">Отмена</string>
+    <string name="seek_rewind_10s">Перемотка назад 10 сек</string>
+    <string name="seek_forward_10s">Перемотка вперед 10 сек</string>
+    <string name="player_quality_format">Качество: %1$s</string>
+    <string name="player_error_load">Не удалось загрузить видео</string>
+    <string name="channel_failed_load">Не удалось загрузить канал</string>
+    <string name="channel_network_retry">Проверьте подключение к интернету и повторите попытку</string>
+    <string name="crash_copied_toast">Лог скопирован в буфер обмена</string>
+    <string name="crash_no_report">Нет сохраненных данных отчета о сбое.</string>
+    <string name="search_history_tag">История</string>
+    <string name="search_suggestion_tag">Подсказка</string>
+    <string name="search_insert_query">Вставить в поиск</string>
+    <string name="settings_sponsorblock_auto_skip">Автопропуск</string>
+    <string name="settings_sponsorblock_auto_skip_desc">Пропускать сегменты без подтверждения</string>
+    <string name="settings_sponsorblock_manual_skip_desc">Показывать кнопку ручного пропуска</string>
+    <string name="settings_sponsorblock_categories_title">Категории для пропуска:</string>
+    <string name="settings_version_format">Версия %1$s</string>
+    <string name="sponsor_pill_detected">%1$s обнаружен (%2$sс)</string>
+    <string name="sponsor_pill_skipped">%1$s пропущен (%2$sс)</string>
+    <string name="sponsor_pill_skip_button">Пропустить</string>
+    <string name="sponsor_category_sponsor">Спонсор</string>
+    <string name="sponsor_category_intro">Интро</string>
+    <string name="sponsor_category_outro">Аутро</string>
+    <string name="sponsor_category_selfpromo">Самореклама</string>
+    <string name="sponsor_category_interaction">Взаимодействие</string>
 </resources>
