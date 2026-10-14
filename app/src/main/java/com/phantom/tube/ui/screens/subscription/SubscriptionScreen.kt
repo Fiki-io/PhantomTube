@@ -37,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -294,6 +295,7 @@ fun SubscriptionScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .clipToBounds()
                     .nestedScroll(pullRefreshState.nestedScrollConnection)
             ) {
                 LazyColumn(
@@ -392,12 +394,14 @@ fun SubscriptionScreen(
                     }
                 }
 
-                PullToRefreshContainer(
-                    state = pullRefreshState,
-                    modifier = Modifier.align(Alignment.TopCenter),
-                    containerColor = CardBackground,
-                    contentColor = YouTubeRed
-                )
+                if (pullRefreshState.verticalOffset > 0f || pullRefreshState.isRefreshing) {
+                    PullToRefreshContainer(
+                        state = pullRefreshState,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                        containerColor = CardBackground,
+                        contentColor = YouTubeRed
+                    )
+                }
             }
         }
     }

@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -433,6 +434,7 @@ fun ChannelScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .weight(1f)
+                            .clipToBounds()
                             .nestedScroll(pullRefreshState.nestedScrollConnection)
                     ) {
                         LazyColumn(
@@ -839,12 +841,14 @@ fun ChannelScreen(
                             }
                         }
 
-                        PullToRefreshContainer(
-                            state = pullRefreshState,
-                            modifier = Modifier.align(Alignment.TopCenter),
-                            containerColor = Color(0xFF222222),
-                            contentColor = YouTubeRed
-                        )
+                        if (pullRefreshState.verticalOffset > 0f || pullRefreshState.isRefreshing) {
+                            PullToRefreshContainer(
+                                state = pullRefreshState,
+                                modifier = Modifier.align(Alignment.TopCenter),
+                                containerColor = Color(0xFF222222),
+                                contentColor = YouTubeRed
+                            )
+                        }
                     }
                 }
             }
