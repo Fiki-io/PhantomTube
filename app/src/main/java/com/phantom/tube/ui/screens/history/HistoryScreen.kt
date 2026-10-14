@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,10 +43,10 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.ObsidianDark
+import com.phantom.tube.core.theme.SystemStatusBarColor
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.TopBarBackground
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
@@ -65,47 +67,48 @@ fun HistoryScreen(
             .fillMaxSize()
             .background(ObsidianDark)
     ) {
-        // Header
-        Box(
+        // Strip bilah status hitam (di atas header riwayat, bawah baterai)
+        Spacer(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(TopBarBackground)
-                .statusBarsPadding()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = null,
-                        tint = TextPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = stringResource(R.string.nav_history),
-                        color = TextPrimary,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .background(SystemStatusBarColor)
+        )
 
-                if (historyList.isNotEmpty()) {
-                    PhantomIconButton(
-                        icon = Icons.Default.DeleteSweep,
-                        contentDescription = stringResource(R.string.library_clear_history),
-                        size = 36.dp,
-                        iconSize = 20.dp,
-                        onClick = {
-                            scope.launch { repository.clearHistory() }
-                        }
-                    )
-                }
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = null,
+                    tint = TextPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = stringResource(R.string.nav_history),
+                    color = TextPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            if (historyList.isNotEmpty()) {
+                PhantomIconButton(
+                    icon = Icons.Default.DeleteSweep,
+                    contentDescription = stringResource(R.string.library_clear_history),
+                    size = 36.dp,
+                    iconSize = 20.dp,
+                    onClick = {
+                        scope.launch { repository.clearHistory() }
+                    }
+                )
             }
         }
 

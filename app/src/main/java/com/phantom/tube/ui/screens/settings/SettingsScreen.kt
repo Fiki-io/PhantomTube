@@ -28,8 +28,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -93,10 +95,10 @@ import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBackgroundAlt
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.ObsidianDark
+import com.phantom.tube.core.theme.SystemStatusBarColor
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.TopBarBackground
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.core.theme.YouTubeSurfaceLight
@@ -186,36 +188,37 @@ fun SettingsScreen(
             .fillMaxSize()
             .background(ObsidianDark)
     ) {
-        // TOP APP BAR
-        Box(
+        // Strip bilah status hitam (di atas header pengaturan, bawah baterai)
+        Spacer(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(TopBarBackground)
-                .statusBarsPadding()
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .background(SystemStatusBarColor)
+        )
+
+        // TOP APP BAR
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                PhantomIconButton(
-                    icon = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.action_back),
-                    size = 40.dp,
-                    iconSize = 22.dp,
-                    onClick = onBackClick
-                )
+            PhantomIconButton(
+                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.action_back),
+                size = 40.dp,
+                iconSize = 22.dp,
+                onClick = onBackClick
+            )
 
-                Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-                Text(
-                    text = stringResource(R.string.settings_title),
-                    color = TextPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            Text(
+                text = stringResource(R.string.settings_title),
+                color = TextPrimary,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
 
         // CONTENT LIST

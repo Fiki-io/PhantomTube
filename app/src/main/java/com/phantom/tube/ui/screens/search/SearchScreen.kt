@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -68,10 +70,10 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.ObsidianDark
+import com.phantom.tube.core.theme.SystemStatusBarColor
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.TopBarBackground
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.model.SearchChannelItem
@@ -297,19 +299,21 @@ fun SearchScreen(
             .fillMaxSize()
             .background(ObsidianDark)
     ) {
-        // YouTube Search Input Header Box
-        Box(
+        // Strip bilah status hitam (di atas input pencarian, bawah baterai)
+        Spacer(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(TopBarBackground)
-                .statusBarsPadding()
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .background(SystemStatusBarColor)
+        )
+
+        // YouTube Search Input Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
             PhantomIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = stringResource(R.string.action_back),
@@ -391,9 +395,8 @@ fun SearchScreen(
                 }
             }
         }
-    }
 
-    Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // Content: Loading, History, Suggestions, or Results
         Box(modifier = Modifier.fillMaxSize()) {

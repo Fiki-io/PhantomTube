@@ -166,6 +166,7 @@ import androidx.compose.ui.unit.sp
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.ObsidianDark
+import com.phantom.tube.core.theme.SystemStatusBarColor
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -1216,7 +1217,7 @@ fun PlayerScreen(
                         .fillMaxWidth()
                         .statusBarsPadding()
                         .alpha(statusBarAlpha)
-                        .background(ObsidianDark)
+                        .background(SystemStatusBarColor)
                 )
             }
         }

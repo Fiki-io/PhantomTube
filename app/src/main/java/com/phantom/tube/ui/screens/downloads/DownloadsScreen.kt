@@ -23,8 +23,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -85,10 +87,10 @@ import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.GlassSurface
 import com.phantom.tube.core.theme.ObsidianDark
+import com.phantom.tube.core.theme.SystemStatusBarColor
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.TopBarBackground
 import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.repository.PhantomRepository
@@ -157,15 +159,16 @@ fun DownloadsScreen(
             .fillMaxSize()
             .background(ObsidianDark)
     ) {
-        // TOP HEADER BAR BOX
-        Column(
+        // Strip bilah status hitam (di atas header unduhan, bawah baterai)
+        Spacer(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(TopBarBackground)
-                .statusBarsPadding()
-        ) {
-            // TOP HEADER BAR
-            Row(
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .background(SystemStatusBarColor)
+        )
+
+        // TOP HEADER BAR
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -276,7 +279,6 @@ fun DownloadsScreen(
                 ),
                 border = null
             )
-        }
         }
 
         // PLAYBACK ACTION BAR (Putar Semua, Acak, Ulangi)
