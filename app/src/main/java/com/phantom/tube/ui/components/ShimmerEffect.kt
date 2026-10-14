@@ -10,7 +10,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,9 +39,9 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun rememberShimmerBrush(): Brush {
     val shimmerColors = listOf(
-        Color(0xFF1E1E1E),
-        Color(0xFF2C2C2C),
-        Color(0xFF1E1E1E)
+        Color(0xFF222226),
+        Color(0xFF38383E),
+        Color(0xFF222226)
     )
 
     val transition = rememberInfiniteTransition(label = "shimmer_transition")
@@ -69,7 +71,9 @@ fun VideoCardSkeleton(
     brush: Brush = rememberShimmerBrush()
 ) {
     Column(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
     ) {
         // Thumbnail skeleton (16:9)
         Box(
@@ -144,13 +148,13 @@ fun VideoFeedSkeleton(
     modifier: Modifier = Modifier
 ) {
     val brush = rememberShimmerBrush()
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        userScrollEnabled = false
     ) {
-        repeat(count) {
+        items(count) {
             VideoCardSkeleton(brush = brush)
         }
     }
