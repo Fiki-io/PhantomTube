@@ -46,6 +46,9 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -320,13 +323,6 @@ fun ChannelScreen(
                     modifier = Modifier.weight(1f)
                 )
 
-                IconButton(onClick = { loadChannelData(isRefresh = true) }) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.common_refresh),
-                        tint = TextPrimary
-                    )
-                }
 
                 IconButton(onClick = onSearchClick) {
                     Icon(
@@ -419,10 +415,25 @@ fun ChannelScreen(
                         combined.filter { it.id != featured?.id }.distinctBy { it.id }
                     }
 
+                    val pullRefreshState = rememberPullToRefreshState()
+                    if (pullRefreshState.isRefreshing) {
+                        LaunchedEffect(true) {
+                            loadChannelData(isRefresh = true)
+                        }
+                    }
+                    LaunchedEffect(isRefreshing) {
+                        if (isRefreshing) {
+                            pullRefreshState.startRefresh()
+                        } else {
+                            pullRefreshState.endRefresh()
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .weight(1f)
+                            .nestedScroll(pullRefreshState.nestedScrollConnection)
                     ) {
                         LazyColumn(
                             state = listState,
@@ -828,41 +839,12 @@ fun ChannelScreen(
                             }
                         }
 
-                        // Floating animated refresh status pill
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = isRefreshing,
-                            enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
-                            exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 10.dp)
-                                .zIndex(10f)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(Color(0xE61E1E1E))
-                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 14.dp, vertical = 7.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    CircularProgressIndicator(
-                                        color = YouTubeRed,
-                                        modifier = Modifier.size(14.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Memperbarui channel...",
-                                        color = TextPrimary,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
+                        PullToRefreshContainer(
+                            state = pullRefreshState,
+                            modifier = Modifier.align(Alignment.TopCenter),
+                            containerColor = Color(0xFF222222),
+                            contentColor = YouTubeRed
+                        )
                     }
                 }
             }

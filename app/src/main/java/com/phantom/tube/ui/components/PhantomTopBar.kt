@@ -18,7 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -49,7 +48,6 @@ fun PhantomTopBar(
     categories: List<String>,
     onCategorySelected: (String) -> Unit,
     onSearchClick: () -> Unit,
-    onRefreshClick: (() -> Unit)? = null,
     onSettingsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -90,21 +88,11 @@ fun PhantomTopBar(
                 )
             }
 
-            // Aksi: Refresh + Settings + Cari
+            // Aksi: Settings + Cari
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                if (onRefreshClick != null) {
-                    PhantomIconButton(
-                        icon = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.common_refresh),
-                        size = 38.dp,
-                        iconSize = 20.dp,
-                        onClick = onRefreshClick
-                    )
-                }
-
                 if (onSettingsClick != null) {
                     PhantomIconButton(
                         icon = Icons.Default.Settings,

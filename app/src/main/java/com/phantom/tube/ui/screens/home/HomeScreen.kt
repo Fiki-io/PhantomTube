@@ -20,8 +20,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -56,6 +60,7 @@ import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.VideoFeedSkeleton
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     repository: PhantomRepository,
@@ -76,6 +81,7 @@ fun HomeScreen(
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val pullRefreshState = rememberPullToRefreshState()
     val watchHistory by repository.getWatchHistory().collectAsState(initial = emptyList())
     val historyMap = remember(watchHistory) {
         watchHistory.associate { it.videoId to it.progressFraction }
@@ -212,6 +218,20 @@ fun HomeScreen(
         loadFeed(selectedCategory)
     }
 
+    if (pullRefreshState.isRefreshing) {
+        LaunchedEffect(true) {
+            loadFeed(selectedCategory, isRefresh = true)
+        }
+    }
+
+    LaunchedEffect(isRefreshing) {
+        if (isRefreshing) {
+            pullRefreshState.startRefresh()
+        } else {
+            pullRefreshState.endRefresh()
+        }
+    }
+
     // Automatic infinite scroll engine: monitors scroll state and triggers seamlessly
     LaunchedEffect(listState) {
         snapshotFlow {
@@ -251,38 +271,14 @@ fun HomeScreen(
             categories = categories,
             onCategorySelected = { selectedCategory = it },
             onSearchClick = onSearchClick,
-            onRefreshClick = { loadFeed(selectedCategory, isRefresh = true) },
             onSettingsClick = onSettingsClick
         )
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Live refresh pill indicator
-            if (isRefreshing) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .zIndex(10f)
-                        .padding(top = 8.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(YouTubeSurface)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    CircularProgressIndicator(
-                        color = YouTubeRed,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.common_updating),
-                        color = TextPrimary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(pullRefreshState.nestedScrollConnection)
+        ) {
             when {
                 isLoading -> {
                     VideoFeedSkeleton()
@@ -368,6 +364,13 @@ fun HomeScreen(
                     }
                 }
             }
+
+            PullToRefreshContainer(
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter),
+                containerColor = YouTubeSurface,
+                contentColor = YouTubeRed
+            )
         }
     }
 }
