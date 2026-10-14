@@ -172,6 +172,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                if (currentTab != NavTab.HOME && activeChannelId == null && !isSettingsOpen && !isDownloadsOpen && (activeVideo == null || isPlayerMinimized)) {
+                    BackHandler {
+                        currentTab = NavTab.HOME
+                    }
+                }
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

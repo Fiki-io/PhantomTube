@@ -1,5 +1,6 @@
 package com.phantom.tube.ui.screens.search
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -277,8 +278,17 @@ fun SearchScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+    BackHandler {
+        if (hasSearched || searchQuery.isNotEmpty()) {
+            searchTextFieldValue = androidx.compose.ui.text.input.TextFieldValue("")
+            hasSearched = false
+            searchResults = emptyList()
+            searchChannels = emptyList()
+            detailedSuggestions = emptyList()
+            keyboardController?.hide()
+        } else {
+            onBackClick()
+        }
     }
 
     Column(

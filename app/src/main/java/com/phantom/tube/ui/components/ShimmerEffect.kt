@@ -69,9 +69,7 @@ fun VideoCardSkeleton(
     brush: Brush = rememberShimmerBrush()
 ) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 14.dp)
+        modifier = modifier.fillMaxWidth()
     ) {
         // Thumbnail skeleton (16:9)
         Box(
@@ -149,7 +147,8 @@ fun VideoFeedSkeleton(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         repeat(count) {
             VideoCardSkeleton(brush = brush)

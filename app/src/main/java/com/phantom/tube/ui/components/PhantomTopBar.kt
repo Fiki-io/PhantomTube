@@ -142,5 +142,7 @@ fun PhantomTopBar(
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(4.dp))
     }
 }

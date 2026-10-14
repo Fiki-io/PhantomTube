@@ -1,5 +1,6 @@
 package com.phantom.tube.ui.screens.subscription
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,7 +71,12 @@ import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.PhantomVideoCard
+import com.phantom.tube.ui.components.VideoCardSkeleton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,22 +97,65 @@ fun SubscriptionScreen(
 
     val pullRefreshState = rememberPullToRefreshState()
 
+    BackHandler(onBack = onExploreClick)
+
     fun refreshFeed() {
         if (subscriptions.isNotEmpty()) {
             scope.launch {
                 isRefreshing = true
-                val collectedVideos = mutableListOf<VideoItem>()
-                subscriptions.take(5).forEach { sub ->
-                    try {
-                        val chanProfile = repository.getChannel(sub.channelId)
-                        if (chanProfile != null && chanProfile.videos.isNotEmpty()) {
-                            collectedVideos.addAll(chanProfile.videos.take(6))
+                isLoadingFeed = true
+                val allChannels = subscriptions.take(12)
+                val results = withContext(Dispatchers.IO) {
+                    allChannels.map { sub ->
+                        async {
+                            val channelVideos = mutableListOf<VideoItem>()
+                            try {
+                                val targetId = sub.channelId.ifBlank { sub.channelTitle }
+                                val chanProfile = repository.getChannel(targetId)
+                                if (chanProfile != null) {
+                                    if (chanProfile.videos.isNotEmpty()) {
+                                        channelVideos.addAll(chanProfile.videos)
+                                    }
+                                    if (chanProfile.homeVideos.isNotEmpty()) {
+                                        channelVideos.addAll(chanProfile.homeVideos)
+                                    }
+                                    if (chanProfile.featuredVideo != null) {
+                                        channelVideos.add(chanProfile.featuredVideo)
+                                    }
+                                    // If still empty, fetch the Video tab explicitly with params
+                                    if (channelVideos.isEmpty() && !chanProfile.videoTabParams.isNullOrBlank()) {
+                                        val vTabRes = repository.getChannel(targetId, params = chanProfile.videoTabParams)
+                                        if (vTabRes != null && vTabRes.videos.isNotEmpty()) {
+                                            channelVideos.addAll(vTabRes.videos)
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                            // Enrich each video with channel avatar, name, and id
+                            channelVideos.map { v ->
+                                v.copy(
+                                    channelTitle = v.channelTitle.ifBlank { sub.channelTitle },
+                                    channelAvatarUrl = v.channelAvatarUrl.ifBlank { sub.channelAvatarUrl },
+                                    channelId = v.channelId.ifBlank { sub.channelId }
+                                )
+                            }.take(6)
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                    }.awaitAll()
+                }
+
+                // Interleave and deduplicate videos so feed feels diverse and fresh
+                val maxPerChan = results.maxOfOrNull { it.size } ?: 0
+                val interleaved = mutableListOf<VideoItem>()
+                for (i in 0 until maxPerChan) {
+                    for (chanList in results) {
+                        if (i < chanList.size) {
+                            interleaved.add(chanList[i])
+                        }
                     }
                 }
-                feedVideos = collectedVideos.distinctBy { it.id }
+                feedVideos = interleaved.distinctBy { it.id }
                 isRefreshing = false
                 isLoadingFeed = false
             }
@@ -363,20 +412,44 @@ fun SubscriptionScreen(
                         )
                     }
 
-                    // 3. Loading indicator or Feed items
+                    // 3. Loading indicator, Empty message, or Feed items
                     if (isLoadingFeed && feedVideos.isEmpty()) {
-                        item(key = "feed_loading") {
+                        repeat(3) { index ->
+                            item(key = "sub_skeleton_$index") {
+                                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                                    VideoCardSkeleton()
+                                }
+                            }
+                        }
+                    } else if (feedVideos.isEmpty()) {
+                        item(key = "sub_empty_videos") {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(32.dp),
+                                    .padding(vertical = 36.dp, horizontal = 24.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                CircularProgressIndicator(
-                                    color = YouTubeRed,
-                                    modifier = Modifier.size(30.dp),
-                                    strokeWidth = 2.5.dp
-                                )
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.channel_no_videos),
+                                        color = TextSecondary,
+                                        fontSize = 14.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Button(
+                                        onClick = { refreshFeed() },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF272727),
+                                            contentColor = Color.White
+                                        ),
+                                        shape = RoundedCornerShape(18.dp)
+                                    ) {
+                                        Text(text = stringResource(R.string.common_retry), fontSize = 13.sp)
+                                    }
+                                }
                             }
                         }
                     } else {
