@@ -67,6 +67,7 @@ import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.core.theme.TopBarBackground
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
@@ -195,28 +196,34 @@ fun SubscriptionScreen(
         modifier = modifier
             .fillMaxSize()
             .background(ObsidianDark)
-            .statusBarsPadding()
     ) {
-        // TOP HEADER
-        Row(
+        // TOP HEADER BOX
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .background(TopBarBackground)
+                .statusBarsPadding()
         ) {
-            Icon(
-                imageVector = Icons.Default.Subscriptions,
-                contentDescription = null,
-                tint = YouTubeRed,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = stringResource(R.string.subscriptions_title),
-                color = TextPrimary,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Subscriptions,
+                    contentDescription = null,
+                    tint = YouTubeRed,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = stringResource(R.string.subscriptions_title),
+                    color = TextPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         // DOWNLOADS SHORTCUT CARD (Opsi 3: Unduhan di Halaman Koleksi)

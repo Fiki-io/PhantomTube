@@ -93,6 +93,7 @@ import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.core.theme.TopBarBackground
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.ChannelProfile
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
@@ -292,53 +293,58 @@ fun ChannelScreen(
             .background(ObsidianDark)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
+            modifier = Modifier.fillMaxSize()
         ) {
-            // TOP BAR
-            Row(
+            // TOP BAR BOX
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .background(TopBarBackground)
+                    .statusBarsPadding()
             ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.action_back),
-                        tint = TextPrimary
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                            tint = TextPrimary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Text(
+                        text = profile?.title?.ifBlank { initialChannelTitle } ?: initialChannelTitle,
+                        color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
-                }
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                Text(
-                    text = profile?.title?.ifBlank { initialChannelTitle } ?: initialChannelTitle,
-                    color = TextPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
 
 
-                IconButton(onClick = onSearchClick) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = stringResource(R.string.nav_search),
-                        tint = TextPrimary
-                    )
-                }
+                    IconButton(onClick = onSearchClick) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = stringResource(R.string.nav_search),
+                            tint = TextPrimary
+                        )
+                    }
 
-                IconButton(onClick = { /* Opsi lainnya */ }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.nav_settings),
-                        tint = TextPrimary
-                    )
+                    IconButton(onClick = { /* Opsi lainnya */ }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.nav_settings),
+                            tint = TextPrimary
+                        )
+                    }
                 }
             }
 

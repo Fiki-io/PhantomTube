@@ -88,6 +88,7 @@ import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.core.theme.TopBarBackground
 import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.repository.PhantomRepository
@@ -155,10 +156,16 @@ fun DownloadsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(ObsidianDark)
-            .statusBarsPadding()
     ) {
-        // TOP HEADER BAR
-        Row(
+        // TOP HEADER BAR BOX
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(TopBarBackground)
+                .statusBarsPadding()
+        ) {
+            // TOP HEADER BAR
+            Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -269,6 +276,7 @@ fun DownloadsScreen(
                 ),
                 border = null
             )
+        }
         }
 
         // PLAYBACK ACTION BAR (Putar Semua, Acak, Ulangi)

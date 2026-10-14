@@ -15,6 +15,9 @@ val ObsidianDark = YouTubeDark
 val ObsidianSurface = YouTubeSurface
 val ObsidianSurfaceLight = YouTubeSurfaceLight
 
+// Top App Bar Palette (Distinguished solid black header)
+val TopBarBackground = Color(0xFF000000)
+
 // Bubble Dock Palette (Translucent floating frosted pill)
 val BubbleDockBg = Color(0x66181818)
 val BubbleDockBorder = Color(0x26FFFFFF)

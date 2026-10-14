@@ -44,6 +44,7 @@ import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.core.theme.TopBarBackground
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
@@ -63,45 +64,56 @@ fun HistoryScreen(
         modifier = modifier
             .fillMaxSize()
             .background(ObsidianDark)
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp)
     ) {
         // Header
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .background(TopBarBackground)
+                .statusBarsPadding()
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.History,
-                    contentDescription = null,
-                    tint = TextPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = stringResource(R.string.nav_history),
-                    color = TextPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.History,
+                        contentDescription = null,
+                        tint = TextPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = stringResource(R.string.nav_history),
+                        color = TextPrimary,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-            if (historyList.isNotEmpty()) {
-                PhantomIconButton(
-                    icon = Icons.Default.DeleteSweep,
-                    contentDescription = stringResource(R.string.library_clear_history),
-                    size = 36.dp,
-                    iconSize = 20.dp,
-                    onClick = {
-                        scope.launch { repository.clearHistory() }
-                    }
-                )
+                if (historyList.isNotEmpty()) {
+                    PhantomIconButton(
+                        icon = Icons.Default.DeleteSweep,
+                        contentDescription = stringResource(R.string.library_clear_history),
+                        size = 36.dp,
+                        iconSize = 20.dp,
+                        onClick = {
+                            scope.launch { repository.clearHistory() }
+                        }
+                    )
+                }
             }
         }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+        ) {
 
         if (historyList.isEmpty()) {
             Box(
@@ -225,4 +237,5 @@ fun HistoryScreen(
             }
         }
     }
+}
 }

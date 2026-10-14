@@ -71,6 +71,7 @@ import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.core.theme.TopBarBackground
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.model.SearchChannelItem
@@ -295,15 +296,20 @@ fun SearchScreen(
         modifier = modifier
             .fillMaxSize()
             .background(ObsidianDark)
-            .statusBarsPadding()
     ) {
-        // YouTube Search Input Header
-        Row(
+        // YouTube Search Input Header Box
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .background(TopBarBackground)
+                .statusBarsPadding()
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
             PhantomIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = stringResource(R.string.action_back),
@@ -385,8 +391,9 @@ fun SearchScreen(
                 }
             }
         }
+    }
 
-        Spacer(modifier = Modifier.height(4.dp))
+    Spacer(modifier = Modifier.height(4.dp))
 
         // Content: Loading, History, Suggestions, or Results
         Box(modifier = Modifier.fillMaxSize()) {

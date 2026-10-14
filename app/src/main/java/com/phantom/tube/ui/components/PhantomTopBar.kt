@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.TextPrimary
+import com.phantom.tube.core.theme.TopBarBackground
 import com.phantom.tube.core.theme.YouTubeRed
 
 /**
@@ -54,6 +55,7 @@ fun PhantomTopBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .background(TopBarBackground)
             .statusBarsPadding()
             .padding(top = 4.dp, bottom = 6.dp)
     ) {

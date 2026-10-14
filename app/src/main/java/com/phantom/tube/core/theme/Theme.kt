@@ -35,8 +35,8 @@ fun PhantomTheme(
         SideEffect {
             val window = (view.context.findActivity())?.window
             if (window != null) {
-                window.statusBarColor = ObsidianDark.toArgb()
-                window.navigationBarColor = ObsidianDark.toArgb()
+                window.statusBarColor = Color.Transparent.toArgb()
+                window.navigationBarColor = Color.Transparent.toArgb()
                 val controller = WindowCompat.getInsetsController(window, view)
                 controller.isAppearanceLightStatusBars = false
                 controller.isAppearanceLightNavigationBars = false
