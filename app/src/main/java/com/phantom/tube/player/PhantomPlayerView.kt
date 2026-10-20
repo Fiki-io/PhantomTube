@@ -100,6 +100,10 @@ class PhantomPlayerController(@Suppress("UNUSED_PARAMETER") context: Context) {
         evaluateJs("if (window.setCaptionsEnabled) window.setCaptionsEnabled($enabled, '$languageCode');")
     }
 
+    fun setAudioOnly(enabled: Boolean) {
+        evaluateJs("if (window.setAudioOnly) window.setAudioOnly($enabled);")
+    }
+
     fun requestStoryboard() {
         evaluateJs("if (window.requestStoryboard) window.requestStoryboard();")
     }

@@ -496,6 +496,23 @@ const char* RAW_ENGINE_HTML = R"HTML(
             } catch(e) {}
         };
 
+        window.setAudioOnly = function(enabled) {
+            try {
+                if (enabled && player) {
+                    if (typeof player.setPlaybackQualityRange === 'function') {
+                        player.setPlaybackQualityRange('tiny', 'tiny');
+                    }
+                    if (typeof player.setPlaybackQuality === 'function') {
+                        player.setPlaybackQuality('tiny');
+                    }
+                }
+                var iframe = document.querySelector('iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: 'PHANTOM_SET_AUDIO_ONLY', enabled: !!enabled }, '*');
+                }
+            } catch(e) {}
+        };
+
         window.setCaptionsEnabled = function(enabled, lang) {
             try {
                 if (player) {
@@ -995,6 +1012,26 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
                     sEl.textContent = '.ytp-caption-window-container, .caption-window, .captions-text, .caption-visual-line, .ytp-caption-segment { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2147483647 !important; }';
                 } else {
                     sEl.textContent = '.ytp-caption-window-container, .caption-window, .captions-text, .caption-visual-line, .ytp-caption-segment { display: none !important; visibility: hidden !important; opacity: 0 !important; }';
+                }
+            } catch(err) {}
+        } else if (e.data && e.data.type === 'PHANTOM_SET_AUDIO_ONLY') {
+            try {
+                var audioOnly = !!e.data.enabled;
+                var aEl = document.getElementById('phantom-audio-only-lock');
+                if (!aEl) {
+                    aEl = document.createElement('style');
+                    aEl.id = 'phantom-audio-only-lock';
+                    (document.head || document.documentElement).appendChild(aEl);
+                }
+                if (audioOnly) {
+                    aEl.textContent = '.html5-video-container, video.html5-main-video, video { visibility: hidden !important; opacity: 0 !important; }';
+                    var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+                    if (p) {
+                        try { if (typeof p.setPlaybackQualityRange === 'function') p.setPlaybackQualityRange('tiny', 'tiny'); } catch(err) {}
+                        try { if (typeof p.setPlaybackQuality === 'function') p.setPlaybackQuality('tiny'); } catch(err) {}
+                    }
+                } else {
+                    aEl.textContent = '';
                 }
             } catch(err) {}
         } else if (e.data && e.data.type === 'PHANTOM_CLEAN') {

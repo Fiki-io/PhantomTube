@@ -235,6 +235,9 @@
     <string name="settings_speed_normal">1.0x (Normal)</string>
     <string name="settings_audio_only_player_title">Mode audio saja</string>
     <string name="settings_audio_only_player_desc">Matikan video untuk menghemat daya</string>
+    <string name="player_audio_only_show_video">Tampilkan Video</string>
+    <string name="player_audio_only_active_toast">Mode audio saja aktif (hemat kuota)</string>
+    <string name="player_audio_only_restored_toast">Mode video diaktifkan kembali</string>
     <string name="settings_auto_play_next_desc">Putar video berikutnya secara otomatis</string>
 
     <!-- Downloads Screen & Actions -->

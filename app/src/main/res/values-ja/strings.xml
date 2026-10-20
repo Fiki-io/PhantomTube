@@ -235,6 +235,9 @@
     <string name="settings_speed_normal">1.0x（標準）</string>
     <string name="settings_audio_only_player_title">音声のみモード</string>
     <string name="settings_audio_only_player_desc">動画をオフにして節電</string>
+    <string name="player_audio_only_show_video">動画を表示</string>
+    <string name="player_audio_only_active_toast">音声のみモードが有効（データ節約）</string>
+    <string name="player_audio_only_restored_toast">動画モードに戻りました</string>
     <string name="settings_auto_play_next_desc">次の動画を自動再生</string>
 
     <!-- Downloads Screen & Actions -->

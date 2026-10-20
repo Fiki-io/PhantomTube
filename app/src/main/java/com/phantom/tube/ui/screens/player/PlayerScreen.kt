@@ -374,6 +374,7 @@ fun PlayerScreen(
     var isLoopEnabled by remember { mutableStateOf(false) }
     var isAutoplayNext by remember { mutableStateOf(true) }
     var isAudioOnly by remember { mutableStateOf(false) }
+    var previousQualityBeforeAudioOnly by remember { mutableStateOf("auto") }
     var sleepTimerOption by remember { mutableStateOf(SleepTimerOption.OFF) }
     var sleepTimerRemainingSec by remember { mutableStateOf<Int?>(null) }
     var lastRecordedPositionSec by remember { mutableFloatStateOf(0f) }
@@ -509,6 +510,29 @@ fun PlayerScreen(
         }
     }
 
+    fun applyAudioOnlyState(enabled: Boolean) {
+        if (enabled == isAudioOnly) return
+        if (enabled) {
+            val currentQ = playerState.currentQuality
+            if (currentQ.isNotBlank() && currentQ != "tiny") {
+                previousQualityBeforeAudioOnly = currentQ
+            }
+            isAudioOnly = true
+            playerState = playerState.copy(currentQuality = "tiny")
+            controller.setAudioOnly(true)
+            showNotice(context.getString(R.string.player_audio_only_active_toast))
+        } else {
+            isAudioOnly = false
+            controller.setAudioOnly(false)
+            val restoreQ = previousQualityBeforeAudioOnly.ifBlank {
+                repository.preferences?.defaultQuality?.value ?: "auto"
+            }
+            playerState = playerState.copy(currentQuality = restoreQ)
+            controller.setPlaybackQuality(restoreQ)
+            showNotice(context.getString(R.string.player_audio_only_restored_toast))
+        }
+    }
+
     val fillScale = remember(videoBoxWidthPx, videoBoxHeightPx) {
         if (videoBoxHeightPx > 0f && videoBoxWidthPx > 0f) {
             val containerRatio = videoBoxWidthPx / videoBoxHeightPx
@@ -552,6 +576,9 @@ fun PlayerScreen(
                         if (isCaptionsEnabled) {
                             controller.setCaptionsEnabled(true)
                         }
+                        if (isAudioOnly) {
+                            controller.setAudioOnly(true)
+                        }
                         if (appliedDefaultsVideoId != currentVideo.id) {
                             appliedDefaultsVideoId = currentVideo.id
                             val defSpeed = repository.preferences?.defaultSpeed?.value ?: 1.0f
@@ -559,10 +586,15 @@ fun PlayerScreen(
                                 playerState = playerState.copy(playbackSpeed = defSpeed)
                                 controller.setPlaybackRate(defSpeed)
                             }
-                            val defQuality = repository.preferences?.defaultQuality?.value ?: "auto"
-                            if (defQuality != "auto") {
-                                playerState = playerState.copy(currentQuality = defQuality)
-                                controller.setPlaybackQuality(defQuality)
+                            if (isAudioOnly) {
+                                playerState = playerState.copy(currentQuality = "tiny")
+                                controller.setAudioOnly(true)
+                            } else {
+                                val defQuality = repository.preferences?.defaultQuality?.value ?: "auto"
+                                if (defQuality != "auto") {
+                                    playerState = playerState.copy(currentQuality = defQuality)
+                                    controller.setPlaybackQuality(defQuality)
+                                }
                             }
                         }
                     }
@@ -836,6 +868,16 @@ fun PlayerScreen(
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    // Dynamically manage FLAG_KEEP_SCREEN_ON: release screen lock in Audio-Only or Minimized mode to save battery
+    LaunchedEffect(isAudioOnly, isMinimized) {
+        val activity = context.findActivity()
+        if (isAudioOnly || isMinimized) {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 
@@ -1365,40 +1407,47 @@ fun PlayerScreen(
                         .background(Color(0xFF07070A)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    AnimatedVisibility(
+                        visible = !isControlsVisible,
+                        enter = fadeIn(tween(180)),
+                        exit = fadeOut(tween(150))
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .phantomSurface(
-                                    shape = CircleShape,
-                                    borderWidth = 1.dp,
-                                    tintColor = YouTubeSurface,
-                                    surfaceAlpha = 0.95f,
-                                    accentGlow = Color.Transparent
-                                ),
-                            contentAlignment = Alignment.Center
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(horizontal = 24.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Headphones,
-                                contentDescription = null,
-                                tint = YouTubeRed,
-                                modifier = Modifier.size(28.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .phantomSurface(
+                                        shape = CircleShape,
+                                        borderWidth = 1.dp,
+                                        tintColor = YouTubeSurface,
+                                        surfaceAlpha = 0.95f,
+                                        accentGlow = Color.Transparent
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Headphones,
+                                    contentDescription = null,
+                                    tint = YouTubeRed,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Text(
+                                text = stringResource(R.string.settings_audio_only_player_title),
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_audio_only_player_desc),
+                                color = TextMuted,
+                                fontSize = 11.sp
                             )
                         }
-                        Text(
-                            text = "Mode Audio Saja",
-                            color = TextPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Layar dinonaktifkan untuk menghemat daya",
-                            color = TextMuted,
-                            fontSize = 11.sp
-                        )
                     }
                 }
             }
@@ -1790,6 +1839,11 @@ fun PlayerScreen(
                                                 }
                                             } else null,
                                             onClick = {
+                                                if (isAudioOnly && opt.code != "tiny") {
+                                                    isAudioOnly = false
+                                                    controller.setAudioOnly(false)
+                                                }
+                                                previousQualityBeforeAudioOnly = opt.code
                                                 playerState = playerState.copy(currentQuality = opt.code)
                                                 controller.setPlaybackQuality(opt.code)
                                                 isQualityMenuExpanded = false
@@ -2046,6 +2100,43 @@ fun PlayerScreen(
                         fontSize = 12.5.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+            }
+
+            // Quick "Show Video" Pill Button when Audio-Only Mode is active
+            if (isAudioOnly) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = if (isControlsVisible) 48.dp else 18.dp)
+                        .zIndex(28f)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xE61F1F24))
+                        .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(20.dp))
+                        .iosBounceClick(scaleDown = 0.92f) {
+                            applyAudioOnlyState(false)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Headphones,
+                            contentDescription = null,
+                            tint = YouTubeRed,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.player_audio_only_show_video),
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
             } // end if (!isMinimized)
@@ -2646,6 +2737,11 @@ fun PlayerScreen(
                         controller.setPlaybackRate(speed)
                     },
                     onQualitySelected = { quality ->
+                        if (isAudioOnly && quality != "tiny") {
+                            isAudioOnly = false
+                            controller.setAudioOnly(false)
+                        }
+                        previousQualityBeforeAudioOnly = quality
                         playerState = playerState.copy(currentQuality = quality)
                         controller.setPlaybackQuality(quality)
                     },
@@ -2661,7 +2757,7 @@ fun PlayerScreen(
                         controller.setLoop(loop)
                     },
                     onAutoplayToggle = { isAutoplayNext = it },
-                    onAudioOnlyToggle = { isAudioOnly = it }
+                    onAudioOnlyToggle = { enabled -> applyAudioOnlyState(enabled) }
                 )
             }
         }

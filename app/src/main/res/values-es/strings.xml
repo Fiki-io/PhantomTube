@@ -235,6 +235,9 @@
     <string name="settings_speed_normal">1.0x (Normal)</string>
     <string name="settings_audio_only_player_title">Modo solo audio</string>
     <string name="settings_audio_only_player_desc">Apagar video para ahorrar energía</string>
+    <string name="player_audio_only_show_video">Mostrar video</string>
+    <string name="player_audio_only_active_toast">Modo solo audio activado (ahorro de datos)</string>
+    <string name="player_audio_only_restored_toast">Modo de video restaurado</string>
     <string name="settings_auto_play_next_desc">Reproducir siguiente video automáticamente</string>
 
     <!-- Downloads Screen & Actions -->

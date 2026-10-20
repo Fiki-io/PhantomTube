@@ -235,6 +235,9 @@
     <string name="settings_speed_normal">1.0x (Обычная)</string>
     <string name="settings_audio_only_player_title">Режим только аудио</string>
     <string name="settings_audio_only_player_desc">Отключить видео для экономии энергии</string>
+    <string name="player_audio_only_show_video">Показать видео</string>
+    <string name="player_audio_only_active_toast">Режим только аудио включен (экономия данных)</string>
+    <string name="player_audio_only_restored_toast">Видеорежим восстановлен</string>
     <string name="settings_auto_play_next_desc">Автоматически воспроизводить следующее видео</string>
 
     <!-- Downloads Screen & Actions -->

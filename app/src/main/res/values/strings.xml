@@ -235,6 +235,9 @@
     <string name="settings_speed_normal">1.0x (Normal)</string>
     <string name="settings_audio_only_player_title">Audio-only mode</string>
     <string name="settings_audio_only_player_desc">Turn off video to save power</string>
+    <string name="player_audio_only_show_video">Show Video</string>
+    <string name="player_audio_only_active_toast">Audio-only mode enabled (144p stream)</string>
+    <string name="player_audio_only_restored_toast">Video mode restored</string>
     <string name="settings_auto_play_next_desc">Automatically play next video</string>
 
     <!-- Downloads Screen & Actions -->
