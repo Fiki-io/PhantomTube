@@ -21,10 +21,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.Cache
 import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 class PhantomApp : Application(), ImageLoaderFactory {
+
+    companion object {
+        @Volatile
+        var sharedClientInstance: OkHttpClient? = null
+            private set
+    }
 
     lateinit var database: PhantomDatabase
         private set
@@ -36,12 +43,18 @@ class PhantomApp : Application(), ImageLoaderFactory {
         private set
 
     val sharedHttpClient: OkHttpClient by lazy {
+        val dispatcher = Dispatcher().apply {
+            maxRequests = 16
+            maxRequestsPerHost = 6
+        }
         OkHttpClient.Builder()
+            .dispatcher(dispatcher)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
-            .connectionPool(ConnectionPool(16, 5, TimeUnit.MINUTES))
-            .cache(Cache(cacheDir.resolve("http_cache"), 40L * 1024 * 1024))
+            .connectionPool(ConnectionPool(6, 2, TimeUnit.MINUTES))
+            .cache(Cache(cacheDir.resolve("http_cache"), 24L * 1024 * 1024))
             .build()
+            .also { sharedClientInstance = it }
     }
 
     val updateManager: com.phantom.tube.core.update.UpdateManager by lazy {
@@ -89,23 +102,30 @@ class PhantomApp : Application(), ImageLoaderFactory {
     }
 
     override fun newImageLoader(): ImageLoader {
+        val maxHeapBytes = Runtime.getRuntime().maxMemory()
+        val targetCacheBytes = (maxHeapBytes * 0.08).toLong().coerceIn(4L * 1024 * 1024, 10L * 1024 * 1024)
+
         return ImageLoader.Builder(this)
             .okHttpClient(sharedHttpClient)
             .bitmapConfig(Bitmap.Config.RGB_565)
+            .allowRgb565(true)
+            .bitmapFactoryMaxParallelism(2)
             .memoryCache {
                 MemoryCache.Builder(this)
-                    .maxSizePercent(0.12)
+                    .maxSizeBytes(targetCacheBytes.toInt())
+                    .strongReferencesEnabled(true)
+                    .weakReferencesEnabled(false)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(80L * 1024 * 1024)
+                    .maxSizeBytes(40L * 1024 * 1024)
                     .build()
             }
-            .respectCacheHeaders(false) // Aggressive disk caching for smooth thumbnail scrolling
-            .allowHardware(true)        // Direct GPU rendering of bitmap textures
-            .crossfade(150)             // Fast and smooth crossfade
+            .respectCacheHeaders(false)
+            .allowHardware(true)
+            .crossfade(false)
             .build()
     }
 
@@ -115,6 +135,8 @@ class PhantomApp : Application(), ImageLoaderFactory {
             try {
                 this.imageLoader.memoryCache?.clear()
                 com.phantom.tube.player.PhantomRenderEngine.clearCache()
+                com.phantom.tube.player.StoryboardHelper.clearCache()
+                ChannelAvatarCache.trim()
             } catch (_: Exception) {
             }
         }
@@ -125,6 +147,8 @@ class PhantomApp : Application(), ImageLoaderFactory {
         try {
             this.imageLoader.memoryCache?.clear()
             com.phantom.tube.player.PhantomRenderEngine.clearCache()
+            com.phantom.tube.player.StoryboardHelper.clearCache()
+            ChannelAvatarCache.clear()
         } catch (_: Exception) {
         }
     }

@@ -3,19 +3,22 @@ package com.phantom.tube.data.innertube.cache
 import com.phantom.tube.data.innertube.InnerTubeClient
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * High-performance in-memory cache and background resolver for YouTube channel avatars.
- * Guarantees that video cards in Home, Search, Channel, and Related feeds always display
- * the authentic channel logo even when raw feed snippets omit the avatar payload.
+ * High-performance bounded in-memory cache and throttled background resolver for YouTube channel avatars.
  */
 object ChannelAvatarCache {
 
+    private const val MAX_CACHE_ENTRIES = 200
     private val cacheById = ConcurrentHashMap<String, String>()
     private val cacheByTitle = ConcurrentHashMap<String, String>()
     private val inFlight = ConcurrentHashMap.newKeySet<String>()
+    private val failedIds = ConcurrentHashMap.newKeySet<String>()
+    private val networkSemaphore = Semaphore(2)
 
     private var client: InnerTubeClient? = null
 
@@ -23,16 +26,38 @@ object ChannelAvatarCache {
         client = innerTubeClient
     }
 
+    fun trim() {
+        if (cacheById.size > MAX_CACHE_ENTRIES / 2) {
+            cacheById.clear()
+        }
+        if (cacheByTitle.size > MAX_CACHE_ENTRIES / 2) {
+            cacheByTitle.clear()
+        }
+        failedIds.clear()
+    }
+
+    fun clear() {
+        cacheById.clear()
+        cacheByTitle.clear()
+        failedIds.clear()
+    }
+
     fun put(channelId: String?, channelTitle: String?, avatarUrl: String?) {
         val clean = InnerTubeHelpers.normalizeUrl(avatarUrl)
         if (clean.isBlank()) return
 
         if (!channelId.isNullOrBlank()) {
+            if (cacheById.size >= MAX_CACHE_ENTRIES) {
+                cacheById.keys.firstOrNull()?.let { cacheById.remove(it) }
+            }
             cacheById[channelId] = clean
         }
         if (!channelTitle.isNullOrBlank()) {
             val key = channelTitle.trim().lowercase()
             if (key.isNotBlank()) {
+                if (cacheByTitle.size >= MAX_CACHE_ENTRIES) {
+                    cacheByTitle.keys.firstOrNull()?.let { cacheByTitle.remove(it) }
+                }
                 cacheByTitle[key] = clean
             }
         }
@@ -55,7 +80,7 @@ object ChannelAvatarCache {
         val cached = get(channelId, channelTitle)
         if (cached.isNotBlank()) return@withContext cached
 
-        if (channelId.isBlank() || !channelId.startsWith("UC")) {
+        if (channelId.isBlank() || !channelId.startsWith("UC") || channelId in failedIds) {
             return@withContext null
         }
 
@@ -65,15 +90,23 @@ object ChannelAvatarCache {
         }
 
         try {
-            val profile = c.fetchChannel(channelId = channelId)
-            val avatar = InnerTubeHelpers.normalizeUrl(profile?.avatarUrl)
-            if (avatar.isNotBlank()) {
-                put(channelId, channelTitle, avatar)
-                val profTitle = profile?.title
-                if (!profTitle.isNullOrBlank()) {
-                    put(channelId, profTitle, avatar)
+            networkSemaphore.withPermit {
+                val recheck = get(channelId, channelTitle)
+                if (recheck.isNotBlank()) return@withPermit recheck
+
+                val profile = c.fetchChannel(channelId = channelId)
+                val avatar = InnerTubeHelpers.normalizeUrl(profile?.avatarUrl)
+                if (avatar.isNotBlank()) {
+                    put(channelId, channelTitle, avatar)
+                    val profTitle = profile?.title
+                    if (!profTitle.isNullOrBlank()) {
+                        put(channelId, profTitle, avatar)
+                    }
+                    return@withContext avatar
+                } else {
+                    if (failedIds.size > MAX_CACHE_ENTRIES) failedIds.clear()
+                    failedIds.add(channelId)
                 }
-                return@withContext avatar
             }
         } catch (e: Exception) {
             // Silently ignore network hiccups; avoid crashing UI

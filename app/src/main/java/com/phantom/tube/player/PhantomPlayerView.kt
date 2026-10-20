@@ -115,9 +115,15 @@ class PhantomPlayerController(@Suppress("UNUSED_PARAMETER") context: Context) {
 
     fun release() {
         webView?.apply {
-            stopLoading()
-            loadUrl("about:blank")
-            destroy()
+            try {
+                (parent as? ViewGroup)?.removeView(this)
+                stopLoading()
+                clearHistory()
+                loadUrl("about:blank")
+                removeAllViews()
+                destroy()
+            } catch (_: Exception) {
+            }
         }
         webView = null
         isReady = false
@@ -153,7 +159,7 @@ fun PhantomGhostSurface(
                     domStorageEnabled = true
                     databaseEnabled = false
                     mediaPlaybackRequiresUserGesture = false
-                    cacheMode = WebSettings.LOAD_NO_CACHE
+                    cacheMode = WebSettings.LOAD_DEFAULT
                     mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     allowFileAccess = false
                     allowContentAccess = false
@@ -165,7 +171,6 @@ fun PhantomGhostSurface(
                     userAgentString = com.phantom.tube.core.security.PhantomNative.getUserAgent()
                 }
 
-                clearCache(true)
                 webChromeClient = WebChromeClient()
 
                 webViewClient = object : WebViewClient() {
@@ -215,6 +220,7 @@ object PhantomRenderEngine {
     private val httpClient: okhttp3.OkHttpClient
         get() = customHttpClient ?: defaultHttpClient
 
+    private const val MAX_CSS_CACHE_ENTRIES = 3
     private val cssCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
 
     fun clearCache() {
@@ -271,6 +277,9 @@ object PhantomRenderEngine {
                 val rawCss = resp.body?.string() ?: ""
                 val modifiedCss = rawCss + "\n\n/* Phantom Clean Engine */\n" + CSS_RULES
                 val bytes = modifiedCss.toByteArray(Charsets.UTF_8)
+                if (cssCache.size >= MAX_CSS_CACHE_ENTRIES) {
+                    cssCache.clear()
+                }
                 cssCache[url] = bytes
                 val headers = mapOf(
                     "Content-Type" to "text/css; charset=utf-8",

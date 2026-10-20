@@ -37,8 +37,10 @@ data class StoryboardData(
     fun getFrame(timeSeconds: Float, durationSeconds: Float): StoryboardFrame? {
         if (levels.isEmpty()) return null
 
-        // Pick best level: prefer width >= 120 or fallback to highest available
-        val level = levels.filter { it.width >= 80 }.maxByOrNull { it.width } ?: levels.last()
+        // Pick compact level (width 80..160) to minimize sprite sheet bitmap RAM footprint
+        val level = levels.filter { it.width in 80..160 }.maxByOrNull { it.width }
+            ?: levels.firstOrNull { it.width >= 80 }
+            ?: levels.last()
 
         val intervalSec = if (level.stepMs > 0) {
             level.stepMs / 1000f
@@ -78,8 +80,21 @@ data class StoryboardData(
 
 object StoryboardHelper {
 
-    private val frameCache = LruCache<String, Bitmap>(60)
-    private val sheetCache = LruCache<String, Bitmap>(12)
+    private const val MAX_FRAME_CACHE_BYTES = 512 * 1024 // 512 KB max for cropped preview frames
+    private const val MAX_SHEET_CACHE_BYTES = 2 * 1024 * 1024 // 2 MB max for sprite sheets
+
+    private val frameCache = object : LruCache<String, Bitmap>(MAX_FRAME_CACHE_BYTES) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount.coerceAtLeast(1)
+    }
+
+    private val sheetCache = object : LruCache<String, Bitmap>(MAX_SHEET_CACHE_BYTES) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount.coerceAtLeast(1)
+    }
+
+    fun clearCache() {
+        frameCache.evictAll()
+        sheetCache.evictAll()
+    }
 
     fun parse(spec: String): StoryboardData? {
         if (spec.isBlank()) return null
@@ -126,13 +141,14 @@ object StoryboardHelper {
 
     suspend fun loadFrameBitmap(context: Context, frame: StoryboardFrame): Bitmap? = withContext(Dispatchers.IO) {
         val cacheKey = "${frame.sheetUrl}#${frame.cropX}_${frame.cropY}_${frame.frameWidth}_${frame.frameHeight}"
-        frameCache.get(cacheKey)?.let { return@withContext it }
+        frameCache.get(cacheKey)?.let { if (!it.isRecycled) return@withContext it }
 
         var sheetBitmap = sheetCache.get(frame.sheetUrl)
         if (sheetBitmap == null || sheetBitmap.isRecycled) {
             try {
                 val request = ImageRequest.Builder(context)
                     .data(frame.sheetUrl)
+                    .bitmapConfig(Bitmap.Config.RGB_565)
                     .allowHardware(false) // Required for Bitmap.createBitmap cropping
                     .build()
                 val result = (context.imageLoader.execute(request) as? SuccessResult)?.drawable
@@ -141,7 +157,6 @@ object StoryboardHelper {
                     sheetCache.put(frame.sheetUrl, sheetBitmap)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
                 return@withContext null
             }
         }
@@ -160,7 +175,7 @@ object StoryboardHelper {
                 return@withContext cropped
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            // Ignore crop OOM/bounds error
         }
 
         return@withContext null

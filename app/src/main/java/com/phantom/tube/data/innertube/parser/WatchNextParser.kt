@@ -10,6 +10,9 @@ import org.json.JSONObject
 
 object WatchNextParser {
 
+    private val LIKE_COUNT_REGEX = Regex(""""iconName"\s*:\s*"LIKE"[^}]*?"title"\s*:\s*"([^"]+)"""")
+    private val DESC_BODY_REGEX = Regex(""""attributedDescriptionBodyText"\s*:\s*\{[^}]*?"content"\s*:\s*"((?:\\.|[^"\\])*)"""")
+
     fun parseWatchNext(jsonString: String, currentVideoId: String): NextQueue? {
         try {
             val root = JSONObject(jsonString)
@@ -137,8 +140,7 @@ object WatchNextParser {
             }
 
             if (likeCount.isBlank()) {
-                val likeRegex = Regex(""""iconName"\s*:\s*"LIKE"[^}]*?"title"\s*:\s*"([^"]+)"""")
-                val m = likeRegex.find(jsonString)
+                val m = LIKE_COUNT_REGEX.find(jsonString)
                 if (m != null) {
                     likeCount = m.groupValues[1]
                 }
@@ -171,7 +173,7 @@ object WatchNextParser {
                 }
             }
             if (videoDescription.isBlank()) {
-                val descMatch = Regex(""""attributedDescriptionBodyText"\s*:\s*\{[^}]*?"content"\s*:\s*"((?:\\.|[^"\\])*)"""").find(jsonString)
+                val descMatch = DESC_BODY_REGEX.find(jsonString)
                 if (descMatch != null) {
                     val raw = descMatch.groupValues[1]
                     videoDescription = raw.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")

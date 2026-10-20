@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.phantom.tube.R
 import com.phantom.tube.PhantomApp
 import com.phantom.tube.core.theme.TextPrimary
@@ -97,6 +99,14 @@ fun PhantomVideoCard(
             .padding(bottom = 12.dp)
     ) {
         // Thumbnail
+        val thumbRequest = remember(video.thumbnailUrl, context) {
+            ImageRequest.Builder(context)
+                .data(video.thumbnailUrl)
+                .size(480, 270)
+                .precision(Precision.INEXACT)
+                .crossfade(false)
+                .build()
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -105,7 +115,7 @@ fun PhantomVideoCard(
                 .background(Color(0xFF181818))
         ) {
             AsyncImage(
-                model = video.thumbnailUrl,
+                model = thumbRequest,
                 contentDescription = video.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize()
@@ -219,8 +229,16 @@ fun PhantomVideoCard(
                 contentAlignment = Alignment.Center
             ) {
                 if (avatarUrl.isNotBlank()) {
+                    val avatarRequest = remember(avatarUrl, context) {
+                        ImageRequest.Builder(context)
+                            .data(avatarUrl)
+                            .size(96, 96)
+                            .precision(Precision.INEXACT)
+                            .crossfade(false)
+                            .build()
+                    }
                     AsyncImage(
-                        model = avatarUrl,
+                        model = avatarRequest,
                         contentDescription = video.channelTitle,
                         modifier = Modifier
                             .matchParentSize()

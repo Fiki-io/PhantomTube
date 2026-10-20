@@ -9,6 +9,9 @@ import org.json.JSONObject
 
 object FeedParser {
 
+    private val VI_ID_REGEX = Regex("""/vi/([a-zA-Z0-9_-]{11})/""")
+    private val BROWSE_UC_ID_REGEX = Regex("""\"browseId\":\s*\"(UC[a-zA-Z0-9_-]{22})\"""")
+
     fun parseSearchResults(jsonString: String): List<VideoItem> {
         return parseFeedWithContinuation(jsonString).videos
     }
@@ -402,7 +405,7 @@ object FeedParser {
             var videoId = watchEndpoint?.optString("videoId") ?: ""
             if (videoId.isBlank()) {
                 val thumbsStr = (pr.optJSONObject("thumbnails") ?: pr.optJSONArray("thumbnails"))?.toString() ?: ""
-                val vMatch = Regex("""/vi/([a-zA-Z0-9_-]{11})/""").find(thumbsStr)
+                val vMatch = VI_ID_REGEX.find(thumbsStr)
                 if (vMatch != null) {
                     videoId = vMatch.groupValues[1]
                 }
@@ -481,7 +484,7 @@ object FeedParser {
                     ?.optJSONObject("thumbnailViewModel")
                     ?.optJSONObject("image")
                     ?.optJSONArray("sources")?.toString() ?: ""
-                val vMatch = Regex("""/vi/([a-zA-Z0-9_-]{11})/""").find(thumbSourcesStr)
+                val vMatch = VI_ID_REGEX.find(thumbSourcesStr)
                 if (vMatch != null) {
                     videoId = vMatch.groupValues[1]
                 }
@@ -535,9 +538,18 @@ object FeedParser {
                 ?.optJSONObject("image")
                 ?.optJSONArray("sources")
             if (thumbSources != null && thumbSources.length() > 0) {
-                val lastThumb = thumbSources.optJSONObject(thumbSources.length() - 1)?.optString("url") ?: ""
-                if (lastThumb.isNotBlank()) {
-                    thumb = InnerTubeHelpers.normalizeUrl(lastThumb)
+                var chosenThumb = ""
+                for (ti in 0 until thumbSources.length()) {
+                    val srcObj = thumbSources.optJSONObject(ti) ?: continue
+                    val u = srcObj.optString("url")
+                    val w = srcObj.optInt("width", 0)
+                    if (u.isNotBlank()) {
+                        chosenThumb = u
+                        if (w in 320..720) break
+                    }
+                }
+                if (chosenThumb.isNotBlank()) {
+                    thumb = InnerTubeHelpers.normalizeUrl(chosenThumb)
                 }
             }
 
@@ -595,7 +607,7 @@ object FeedParser {
                 if (channelId.isNotBlank()) break
             }
             if (channelId.isBlank()) {
-                val bIdMatch = Regex("""\"browseId\":\s*\"(UC[a-zA-Z0-9_-]{22})\"""").find(lvm.toString())
+                val bIdMatch = BROWSE_UC_ID_REGEX.find(lvm.toString())
                 if (bIdMatch != null) {
                     channelId = bIdMatch.groupValues[1]
                 }

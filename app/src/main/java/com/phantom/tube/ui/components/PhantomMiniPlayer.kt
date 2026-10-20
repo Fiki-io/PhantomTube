@@ -43,9 +43,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
@@ -156,7 +159,16 @@ fun PhantomMiniPlayer(
                     .padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Video Thumbnail
+                // Video Thumbnail (downsampled to 160x90 to save RAM)
+                val context = LocalContext.current
+                val miniThumbRequest = remember(video.thumbnailUrl, context) {
+                    ImageRequest.Builder(context)
+                        .data(video.thumbnailUrl)
+                        .size(160, 90)
+                        .precision(Precision.INEXACT)
+                        .allowRgb565(true)
+                        .build()
+                }
                 Box(
                     modifier = Modifier
                         .width(70.dp)
@@ -165,7 +177,7 @@ fun PhantomMiniPlayer(
                         .background(Color(0xFF141414))
                 ) {
                     AsyncImage(
-                        model = video.thumbnailUrl,
+                        model = miniThumbRequest,
                         contentDescription = video.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.matchParentSize()
@@ -250,21 +262,20 @@ fun PhantomMiniPlayer(
                 }
             }
 
-            // Real-time YouTube Red Scrubber Line
-            val current = currentTimeSecProvider?.invoke() ?: currentTimeSec
-            val duration = durationSecProvider?.invoke() ?: durationSec
-            val safeCurrent = if (current.isNaN() || !current.isFinite()) 0f else current
-            val safeDuration = if (duration.isNaN() || !duration.isFinite()) 0f else duration
-            val progressFraction = if (safeDuration > 0f) {
-                (safeCurrent / safeDuration).coerceIn(0f, 1f)
-            } else 0f
-
+            // Real-time YouTube Red Scrubber Line (read state inside drawBehind to avoid recomposing miniplayer)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(2.dp)
                     .background(Color.White.copy(alpha = 0.12f))
                     .drawBehind {
+                        val current = currentTimeSecProvider?.invoke() ?: currentTimeSec
+                        val duration = durationSecProvider?.invoke() ?: durationSec
+                        val safeCurrent = if (current.isNaN() || !current.isFinite()) 0f else current
+                        val safeDuration = if (duration.isNaN() || !duration.isFinite()) 0f else duration
+                        val progressFraction = if (safeDuration > 0f) {
+                            (safeCurrent / safeDuration).coerceIn(0f, 1f)
+                        } else 0f
                         if (progressFraction > 0.001f) {
                             drawRect(
                                 color = YouTubeRed,

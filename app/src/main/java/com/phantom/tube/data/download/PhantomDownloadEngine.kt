@@ -1,5 +1,6 @@
 package com.phantom.tube.data.download
 
+import com.phantom.tube.PhantomApp
 import com.phantom.tube.core.security.PhantomNative
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -12,10 +13,12 @@ import java.util.concurrent.TimeUnit
 
 object PhantomDownloadEngine {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(25, TimeUnit.SECONDS)
-        .build()
+    private val client: OkHttpClient by lazy {
+        (PhantomApp.sharedClientInstance?.newBuilder() ?: OkHttpClient.Builder())
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(25, TimeUnit.SECONDS)
+            .build()
+    }
 
     fun getAudioQualities(): List<AvailableQuality> = listOf(
         AvailableQuality("mp3_320", "320 kbps", "MP3 • Kualitas Studio Terbaik", "audio", "320"),

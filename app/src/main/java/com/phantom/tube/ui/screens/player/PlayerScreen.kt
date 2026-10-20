@@ -140,10 +140,13 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import coil.request.ImageRequest
+import coil.size.Precision
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -822,6 +825,7 @@ fun PlayerScreen(
                 }
             }
             controller.release()
+            StoryboardHelper.clearCache()
             try {
                 context.unbindService(connection)
             } catch (e: Exception) {
@@ -871,6 +875,7 @@ fun PlayerScreen(
         sponsorSegments = emptyList()
         lastRecordedPositionSec = 0f
         storyboardData = null
+        StoryboardHelper.clearCache()
         isScrubbing = false
         isQualityMenuExpanded = false
         controller.requestStoryboard()
@@ -1140,7 +1145,7 @@ fun PlayerScreen(
                         val existingIds = (recommendedVideos + mixPlaylist).map { it.id }.toSet()
                         val freshVideos = result.videos.filterNot { it.id in existingIds }
                         if (freshVideos.isNotEmpty()) {
-                            recommendedVideos = recommendedVideos + freshVideos
+                            recommendedVideos = (recommendedVideos + freshVideos).take(80)
                         }
                     } else {
                         if (result.continuationToken == null) {
@@ -1252,8 +1257,16 @@ fun PlayerScreen(
                     .align(Alignment.TopCenter)
             ) {
                 if (video.thumbnailUrl.isNotBlank()) {
+                    val ambientImageRequest = remember(video.thumbnailUrl, context) {
+                        ImageRequest.Builder(context)
+                            .data(video.thumbnailUrl)
+                            .size(160, 90)
+                            .precision(Precision.INEXACT)
+                            .allowRgb565(true)
+                            .build()
+                    }
                     AsyncImage(
-                        model = video.thumbnailUrl,
+                        model = ambientImageRequest,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -1343,6 +1356,7 @@ fun PlayerScreen(
                 )
             }
 
+            if (!isMinimized) {
             // Audio-Only Mode AMOLED Overlay
             if (isAudioOnly) {
                 Box(
@@ -1582,8 +1596,10 @@ fun PlayerScreen(
             )
 
             // Layer 3.5: Native Endscreen Recommendations Overlay
-            val isNearEnd = remember(currentPositionSec, currentDurationSec) {
-                currentDurationSec > 25f && (currentDurationSec - currentPositionSec) in 0.5f..20f
+            val isNearEnd by remember {
+                derivedStateOf {
+                    currentDurationSec > 25f && (currentDurationSec - currentPositionSec) in 0.5f..20f
+                }
             }
             val endscreenCards = remember(liveEndscreenVideos, nextQueueData, recommendedVideos) {
                 if (liveEndscreenVideos.isNotEmpty()) {
@@ -2032,6 +2048,7 @@ fun PlayerScreen(
                     )
                 }
             }
+            } // end if (!isMinimized)
         }
 
         // 2. BELOW PLAYER CONTENT (Only shown in portrait full-player mode)

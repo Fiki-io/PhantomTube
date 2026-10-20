@@ -62,7 +62,11 @@ fun ScrubPreviewCard(
 
     var frameBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
-    LaunchedEffect(targetSeconds, storyboardData) {
+    LaunchedEffect(visible, targetSeconds, storyboardData) {
+        if (!visible) {
+            frameBitmap = null
+            return@LaunchedEffect
+        }
         if (storyboardData != null && durationSeconds > 0f) {
             val frame = storyboardData.getFrame(targetSeconds, durationSeconds)
             if (frame != null) {
