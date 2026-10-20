@@ -159,7 +159,7 @@ fun PhantomGhostSurface(
                     domStorageEnabled = true
                     databaseEnabled = false
                     mediaPlaybackRequiresUserGesture = false
-                    cacheMode = WebSettings.LOAD_DEFAULT
+                    cacheMode = WebSettings.LOAD_NO_CACHE
                     mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     allowFileAccess = false
                     allowContentAccess = false
@@ -171,6 +171,7 @@ fun PhantomGhostSurface(
                     userAgentString = com.phantom.tube.core.security.PhantomNative.getUserAgent()
                 }
 
+                clearCache(true)
                 webChromeClient = WebChromeClient()
 
                 webViewClient = object : WebViewClient() {
@@ -242,7 +243,8 @@ object PhantomRenderEngine {
             val bytes = html.toByteArray(Charsets.UTF_8)
             val headers = mapOf(
                 "Content-Type" to "text/html; charset=utf-8",
-                "Access-Control-Allow-Origin" to "*"
+                "Access-Control-Allow-Origin" to "*",
+                "Cache-Control" to "no-store, no-cache, must-revalidate"
             )
             return WebResourceResponse("text/html", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(bytes))
         }
@@ -262,10 +264,18 @@ object PhantomRenderEngine {
                 }
             }
 
-            val reqBuilder = okhttp3.Request.Builder().url(url)
+            val reqBuilder = okhttp3.Request.Builder()
+                .url(url)
+                .cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
             for ((k, v) in request.requestHeaders) {
-                // Strip Accept-Encoding so OkHttp decompresses gzip transparently
-                if (!k.equals("accept-encoding", ignoreCase = true)) {
+                // Strip Accept-Encoding and conditional cache headers so YouTube always returns 200 OK body
+                val lower = k.lowercase()
+                if (lower != "accept-encoding" &&
+                    lower != "if-none-match" &&
+                    lower != "if-modified-since" &&
+                    lower != "cache-control" &&
+                    lower != "pragma"
+                ) {
                     reqBuilder.header(k, v)
                 }
             }

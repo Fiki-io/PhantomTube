@@ -350,6 +350,12 @@ const char* RAW_ENGINE_HTML = R"HTML(
         }
 
         function onPlayerStateChange(event) {
+            try {
+                var iframe = document.querySelector('iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: 'PHANTOM_CLEAN' }, '*');
+                }
+            } catch(e) {}
             if (event.data === 1 || event.data === 3) {
                 startTimeTicker();
                 sendStoryboard();
@@ -630,7 +636,13 @@ button.ytp-play-button,
 [class*="ytp-play-button"],
 [class*="ytp-play-button"] *,
 [class*="ytp-pause"],
-[class*="ytp-pause"] * {
+[class*="ytp-pause"] *,
+button[aria-label*="Play"],
+button[aria-label*="Putar"],
+button[aria-label*="Pause"],
+button[aria-label*="Jeda"],
+button[aria-label*="Share"],
+button[aria-label*="Bagikan"] {
     display: none !important;
     opacity: 0 !important;
     visibility: hidden !important;
@@ -754,25 +766,68 @@ a[href*="youtube.com/watch"] {
 
 const char* RAW_CLEAN_SCRIPT = R"JS(
 (function() {
-    var combinedSelector = [
+    var selectors = [
         '.ytp-ce-element', '.ytp-ce-video', '.ytp-ce-channel', '.ytp-ce-playlist',
         '.ytp-ce-website', '.ytp-ce-merchandise', '.ytp-ce-covering-overlay',
-        '.html5-endscreen', '.html5-ypc-endscreen', '.modern-videowall-endscreen',
-        '.ytp-endscreen-content', '.ytp-videowall-still', '.iv-card', '.iv-promo',
-        '.video-annotations', '.ytp-bezel', '.ytp-large-play-button', '.ytp-play-button',
-        '.ytp-pause-overlay', '.ytp-cued-thumbnail-overlay', '.ytp-spinner',
-        '.ytp-chrome-bottom', '.ytp-chrome-top', '.ytp-title', '.ytp-share-button',
-        '.ytp-cards-button', '.ytp-cards-teaser', '.ytp-watermark', '.ytp-youtube-button',
-        '.ytp-impression-link'
-    ].join(',');
+        '.ytp-ce-covering-image', '.ytp-ce-expanding-overlay', '.ytp-ce-expanding-image',
+        '.ytp-ce-element-show', '.ytp-ce-shown', '.ytp-ce-element-shadow',
+        '.ytp-ce-hide-button-container', '.ytp-ce-size-medium', '.ytp-ce-size-large',
+        '.ytp-ce-bottom-right-quad', '.ytp-ce-bottom-left-quad', '.ytp-ce-top-right-quad', '.ytp-ce-top-left-quad',
+        '[class*="ytp-ce"]', '.html5-endscreen', '.html5-ypc-endscreen',
+        '.modern-videowall-endscreen', '.ytp-endscreen-content', '.ytp-endscreen-next',
+        '.ytp-endscreen-paginate', '.ytp-endscreen-previous', '.ytp-endscreen-takeover',
+        '.ytp-videowall-still', '[class*="endscreen"]',
+        '.iv-card', '.iv-promo', '[class*="iv-card"]', '[class*="iv-promo"]',
+        '.video-annotations', '.video-legacy-annotations', '[class*="annotation"]', '[class*="videowall"]',
+
+        '.ytp-bezel', '.ytp-bezel-icon', '.ytp-bezel-text', '.ytp-bezel-text-wrapper', '[class*="ytp-bezel"]',
+        '.ytp-large-play-button', '.ytp-large-play-button-bg', '[class*="ytp-large-play"]',
+        '.ytp-play-button', 'button.ytp-play-button', '[class*="ytp-play-button"]',
+        '.ytp-pause-overlay', '.ytp-pause-overlay-backdrop', '.ytp-pause-overlay-container', '[class*="ytp-pause"]',
+        '.ytp-cued-thumbnail-overlay', '.ytp-cued-thumbnail-overlay-image', '.ytp-spinner',
+        'button[aria-label*="Play"]', 'button[aria-label*="Putar"]',
+        'button[aria-label*="Pause"]', 'button[aria-label*="Jeda"]',
+
+        '.ytp-chrome-bottom', '.ytp-progress-bar-container', '.ytp-progress-bar',
+        '.ytp-play-progress', '.ytp-load-progress', '.ytp-gradient-bottom',
+        '[class*="ytp-chrome-bottom"]',
+
+        '.ytp-chrome-top', '.ytp-chrome-top-buttons',
+        '.ytp-title', '.ytp-title-text', '.ytp-title-channel', '.ytp-title-channel-logo',
+        '.ytp-title-channel-name', 'span.ytp-title-channel-name', 'a.ytp-title-channel',
+        '.ytp-title-link', '.ytp-title-subtext', '.ytp-title-expanded', '.ytp-title-show-expanded',
+        '.ytp-share-button', '.ytp-share-panel', '.ytp-share-icon',
+        'button[aria-label*="Share"]', 'button[aria-label*="Bagikan"]', '[class*="ytp-share"]',
+        '.ytp-gradient-top', '.ytp-cards-button', '.ytp-cards-teaser',
+        '.ytp-cards-teaser-channel-avatar', '.ytp-cards-teaser-box', '.ytp-cards-teaser-text', '.ytp-cards-teaser-label',
+        '[class*="ytp-chrome-top"]', '[class*="ytp-title"]', '[class*="cards-teaser"]',
+        '[class*="channel"]', '[class*="avatar"]', '[class*="author"]',
+        'a[href*="/@"]', 'a[href*="/channel/"]', 'a[href*="/user/"]', 'a[href*="/c/"]',
+        'img[src*="ggpht.com"]', 'img[src*="googleusercontent.com"]',
+        '[style*="ggpht.com"]', '[style*="googleusercontent.com"]',
+
+        '.ytp-watermark', '.ytp-youtube-button', '.ytp-watch-on-youtube-button',
+        '.ytp-impression-link', '.ytp-impression-link-logo', '.ytp-impression-link-text',
+        '[class*="ytp-watermark"]', '[class*="ytp-youtube"]', '[class*="ytp-impression"]',
+        'a[aria-label*="YouTube"]', 'a[href*="youtube.com/watch"]'
+    ];
+    var combinedSelector = selectors.join(',');
 
     var lastSentEndscreenIds = '';
-    var cleanScheduled = false;
+    var rafPending = false;
+
+    function hideNode(node) {
+        if (!node || !node.style) return;
+        node.style.setProperty('display', 'none', 'important');
+        node.style.setProperty('opacity', '0', 'important');
+        node.style.setProperty('visibility', 'hidden', 'important');
+        node.style.setProperty('pointer-events', 'none', 'important');
+    }
 
     function clean() {
-        cleanScheduled = false;
+        rafPending = false;
         try {
-            var ceEls = document.querySelectorAll('.ytp-ce-element, .ytp-ce-video');
+            var ceEls = document.querySelectorAll('.ytp-ce-element, .ytp-ce-video, [class*="ytp-ce"]');
             if (ceEls && ceEls.length > 0) {
                 var items = [];
                 for (var i = 0; i < ceEls.length; i++) {
@@ -821,13 +876,18 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
         try {
             var els = document.querySelectorAll(combinedSelector);
             for (var i = 0; i < els.length; i++) {
-                var node = els[i];
-                if (node.style && node.style.display !== 'none') {
-                    node.style.setProperty('display', 'none', 'important');
-                    node.style.setProperty('pointer-events', 'none', 'important');
-                }
+                hideNode(els[i]);
             }
-        } catch(e) {}
+        } catch(e) {
+            for (var s = 0; s < selectors.length; s++) {
+                try {
+                    var fallbackEls = document.querySelectorAll(selectors[s]);
+                    for (var j = 0; j < fallbackEls.length; j++) {
+                        hideNode(fallbackEls[j]);
+                    }
+                } catch(err) {}
+            }
+        }
 
         try {
             var player = document.querySelector('.html5-video-player');
@@ -842,19 +902,20 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
                         cName.indexOf('subtitle') !== -1) {
                         continue;
                     }
-                    if (child.style && child.style.display !== 'none') {
-                        child.style.setProperty('display', 'none', 'important');
-                        child.style.setProperty('pointer-events', 'none', 'important');
-                    }
+                    hideNode(child);
                 }
             }
         } catch(e) {}
     }
 
     function scheduleClean() {
-        if (cleanScheduled) return;
-        cleanScheduled = true;
-        setTimeout(clean, 350);
+        if (rafPending) return;
+        rafPending = true;
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(clean);
+        } else {
+            setTimeout(clean, 16);
+        }
     }
 
     clean();
@@ -862,11 +923,14 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
     if (document.documentElement) {
         obs.observe(document.documentElement, {
             childList: true,
-            subtree: true
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'style', 'hidden', 'aria-label']
         });
     }
     document.addEventListener('DOMContentLoaded', clean);
     window.addEventListener('load', clean);
+    setInterval(clean, 250);
 
     window.addEventListener('message', function(e) {
         if (e.data && e.data.type === 'PHANTOM_SET_QUALITY') {
@@ -934,7 +998,7 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
                 }
             } catch(err) {}
         } else if (e.data && e.data.type === 'PHANTOM_CLEAN') {
-            scheduleClean();
+            clean();
         }
     });
 
