@@ -16,7 +16,6 @@ import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.webkit.WebViewAssetLoader
 
 class PhantomBackgroundWebView @JvmOverloads constructor(
     context: Context,
@@ -147,10 +146,6 @@ fun PhantomGhostSurface(
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
-            val assetLoader = WebViewAssetLoader.Builder()
-                .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(ctx))
-                .build()
-
             PhantomBackgroundWebView(ctx).apply {
                 setBackgroundColor(Color.BLACK)
                 layoutParams = ViewGroup.LayoutParams(
@@ -183,9 +178,6 @@ fun PhantomGhostSurface(
                         view: WebView,
                         request: WebResourceRequest
                     ): WebResourceResponse? {
-                        val assetResp = assetLoader.shouldInterceptRequest(request.url)
-                        if (assetResp != null) return assetResp
-
                         val cleanResp = PhantomRenderEngine.intercept(request)
                         if (cleanResp != null) return cleanResp
 

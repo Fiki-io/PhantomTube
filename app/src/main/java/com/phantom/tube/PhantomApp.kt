@@ -110,6 +110,7 @@ class PhantomApp : Application(), ImageLoaderFactory {
             .bitmapConfig(Bitmap.Config.RGB_565)
             .allowRgb565(true)
             .bitmapFactoryMaxParallelism(2)
+            .bitmapFactoryExifOrientationPolicy(coil.decode.ExifOrientationPolicy.IGNORE)
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizeBytes(targetCacheBytes.toInt())

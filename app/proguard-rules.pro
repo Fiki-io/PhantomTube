@@ -1,4 +1,6 @@
-# Phantom Proguard & Obfuscation Rules
+# Phantom R8 Shrinking & Safe Optimization Rules
+# Designed for maximum dead-code elimination while preserving clean package hierarchy
+# to avoid false-positive heuristic detections in Google Play Protect and AV scanners.
 
 # 1. Native JNI & JSInterface Protection
 -keepclassmembers class * {
@@ -12,29 +14,16 @@
 }
 -keep class com.phantom.tube.player.PhantomPlayerBridge { *; }
 
-# 2. Data Models & Database
--keep class com.phantom.tube.data.model.** { *; }
--keep class com.phantom.tube.core.database.** { *; }
-
-# Room Database
--keep class * extends androidx.room.RoomDatabase
--dontwarn androidx.room.paging.**
-
-# OkHttp & Okio
--dontwarn okhttp3.**
--dontwarn okio.**
+# 2. Networking & Coroutines Warnings Suppression
 -dontwarn javax.annotation.**
-
-# Coroutines
 -dontwarn kotlinx.coroutines.**
 
-# 3. Obfuscation & Deep Bytecode Optimization
--repackageclasses ''
+# 3. Safe Bytecode Shrinking (Repackage into legitimate app namespace, no aggressive overloading)
+-repackageclasses 'com.phantom.tube.internal'
 -allowaccessmodification
--renamesourcefileattribute ''
 -optimizationpasses 5
--overloadaggressively
-# Eliminate Kotlin null check assertions in release bytecode
+
+# Eliminate Kotlin null-check assertions, Compose trace/source markers, and debug logs in release bytecode
 -assumenosideeffects class kotlin.jvm.internal.Intrinsics {
     public static void checkNotNullParameter(...);
     public static void checkNotNull(...);
@@ -48,4 +37,20 @@
     public static void throwAssert(...);
     public static void throwIllegalArgument(...);
     public static void throwIllegalState(...);
+}
+
+-assumenosideeffects class androidx.compose.runtime.ComposerKt {
+    public static void sourceInformation(androidx.compose.runtime.Composer, java.lang.String);
+    public static void sourceInformationMarkerStart(androidx.compose.runtime.Composer, int, java.lang.String);
+    public static void sourceInformationMarkerEnd(androidx.compose.runtime.Composer);
+    public static boolean isTraceInProgress();
+    public static void traceEventStart(int, int, int, java.lang.String);
+    public static void traceEventEnd();
+}
+
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
 }

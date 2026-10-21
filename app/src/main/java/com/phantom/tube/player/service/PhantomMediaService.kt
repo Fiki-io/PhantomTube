@@ -9,15 +9,19 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Icon
+import android.media.MediaMetadata
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
-import android.support.v4.media.MediaMetadataCompat
-import android.support.v4.media.session.MediaSessionCompat
-import android.support.v4.media.session.PlaybackStateCompat
-import androidx.core.app.NotificationCompat
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.phantom.tube.MainActivity
 import com.phantom.tube.R
 import kotlinx.coroutines.CoroutineScope
@@ -26,15 +30,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.graphics.drawable.BitmapDrawable
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
 
 class PhantomMediaService : Service() {
 
     private val binder = LocalBinder()
-    private var mediaSession: MediaSessionCompat? = null
+    private var mediaSession: MediaSession? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var currentTitle: String = "Phantom Player"
     private var currentChannel: String = ""
@@ -71,7 +71,6 @@ class PhantomMediaService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        // Hentikan pemutar audio offline jika sedang jalan agar suara tidak dobel
         try {
             com.phantom.tube.player.offline.OfflineAudioPlayerManager.stop(this)
         } catch (_: Exception) {}
@@ -97,8 +96,8 @@ class PhantomMediaService : Service() {
     }
 
     private fun setupMediaSession() {
-        mediaSession = MediaSessionCompat(this, "PhantomMediaSession").apply {
-            setCallback(object : MediaSessionCompat.Callback() {
+        mediaSession = MediaSession(this, "PhantomMediaSession").apply {
+            setCallback(object : MediaSession.Callback() {
                 override fun onPlay() {
                     onPlayAction?.invoke()
                 }
@@ -172,7 +171,7 @@ class PhantomMediaService : Service() {
             try {
                 val imageRequest = ImageRequest.Builder(this@PhantomMediaService)
                     .data(url)
-                    .allowHardware(false) // Media notification requires software bitmap
+                    .allowHardware(false)
                     .build()
                 val result = (imageLoader.execute(imageRequest) as? SuccessResult)?.drawable
                 val bitmap = (result as? BitmapDrawable)?.bitmap
@@ -193,14 +192,14 @@ class PhantomMediaService : Service() {
     }
 
     private fun applyMetadata(bitmap: Bitmap?) {
-        val metadataBuilder = MediaMetadataCompat.Builder()
-            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
-            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentChannel)
-            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDurationMs)
+        val metadataBuilder = MediaMetadata.Builder()
+            .putString(MediaMetadata.METADATA_KEY_TITLE, currentTitle)
+            .putString(MediaMetadata.METADATA_KEY_ARTIST, currentChannel)
+            .putLong(MediaMetadata.METADATA_KEY_DURATION, currentDurationMs)
 
         if (bitmap != null) {
-            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+            metadataBuilder.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, bitmap)
+            metadataBuilder.putBitmap(MediaMetadata.METADATA_KEY_ART, bitmap)
         }
         mediaSession?.setMetadata(metadataBuilder.build())
     }
@@ -216,16 +215,16 @@ class PhantomMediaService : Service() {
             releaseWakeLock()
         }
 
-        val state = if (playing) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
+        val state = if (playing) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
         val playbackSpeed = if (playing) 1.0f else 0.0f
-        val playbackState = PlaybackStateCompat.Builder()
+        val playbackState = PlaybackState.Builder()
             .setActions(
-                PlaybackStateCompat.ACTION_PLAY or
-                PlaybackStateCompat.ACTION_PAUSE or
-                PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                PlaybackStateCompat.ACTION_SEEK_TO
+                PlaybackState.ACTION_PLAY or
+                PlaybackState.ACTION_PAUSE or
+                PlaybackState.ACTION_PLAY_PAUSE or
+                PlaybackState.ACTION_SKIP_TO_NEXT or
+                PlaybackState.ACTION_SKIP_TO_PREVIOUS or
+                PlaybackState.ACTION_SEEK_TO
             )
             .setState(state, this.currentPositionMs, playbackSpeed, SystemClock.elapsedRealtime())
             .build()
@@ -260,39 +259,43 @@ class PhantomMediaService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val prevAction = NotificationCompat.Action.Builder(
-            android.R.drawable.ic_media_previous, "Previous",
+        val prevAction = Notification.Action.Builder(
+            Icon.createWithResource(this, android.R.drawable.ic_media_previous),
+            "Previous",
             getServicePendingIntent(ACTION_PREVIOUS)
         ).build()
 
         val playPauseAction = if (isPlaying) {
-            NotificationCompat.Action.Builder(
-                android.R.drawable.ic_media_pause, "Pause",
+            Notification.Action.Builder(
+                Icon.createWithResource(this, android.R.drawable.ic_media_pause),
+                "Pause",
                 getServicePendingIntent(ACTION_PAUSE)
             ).build()
         } else {
-            NotificationCompat.Action.Builder(
-                android.R.drawable.ic_media_play, "Play",
+            Notification.Action.Builder(
+                Icon.createWithResource(this, android.R.drawable.ic_media_play),
+                "Play",
                 getServicePendingIntent(ACTION_PLAY)
             ).build()
         }
 
-        val nextAction = NotificationCompat.Action.Builder(
-            android.R.drawable.ic_media_next, "Next",
+        val nextAction = Notification.Action.Builder(
+            Icon.createWithResource(this, android.R.drawable.ic_media_next),
+            "Next",
             getServicePendingIntent(ACTION_NEXT)
         ).build()
 
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle(currentTitle)
             .setContentText(currentChannel)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(openPendingIntent)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
             .addAction(prevAction)
             .addAction(playPauseAction)
             .addAction(nextAction)
             .setStyle(
-                androidx.media.app.NotificationCompat.MediaStyle()
+                Notification.MediaStyle()
                     .setMediaSession(mediaSession?.sessionToken)
                     .setShowActionsInCompactView(0, 1, 2)
             )

@@ -112,9 +112,16 @@ class MainActivity : ComponentActivity() {
                 PhantomTheme {
                 var currentTab by remember { mutableStateOf(NavTab.HOME) }
                 var activeChannelId by remember { mutableStateOf<String?>(null) }
+                var rememberedChannelId by remember { mutableStateOf("") }
                 var activeChannelTitle by remember { mutableStateOf("") }
                 var isSettingsOpen by remember { mutableStateOf(false) }
                 var isDownloadsOpen by remember { mutableStateOf(false) }
+
+                LaunchedEffect(activeChannelId) {
+                    if (!activeChannelId.isNullOrBlank()) {
+                        rememberedChannelId = activeChannelId!!
+                    }
+                }
 
                 val updateManager = app.updateManager
                 val scope = rememberCoroutineScope()
@@ -193,15 +200,15 @@ class MainActivity : ComponentActivity() {
                                 val forward = targetState.ordinal > initialState.ordinal
                                 val slideDirection = if (forward) 1 else -1
                                 (slideInHorizontally(
-                                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-                                    initialOffsetX = { fullWidth -> (fullWidth * 0.22f * slideDirection).toInt() }
+                                    animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset,
+                                    initialOffsetX = { fullWidth -> (fullWidth * 0.18f * slideDirection).toInt() }
                                 ) + fadeIn(
-                                    animationSpec = tween(durationMillis = 220)
+                                    animationSpec = tween(durationMillis = 200)
                                 )) togetherWith (slideOutHorizontally(
-                                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-                                    targetOffsetX = { fullWidth -> (-fullWidth * 0.22f * slideDirection).toInt() }
+                                    animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset,
+                                    targetOffsetX = { fullWidth -> (-fullWidth * 0.18f * slideDirection).toInt() }
                                 ) + fadeOut(
-                                    animationSpec = tween(durationMillis = 180)
+                                    animationSpec = tween(durationMillis = 160)
                                 ))
                             },
                             label = "tab_navigation_transition"
@@ -260,30 +267,47 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // 2. BUBBLE BOTTOM NAVIGATION DOCK
-                    if (!isInPipMode && (activeVideo == null || isPlayerMinimized) && activeChannelId == null && !isSettingsOpen && !isDownloadsOpen) {
+                    // 2. BUBBLE BOTTOM NAVIGATION DOCK (Smooth slide & fade)
+                    val isBottomDockVisible = !isInPipMode &&
+                        (activeVideo == null || isPlayerMinimized) &&
+                        activeChannelId == null &&
+                        !isSettingsOpen &&
+                        !isDownloadsOpen
+
+                    AnimatedVisibility(
+                        visible = isBottomDockVisible,
+                        enter = androidx.compose.animation.slideInVertically(
+                            initialOffsetY = { it },
+                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
+                        ) + fadeIn(tween(180)),
+                        exit = androidx.compose.animation.slideOutVertically(
+                            targetOffsetY = { it },
+                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
+                        ) + fadeOut(tween(150)),
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    ) {
                         BubbleBottomNav(
                             currentTab = currentTab,
-                            onTabSelected = { currentTab = it },
-                            modifier = Modifier.align(Alignment.BottomCenter)
+                            onTabSelected = { currentTab = it }
                         )
                     }
 
-                    // 3. CHANNEL SCREEN OVERLAY
+                    // 3. CHANNEL SCREEN OVERLAY (Preserves rememberedChannelId during exit transition)
                     AnimatedVisibility(
                         visible = activeChannelId != null,
                         enter = slideInHorizontally(
                             initialOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-                        ) + fadeIn(animationSpec = tween(200)),
+                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
+                        ) + fadeIn(animationSpec = tween(180)),
                         exit = slideOutHorizontally(
                             targetOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-                        ) + fadeOut(animationSpec = tween(200))
+                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
+                        ) + fadeOut(animationSpec = tween(180))
                     ) {
-                        if (activeChannelId != null) {
+                        val targetChannelId = activeChannelId ?: rememberedChannelId
+                        if (targetChannelId.isNotBlank()) {
                             ChannelScreen(
-                                channelId = activeChannelId!!,
+                                channelId = targetChannelId,
                                 initialChannelTitle = activeChannelTitle,
                                 repository = repository,
                                 onVideoClick = { video: VideoItem ->
@@ -306,12 +330,12 @@ class MainActivity : ComponentActivity() {
                         visible = isSettingsOpen,
                         enter = slideInHorizontally(
                             initialOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-                        ) + fadeIn(animationSpec = tween(200)),
+                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
+                        ) + fadeIn(animationSpec = tween(180)),
                         exit = slideOutHorizontally(
                             targetOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-                        ) + fadeOut(animationSpec = tween(200))
+                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
+                        ) + fadeOut(animationSpec = tween(180))
                     ) {
                         SettingsScreen(
                             preferences = app.preferences,
@@ -322,17 +346,17 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // 3.6 DOWNLOADS SCREEN OVERLAY (Opsi 3: Buka Halaman Unduhan Lengkap)
+                    // 3.6 DOWNLOADS SCREEN OVERLAY
                     AnimatedVisibility(
                         visible = isDownloadsOpen,
                         enter = slideInHorizontally(
                             initialOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-                        ) + fadeIn(animationSpec = tween(200)),
+                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
+                        ) + fadeIn(animationSpec = tween(180)),
                         exit = slideOutHorizontally(
                             targetOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-                        ) + fadeOut(animationSpec = tween(200))
+                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
+                        ) + fadeOut(animationSpec = tween(180))
                     ) {
                         DownloadsScreen(
                             repository = repository,
@@ -341,16 +365,25 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // 3.7 OFFLINE MINI PLAYER BAR (Floats on top of tabs and DownloadsScreen when an offline MP3 is playing)
+                    // 3.7 OFFLINE MINI PLAYER BAR
                     val offlineTrack by OfflineAudioPlayerManager.currentTrack.collectAsState()
-                    if (offlineTrack != null && (activeVideo == null || isPlayerMinimized) && !isInPipMode) {
-                        val hasBottomNav = activeChannelId == null && !isSettingsOpen && !isDownloadsOpen
-                        OfflineMiniPlayer(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .navigationBarsPadding()
-                                .padding(bottom = if (hasBottomNav) 76.dp else 12.dp)
-                        )
+                    val hasBottomNav = activeChannelId == null && !isSettingsOpen && !isDownloadsOpen
+                    AnimatedVisibility(
+                        visible = offlineTrack != null && (activeVideo == null || isPlayerMinimized) && !isInPipMode,
+                        enter = androidx.compose.animation.slideInVertically(
+                            initialOffsetY = { it },
+                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
+                        ) + fadeIn(tween(200)),
+                        exit = androidx.compose.animation.slideOutVertically(
+                            targetOffsetY = { it },
+                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
+                        ) + fadeOut(tween(160)),
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(bottom = if (hasBottomNav) 76.dp else 12.dp)
+                    ) {
+                        OfflineMiniPlayer()
                     }
 
                     // 4. PERSISTENT PLAYER (Full screen OR Miniplayer)

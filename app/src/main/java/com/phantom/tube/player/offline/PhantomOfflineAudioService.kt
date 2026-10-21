@@ -10,18 +10,18 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Icon
 import android.media.AudioAttributes
 import android.media.AudioManager
+import android.media.MediaMetadata
 import android.media.MediaPlayer
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
-import android.support.v4.media.MediaMetadataCompat
-import android.support.v4.media.session.MediaSessionCompat
-import android.support.v4.media.session.PlaybackStateCompat
-import androidx.core.app.NotificationCompat
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
@@ -48,7 +48,7 @@ import kotlin.random.Random
 class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     private var mediaPlayer: MediaPlayer? = null
-    private var mediaSession: MediaSessionCompat? = null
+    private var mediaSession: MediaSession? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var audioManager: AudioManager? = null
 
@@ -156,8 +156,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     }
 
     private fun setupMediaSession() {
-        mediaSession = MediaSessionCompat(this, "PhantomOfflineSession").apply {
-            setCallback(object : MediaSessionCompat.Callback() {
+        mediaSession = MediaSession(this, "PhantomOfflineSession").apply {
+            setCallback(object : MediaSession.Callback() {
                 override fun onPlay() {
                     resumePlayback()
                 }
@@ -413,30 +413,30 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         val dur = OfflineAudioPlayerManager.durationMs.value.takeIf { it > 0 }
             ?: mediaPlayer?.duration?.toLong()?.coerceAtLeast(0L)
             ?: 0L
-        val metadataBuilder = MediaMetadataCompat.Builder()
-            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, track.title)
-            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, track.channelTitle)
-            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, dur)
+        val metadataBuilder = MediaMetadata.Builder()
+            .putString(MediaMetadata.METADATA_KEY_TITLE, track.title)
+            .putString(MediaMetadata.METADATA_KEY_ARTIST, track.channelTitle)
+            .putLong(MediaMetadata.METADATA_KEY_DURATION, dur)
 
         if (bitmap != null) {
-            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+            metadataBuilder.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, bitmap)
+            metadataBuilder.putBitmap(MediaMetadata.METADATA_KEY_ART, bitmap)
         }
         mediaSession?.setMetadata(metadataBuilder.build())
     }
 
     private fun updateMediaSessionState(isPlaying: Boolean, positionMs: Long) {
-        val state = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
-        val actions = PlaybackStateCompat.ACTION_PLAY or
-                PlaybackStateCompat.ACTION_PAUSE or
-                PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                PlaybackStateCompat.ACTION_SEEK_TO
+        val state = if (isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
+        val actions = PlaybackState.ACTION_PLAY or
+                PlaybackState.ACTION_PAUSE or
+                PlaybackState.ACTION_PLAY_PAUSE or
+                PlaybackState.ACTION_SKIP_TO_NEXT or
+                PlaybackState.ACTION_SKIP_TO_PREVIOUS or
+                PlaybackState.ACTION_SEEK_TO
 
         val playbackSpeed = if (isPlaying) 1.0f else 0.0f
         mediaSession?.setPlaybackState(
-            PlaybackStateCompat.Builder()
+            PlaybackState.Builder()
                 .setActions(actions)
                 .setState(state, positionMs, playbackSpeed, SystemClock.elapsedRealtime())
                 .build()
@@ -483,26 +483,47 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+        val prevActionObj = Notification.Action.Builder(
+            Icon.createWithResource(this, android.R.drawable.ic_media_previous),
+            "Previous",
+            prevIntent
+        ).build()
+
+        val playPauseActionObj = Notification.Action.Builder(
+            Icon.createWithResource(this, playPauseIcon),
+            if (isPlaying) "Pause" else "Play",
+            playPauseIntent
+        ).build()
+
+        val nextActionObj = Notification.Action.Builder(
+            Icon.createWithResource(this, android.R.drawable.ic_media_next),
+            "Next",
+            nextIntent
+        ).build()
+
+        val stopActionObj = Notification.Action.Builder(
+            Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel),
+            "Stop",
+            stopIntent
+        ).build()
+
+        val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(track?.title ?: "Phantom Player")
             .setContentText(track?.channelTitle?.ifBlank { "Musik Offline" } ?: "Musik Offline")
             .setSubText("Musik Offline")
             .setContentIntent(contentIntent)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
             .setOngoing(isPlaying)
-            .addAction(android.R.drawable.ic_media_previous, "Previous", prevIntent)
-            .addAction(playPauseIcon, if (isPlaying) "Pause" else "Play", playPauseIntent)
-            .addAction(android.R.drawable.ic_media_next, "Next", nextIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopIntent)
+            .addAction(prevActionObj)
+            .addAction(playPauseActionObj)
+            .addAction(nextActionObj)
+            .addAction(stopActionObj)
             .setStyle(
-                androidx.media.app.NotificationCompat.MediaStyle()
+                Notification.MediaStyle()
                     .setMediaSession(mediaSession?.sessionToken)
                     .setShowActionsInCompactView(0, 1, 2)
-                    .setShowCancelButton(true)
-                    .setCancelButtonIntent(stopIntent)
             )
 
         if (currentBitmap != null) {

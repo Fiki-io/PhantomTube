@@ -1,5 +1,6 @@
 package com.phantom.tube.data.download
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -11,7 +12,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import androidx.core.app.NotificationCompat
+import com.phantom.tube.PhantomApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -21,7 +22,6 @@ import com.phantom.tube.R
 import com.phantom.tube.core.security.PhantomNative
 import java.io.File
 import java.io.FileOutputStream
-import java.io.InputStream
 import java.io.OutputStream
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -29,15 +29,16 @@ import java.util.concurrent.TimeUnit
 object PhantomDownloader {
 
     private const val CHANNEL_ID = "phantom_downloads"
-    private const val CHANNEL_NAME = "Unduhan Phantom"
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .retryOnConnectionFailure(true)
-        .build()
+    private val httpClient: OkHttpClient by lazy {
+        (PhantomApp.sharedClientInstance?.newBuilder() ?: OkHttpClient.Builder())
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .retryOnConnectionFailure(true)
+            .build()
+    }
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -82,7 +83,7 @@ object PhantomDownloader {
                 val totalMb = if (total > 0) String.format(Locale.US, "%.1f MB", total / (1024f * 1024f)) else ""
                 val progressText = if (percent >= 0) "$percent% ($downloadedMb MB / $totalMb)" else "$downloadedMb MB"
 
-                val notif = NotificationCompat.Builder(context, CHANNEL_ID)
+                val notif = Notification.Builder(context, CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.stat_sys_download)
                     .setContentTitle("Mengunduh: ${videoTitle.ifBlank { cleanName }}")
                     .setContentText(progressText)
@@ -108,7 +109,7 @@ object PhantomDownloader {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
 
-                val notif = NotificationCompat.Builder(context, CHANNEL_ID)
+                val notif = Notification.Builder(context, CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.stat_sys_download_done)
                     .setContentTitle(context.getString(R.string.download_success_title))
                     .setContentText(cleanName)

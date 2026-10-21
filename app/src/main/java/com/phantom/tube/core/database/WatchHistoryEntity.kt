@@ -1,15 +1,6 @@
 package com.phantom.tube.core.database
 
-import androidx.room.Entity
-import androidx.room.Index
-import androidx.room.PrimaryKey
-
-@Entity(
-    tableName = "watch_history",
-    indices = [Index(value = ["watchedAt"])]
-)
 data class WatchHistoryEntity(
-    @PrimaryKey
     val videoId: String,
     val title: String,
     val channelTitle: String,

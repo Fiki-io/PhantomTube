@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.devtools.ksp")
 }
 
 android {
@@ -87,6 +86,15 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += listOf(
+            "-Xno-param-assertions",
+            "-Xno-call-assertions",
+            "-Xno-receiver-assertions",
+            "-P",
+            "plugin:androidx.compose.compiler.plugins.kotlin:nonSkippingGroupOptimization=true",
+            "-P",
+            "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true"
+        )
     }
     buildFeatures {
         compose = true
@@ -95,7 +103,14 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.11"
     }
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
     packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
         resources {
             excludes += listOf(
                 "/META-INF/{AL2.0,LGPL2.1}",
@@ -106,9 +121,12 @@ android {
                 "META-INF/*.version",
                 "META-INF/INDEX.LIST",
                 "META-INF/*.txt",
+                "META-INF/version-control-info.textproto",
+                "META-INF/com/android/build/gradle/**",
                 "**/*.version",
                 "DebugProbesKt.bin",
-                "kotlin/**"
+                "kotlin/**",
+                "kotlin-tooling-metadata.json"
             )
         }
     }
@@ -121,9 +139,14 @@ android {
     }
 }
 
+configurations.all {
+    exclude(group = "androidx.emoji2", module = "emoji2")
+    exclude(group = "androidx.emoji2", module = "emoji2-views-helper")
+    exclude(group = "androidx.profileinstaller", module = "profileinstaller")
+}
+
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.fragment:fragment-ktx:1.8.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
     implementation("androidx.activity:activity-compose:1.9.0")
@@ -134,35 +157,10 @@ dependencies {
     androidTestImplementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
-
-    // Navigation
-    implementation("androidx.navigation:navigation-compose:2.7.7")
-
-    // Coil for live YouTube thumbnails
-    implementation("io.coil-kt:coil-compose:2.6.0")
-
-    // Networking (Live InnerTube & SponsorBlock API)
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-
-    // AndroidX WebKit with WebViewAssetLoader for secure HTTPS origin/referer (Solves Error 150/152/153)
-    implementation("androidx.webkit:webkit:1.11.0")
-
-    // Room Database for Local History & Bookmarks
-    val roomVersion = "2.6.1"
-    implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion")
-    ksp("androidx.room:room-compiler:$roomVersion")
-
-    // Media & MediaSession
-    implementation("androidx.media:media:1.7.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20231013")
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }

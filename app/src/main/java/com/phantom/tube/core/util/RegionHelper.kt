@@ -11,22 +11,22 @@ data class RegionOption(
 object RegionHelper {
 
     val SUPPORTED_REGIONS = listOf(
-        RegionOption("ID", "Indonesia", "🇮🇩"),
-        RegionOption("GLOBAL", "Global / Internasional", "🌐"),
-        RegionOption("US", "United States", "🇺🇸"),
-        RegionOption("JP", "Japan", "🇯🇵"),
-        RegionOption("KR", "South Korea", "🇰🇷"),
-        RegionOption("GB", "United Kingdom", "🇬🇧"),
-        RegionOption("IN", "India", "🇮🇳"),
-        RegionOption("BR", "Brazil", "🇧🇷"),
-        RegionOption("DE", "Germany", "🇩🇪"),
-        RegionOption("FR", "France", "🇫🇷"),
-        RegionOption("RU", "Russia", "🇷🇺"),
-        RegionOption("ES", "Spain", "🇪🇸"),
-        RegionOption("CA", "Canada", "🇨🇦"),
-        RegionOption("AU", "Australia", "🇦🇺"),
-        RegionOption("SG", "Singapore", "🇸🇬"),
-        RegionOption("MY", "Malaysia", "🇲🇾")
+        RegionOption("ID", "Indonesia", "ID"),
+        RegionOption("GLOBAL", "Global / Internasional", "GL"),
+        RegionOption("US", "United States", "US"),
+        RegionOption("JP", "Japan", "JP"),
+        RegionOption("KR", "South Korea", "KR"),
+        RegionOption("GB", "United Kingdom", "GB"),
+        RegionOption("IN", "India", "IN"),
+        RegionOption("BR", "Brazil", "BR"),
+        RegionOption("DE", "Germany", "DE"),
+        RegionOption("FR", "France", "FR"),
+        RegionOption("RU", "Russia", "RU"),
+        RegionOption("ES", "Spain", "ES"),
+        RegionOption("CA", "Canada", "CA"),
+        RegionOption("AU", "Australia", "AU"),
+        RegionOption("SG", "Singapore", "SG"),
+        RegionOption("MY", "Malaysia", "MY")
     )
 
     val SUPPORTED_REGION_CODES = SUPPORTED_REGIONS.map { it.code }.toSet()

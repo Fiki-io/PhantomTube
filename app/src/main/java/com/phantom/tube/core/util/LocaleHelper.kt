@@ -13,11 +13,11 @@ data class LanguageOption(
 object LocaleHelper {
 
     val SUPPORTED_LANGUAGES = listOf(
-        LanguageOption("id", "Bahasa Indonesia", "🇮🇩"),
-        LanguageOption("en", "English", "🇺🇸"),
-        LanguageOption("ja", "日本語 (Japanese)", "🇯🇵"),
-        LanguageOption("es", "Español (Spanish)", "🇪🇸"),
-        LanguageOption("ru", "Русский (Russian)", "🇷🇺")
+        LanguageOption("id", "Bahasa Indonesia", "ID"),
+        LanguageOption("en", "English", "EN"),
+        LanguageOption("ja", "日本語 (Japanese)", "JA"),
+        LanguageOption("es", "Español (Spanish)", "ES"),
+        LanguageOption("ru", "Русский (Russian)", "RU")
     )
 
     val SUPPORTED_LANGUAGE_CODES = SUPPORTED_LANGUAGES.map { it.code }.toSet()
