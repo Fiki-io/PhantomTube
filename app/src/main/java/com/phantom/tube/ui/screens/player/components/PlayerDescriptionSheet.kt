@@ -65,8 +65,8 @@ import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.R
+import com.phantom.tube.ui.components.PhantomLinkText
 import androidx.compose.ui.res.stringResource
-import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlin.math.roundToInt
 
 @Composable
@@ -79,6 +79,8 @@ fun PlayerDescriptionSheet(
     isSubscribed: Boolean,
     onSubscribeClick: () -> Unit,
     onChannelClick: (String, String) -> Unit,
+    onTimestampClick: ((Float) -> Unit)? = null,
+    onVideoLinkClick: ((VideoItem) -> Unit)? = null,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -374,7 +376,7 @@ fun PlayerDescriptionSheet(
                             }
                         }
 
-                        // 4. Description Content (Clean Readable Card)
+                        // 4. Description Content (Clean Readable Card with Interactive Links & Timestamps)
                         item {
                             val emptyDesc = stringResource(R.string.player_no_description)
                             val desc = nextQueueData?.description?.ifBlank { emptyDesc } ?: emptyDesc
@@ -386,15 +388,16 @@ fun PlayerDescriptionSheet(
                                     .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
                                     .padding(14.dp)
                             ) {
-                                SelectionContainer {
-                                    Text(
-                                        text = desc,
-                                        color = TextPrimary,
-                                        fontSize = 13.5.sp,
-                                        lineHeight = 22.sp,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
+                                PhantomLinkText(
+                                    text = desc,
+                                    color = TextPrimary,
+                                    fontSize = 13.5.sp,
+                                    lineHeight = 22.sp,
+                                    onTimestampClick = onTimestampClick,
+                                    onChannelClick = onChannelClick,
+                                    onVideoLinkClick = onVideoLinkClick,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
                             Spacer(modifier = Modifier.height(24.dp))
                         }

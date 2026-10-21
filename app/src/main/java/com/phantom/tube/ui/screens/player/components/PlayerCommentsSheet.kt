@@ -67,7 +67,9 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoComment
+import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.R
+import com.phantom.tube.ui.components.PhantomLinkText
 import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -76,8 +78,14 @@ import kotlin.math.roundToInt
 @Composable
 fun CommentItemRow(
     comment: VideoComment,
+    onTimestampClick: ((Float) -> Unit)? = null,
+    onChannelClick: ((String, String) -> Unit)? = null,
+    onVideoLinkClick: ((VideoItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val authorTargetChannel = comment.authorChannelId.ifBlank {
+        comment.authorHandle.takeIf { it.startsWith("@") }.orEmpty()
+    }
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top
@@ -89,7 +97,14 @@ fun CommentItemRow(
                 contentDescription = comment.authorName,
                 modifier = Modifier
                     .size(32.dp)
-                    .clip(CircleShape),
+                    .clip(CircleShape)
+                    .then(
+                        if (authorTargetChannel.isNotBlank() && onChannelClick != null) {
+                            Modifier.clickable {
+                                onChannelClick(authorTargetChannel, comment.authorName.ifBlank { authorTargetChannel })
+                            }
+                        } else Modifier
+                    ),
                 contentScale = ContentScale.Crop
             )
         } else {
@@ -97,7 +112,14 @@ fun CommentItemRow(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF333333)),
+                    .background(Color(0xFF333333))
+                    .then(
+                        if (authorTargetChannel.isNotBlank() && onChannelClick != null) {
+                            Modifier.clickable {
+                                onChannelClick(authorTargetChannel, comment.authorName.ifBlank { authorTargetChannel })
+                            }
+                        } else Modifier
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -118,7 +140,12 @@ fun CommentItemRow(
                     text = comment.authorHandle.ifBlank { comment.authorName },
                     color = TextMuted,
                     fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    modifier = if (authorTargetChannel.isNotBlank() && onChannelClick != null) {
+                        Modifier.clickable {
+                            onChannelClick(authorTargetChannel, comment.authorName.ifBlank { authorTargetChannel })
+                        }
+                    } else Modifier
                 )
                 if (comment.publishedTimeText.isNotBlank()) {
                     Text(
@@ -131,12 +158,15 @@ fun CommentItemRow(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Comment content
-            Text(
+            // Comment content with clickable URLs, timestamps, and @handles
+            PhantomLinkText(
                 text = comment.contentText,
                 color = TextPrimary,
                 fontSize = 13.sp,
-                lineHeight = 18.sp
+                lineHeight = 18.sp,
+                onTimestampClick = onTimestampClick,
+                onChannelClick = onChannelClick,
+                onVideoLinkClick = onVideoLinkClick
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -199,6 +229,9 @@ fun PlayerCommentsSheet(
     isLoadingComments: Boolean,
     hasMoreComments: Boolean,
     onLoadMore: () -> Unit,
+    onTimestampClick: ((Float) -> Unit)? = null,
+    onChannelClick: ((String, String) -> Unit)? = null,
+    onVideoLinkClick: ((VideoItem) -> Unit)? = null,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -390,7 +423,12 @@ fun PlayerCommentsSheet(
                                 key = { it.id.ifBlank { "${it.authorName}_${it.contentText.hashCode()}" } },
                                 contentType = { "comment" }
                             ) { comment ->
-                                CommentItemRow(comment = comment)
+                                CommentItemRow(
+                                    comment = comment,
+                                    onTimestampClick = onTimestampClick,
+                                    onChannelClick = onChannelClick,
+                                    onVideoLinkClick = onVideoLinkClick
+                                )
                             }
 
                             if (isLoadingComments) {

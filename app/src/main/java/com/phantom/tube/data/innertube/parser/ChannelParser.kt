@@ -83,16 +83,18 @@ object ChannelParser {
                     }
 
                     // Description
-                    description = content.optJSONObject("description")
-                        ?.optJSONObject("descriptionPreviewViewModel")
-                        ?.optJSONObject("description")
-                        ?.optString("content") ?: ""
+                    description = InnerTubeHelpers.parseRunsText(
+                        content.optJSONObject("description")
+                            ?.optJSONObject("descriptionPreviewViewModel")
+                            ?.optJSONObject("description")
+                    )
 
                     // External links / attribution
-                    externalLinksText = content.optJSONObject("attribution")
-                        ?.optJSONObject("attributionViewModel")
-                        ?.optJSONObject("text")
-                        ?.optString("content") ?: ""
+                    externalLinksText = InnerTubeHelpers.parseRunsText(
+                        content.optJSONObject("attribution")
+                            ?.optJSONObject("attributionViewModel")
+                            ?.optJSONObject("text")
+                    )
                 }
             }
 
@@ -105,6 +107,20 @@ object ChannelParser {
                 if (subscriberCountText.isBlank()) subscriberCountText = c4Header.optJSONObject("subscriberCountText")?.optString("simpleText") ?: ""
                 val cId = c4Header.optString("channelId")
                 if (cId.isNotBlank()) channelId = cId
+            }
+
+            // Full description from channelMetadataRenderer / microformatDataRenderer (contains complete links)
+            val metaRenderer = root.optJSONObject("metadata")?.optJSONObject("channelMetadataRenderer")
+            if (metaRenderer != null) {
+                val fullMetaDesc = metaRenderer.optString("description", "")
+                if (fullMetaDesc.length > description.length) {
+                    description = fullMetaDesc
+                }
+                if (title.isBlank()) title = metaRenderer.optString("title", "")
+                val externalId = metaRenderer.optString("externalId", "")
+                if (externalId.isNotBlank() && !channelId.startsWith("UC")) {
+                    channelId = externalId
+                }
             }
 
             avatarUrl = InnerTubeHelpers.normalizeUrl(avatarUrl)

@@ -295,6 +295,8 @@ fun BoxScope.PlayerSheetsHost(
     onAudioOnlyToggle: (Boolean) -> Unit,
     onDismissDescriptionSheet: () -> Unit,
     onChannelSelected: (String, String) -> Unit,
+    onTimestampClick: (Float) -> Unit,
+    onVideoLinkClick: (VideoItem) -> Unit,
     onLoadMoreComments: () -> Unit,
     onDismissCommentsSheet: () -> Unit,
     onDismissDownloadSheet: () -> Unit
@@ -377,6 +379,8 @@ fun BoxScope.PlayerSheetsHost(
             }
         },
         onChannelClick = onChannelSelected,
+        onTimestampClick = onTimestampClick,
+        onVideoLinkClick = onVideoLinkClick,
         onDismiss = onDismissDescriptionSheet,
         modifier = Modifier
             .fillMaxSize()
@@ -391,6 +395,9 @@ fun BoxScope.PlayerSheetsHost(
         isLoadingComments = isLoadingComments,
         hasMoreComments = hasMoreComments,
         onLoadMore = onLoadMoreComments,
+        onChannelClick = onChannelSelected,
+        onTimestampClick = onTimestampClick,
+        onVideoLinkClick = onVideoLinkClick,
         onDismiss = onDismissCommentsSheet,
         modifier = Modifier
             .fillMaxSize()

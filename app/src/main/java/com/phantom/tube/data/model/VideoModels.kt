@@ -23,6 +23,7 @@ data class VideoComment(
     val id: String = "",
     val authorName: String = "",
     val authorHandle: String = "",
+    val authorChannelId: String = "",
     val authorAvatarUrl: String = "",
     val publishedTimeText: String = "",
     val contentText: String = "",

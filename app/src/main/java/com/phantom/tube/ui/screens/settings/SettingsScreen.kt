@@ -55,6 +55,8 @@ import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.util.LocaleHelper
 import com.phantom.tube.core.util.RegionHelper
 import com.phantom.tube.core.util.findActivity
+import com.phantom.tube.core.util.openExternalUrl
+import com.phantom.tube.core.util.sendFeedbackEmail
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.data.settings.PhantomPreferences
 import com.phantom.tube.ui.screens.settings.components.SettingsConfirmDialog
@@ -335,7 +337,9 @@ fun SettingsScreen(
                         title = stringResource(R.string.settings_privacy_policy_title),
                         subtitle = stringResource(R.string.settings_privacy_policy_desc),
                         valueText = "",
-                        onClick = {}
+                        onClick = {
+                            context.openExternalUrl("https://github.com/Fiki-io/PhantomTube/blob/main/PRIVACY_POLICY.md")
+                        }
                     )
                 }
             }
@@ -375,20 +379,7 @@ fun SettingsScreen(
                         title = stringResource(R.string.settings_github),
                         valueText = "GitHub",
                         onClick = {
-                            try {
-                                context.startActivity(
-                                    Intent(
-                                        Intent.ACTION_VIEW,
-                                        Uri.parse("https://github.com/Save-Creates/Phantom-tube")
-                                    )
-                                )
-                            } catch (_: Exception) {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.settings_browser_error),
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
+                            context.openExternalUrl("https://github.com/Fiki-io/PhantomTube")
                         }
                     )
                 }
@@ -524,27 +515,11 @@ fun SettingsScreen(
                     appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
                     appendLine("Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
                 }
-                val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-                    data = Uri.parse("mailto:totoyu379@gmail.com")
-                    putExtra(Intent.EXTRA_SUBJECT, subject)
-                    putExtra(Intent.EXTRA_TEXT, body)
-                }
-                try {
-                    context.startActivity(
-                        Intent.createChooser(
-                            emailIntent,
-                            context.getString(R.string.settings_feedback_chooser)
-                        )
-                    )
-                } catch (_: Exception) {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                    clipboard?.setPrimaryClip(ClipData.newPlainText("email", "totoyu379@gmail.com"))
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.feedback_no_email_app),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+                context.sendFeedbackEmail(
+                    recipient = "totoyu379@gmail.com",
+                    subject = subject,
+                    body = body
+                )
             },
             onDismiss = { showFeedbackDialog = false }
         )

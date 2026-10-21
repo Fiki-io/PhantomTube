@@ -76,6 +76,7 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.util.openExternalUrl
 import com.phantom.tube.data.model.SearchChannelItem
 import com.phantom.tube.data.model.SuggestionItem
 import com.phantom.tube.data.model.VideoItem
@@ -198,10 +199,56 @@ fun SearchScreen(
         }
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     fun executeSearch(query: String) {
         val trimmed = query.trim()
         if (trimmed.isBlank()) return
         keyboardController?.hide()
+
+        val parsedLink = com.phantom.tube.core.util.extractYouTubeLinkFromText(trimmed)
+            ?: if (trimmed.startsWith("http://", ignoreCase = true) ||
+                trimmed.startsWith("https://", ignoreCase = true) ||
+                trimmed.startsWith("www.", ignoreCase = true)
+            ) {
+                com.phantom.tube.core.util.parseAppLink(trimmed)
+            } else null
+
+        if (parsedLink != null) {
+            when (parsedLink) {
+                is com.phantom.tube.core.util.ParsedAppLink.YouTubeVideo -> {
+                    val targetVideo = VideoItem(
+                        id = parsedLink.videoId,
+                        title = "",
+                        channelTitle = "",
+                        thumbnailUrl = "https://i.ytimg.com/vi/${parsedLink.videoId}/hqdefault.jpg",
+                        playlistId = parsedLink.playlistId
+                    )
+                    if (parsedLink.startSeconds > 0) {
+                        scope.launch {
+                            repository.recordWatch(
+                                video = targetVideo,
+                                positionMs = parsedLink.startSeconds * 1000L,
+                                durationMs = 0L
+                            )
+                            onVideoClick(targetVideo)
+                        }
+                    } else {
+                        onVideoClick(targetVideo)
+                    }
+                    return
+                }
+                is com.phantom.tube.core.util.ParsedAppLink.YouTubeChannel -> {
+                    onChannelClick(parsedLink.channelIdOrHandle, parsedLink.channelIdOrHandle)
+                    return
+                }
+                is com.phantom.tube.core.util.ParsedAppLink.ExternalWebUrl -> {
+                    context.openExternalUrl(parsedLink.url)
+                    return
+                }
+            }
+        }
+
         scope.launch {
             repository.saveSearchQuery(trimmed)
             isSearching = true

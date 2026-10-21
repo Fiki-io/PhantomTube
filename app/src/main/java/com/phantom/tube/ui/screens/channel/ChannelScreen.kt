@@ -66,6 +66,7 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.util.safeStartActivity
 import com.phantom.tube.data.model.ChannelProfile
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
@@ -90,6 +91,7 @@ fun ChannelScreen(
     initialChannelTitle: String = "",
     repository: PhantomRepository,
     onVideoClick: (VideoItem) -> Unit,
+    onChannelClick: (channelId: String, channelTitle: String) -> Unit = { _, _ -> },
     onBackClick: () -> Unit,
     onSearchClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -196,7 +198,7 @@ fun ChannelScreen(
                     type = "text/plain"
                     putExtra(Intent.EXTRA_TEXT, shareUrl)
                 }
-                context.startActivity(Intent.createChooser(shareIntent, null))
+                context.safeStartActivity(Intent.createChooser(shareIntent, null))
             },
             onBack = onBackClick
         )
@@ -489,7 +491,11 @@ fun ChannelScreen(
 
                         ChannelTabType.ABOUT -> {
                             item(key = "about_card") {
-                                ChannelAboutCard(profile = currentProfile)
+                                ChannelAboutCard(
+                                    profile = currentProfile,
+                                    onChannelClick = onChannelClick,
+                                    onVideoLinkClick = onVideoClick
+                                )
                             }
                         }
                     }
@@ -501,6 +507,14 @@ fun ChannelScreen(
     if (showAboutSheet && currentProfile != null) {
         ChannelAboutBottomSheet(
             profile = currentProfile,
+            onChannelClick = { chId, chTitle ->
+                showAboutSheet = false
+                onChannelClick(chId, chTitle)
+            },
+            onVideoLinkClick = { video ->
+                showAboutSheet = false
+                onVideoClick(video)
+            },
             onDismiss = { showAboutSheet = false }
         )
     }

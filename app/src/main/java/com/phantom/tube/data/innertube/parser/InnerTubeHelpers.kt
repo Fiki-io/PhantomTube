@@ -1,5 +1,6 @@
 package com.phantom.tube.data.innertube.parser
 
+import com.phantom.tube.core.util.unwrapYouTubeRedirectUrl
 import org.json.JSONObject
 
 object InnerTubeHelpers {
@@ -7,16 +8,90 @@ object InnerTubeHelpers {
     fun parseRunsText(obj: JSONObject?): String {
         if (obj == null) return ""
         val content = obj.optString("content")
-        if (content.isNotBlank()) return content
+        if (content.isNotBlank()) {
+            val commandRuns = obj.optJSONArray("commandRuns")
+            if (commandRuns != null && commandRuns.length() > 0) {
+                return resolveAttributedContentUrls(content, commandRuns)
+            }
+            return content
+        }
         val simple = obj.optString("simpleText")
         if (simple.isNotBlank()) return simple
         val runs = obj.optJSONArray("runs") ?: return ""
         val sb = StringBuilder()
         for (i in 0 until runs.length()) {
             val r = runs.optJSONObject(i) ?: continue
-            sb.append(r.optString("text", ""))
+            val rawText = r.optString("text", "")
+            val navEndpoint = r.optJSONObject("navigationEndpoint")
+            val rawUrl = navEndpoint?.optJSONObject("urlEndpoint")?.optString("url")
+                ?.takeIf { it.isNotBlank() }
+                ?: navEndpoint?.optJSONObject("commandMetadata")
+                    ?.optJSONObject("webCommandMetadata")
+                    ?.optString("url")
+                    ?.takeIf { it.startsWith("http") }
+
+            if (!rawUrl.isNullOrBlank()) {
+                val unwrapped = unwrapYouTubeRedirectUrl(rawUrl)
+                val looksLikeTruncatedOrUrl = rawText.contains("...") ||
+                    rawText.contains("…") ||
+                    rawText.startsWith("http://", ignoreCase = true) ||
+                    rawText.startsWith("https://", ignoreCase = true) ||
+                    rawText.startsWith("www.", ignoreCase = true)
+                if (unwrapped.isNotBlank() && looksLikeTruncatedOrUrl) {
+                    sb.append(unwrapped)
+                } else {
+                    sb.append(rawText)
+                }
+            } else {
+                sb.append(rawText)
+            }
         }
         return sb.toString()
+    }
+
+    private fun resolveAttributedContentUrls(content: String, commandRuns: org.json.JSONArray): String {
+        return try {
+            data class SpanReplacement(val start: Int, val end: Int, val replacement: String)
+            val replacements = mutableListOf<SpanReplacement>()
+            for (i in 0 until commandRuns.length()) {
+                val cmdRun = commandRuns.optJSONObject(i) ?: continue
+                val start = cmdRun.optInt("startIndex", -1)
+                val length = cmdRun.optInt("length", -1)
+                if (start < 0 || length <= 0 || start + length > content.length) continue
+
+                val innerCmd = cmdRun.optJSONObject("onTap")?.optJSONObject("innertubeCommand") ?: continue
+                val url = innerCmd.optJSONObject("urlEndpoint")?.optString("url")
+                    ?.takeIf { it.isNotBlank() }
+                    ?: innerCmd.optJSONObject("commandMetadata")
+                        ?.optJSONObject("webCommandMetadata")
+                        ?.optString("url")
+                        ?.takeIf { it.startsWith("http") }
+                    ?: continue
+
+                val unwrapped = unwrapYouTubeRedirectUrl(url)
+                if (unwrapped.isBlank()) continue
+
+                val spanText = content.substring(start, start + length)
+                val isTruncatedOrUrl = spanText.contains("...") ||
+                    spanText.contains("…") ||
+                    spanText.startsWith("http://", ignoreCase = true) ||
+                    spanText.startsWith("https://", ignoreCase = true) ||
+                    spanText.startsWith("www.", ignoreCase = true)
+                if (isTruncatedOrUrl && spanText != unwrapped) {
+                    replacements.add(SpanReplacement(start, start + length, unwrapped))
+                }
+            }
+            if (replacements.isEmpty()) return content
+            val sb = StringBuilder(content)
+            replacements.sortedByDescending { it.start }.forEach { rep ->
+                if (rep.start >= 0 && rep.end <= sb.length && rep.start < rep.end) {
+                    sb.replace(rep.start, rep.end, rep.replacement)
+                }
+            }
+            sb.toString()
+        } catch (_: Exception) {
+            content
+        }
     }
 
     /**

@@ -50,6 +50,9 @@ object CommentsParser {
                         if (cr != null) {
                             val cId = cr.optString("commentId")
                             val author = InnerTubeHelpers.parseRunsText(cr.optJSONObject("authorText"))
+                            val authorChId = cr.optJSONObject("authorEndpoint")
+                                ?.optJSONObject("browseEndpoint")
+                                ?.optString("browseId") ?: ""
                             val avatar = InnerTubeHelpers.extractThumbnail(cr.optJSONObject("authorThumbnail"), "")
                             val published = InnerTubeHelpers.parseRunsText(cr.optJSONObject("publishedTimeText"))
                             val content = InnerTubeHelpers.parseRunsText(cr.optJSONObject("contentText"))
@@ -61,6 +64,7 @@ object CommentsParser {
                                         id = cId,
                                         authorName = author,
                                         authorHandle = author,
+                                        authorChannelId = authorChId,
                                         authorAvatarUrl = avatar,
                                         publishedTimeText = published,
                                         contentText = content,
@@ -91,9 +95,10 @@ object CommentsParser {
                     val toolbar = cep.optJSONObject("toolbar")
 
                     val cId = props?.optString("commentId") ?: ""
-                    val content = props?.optJSONObject("content")?.optString("content") ?: ""
+                    val content = InnerTubeHelpers.parseRunsText(props?.optJSONObject("content"))
                     val published = props?.optString("publishedTime") ?: ""
                     val displayName = author?.optString("displayName") ?: ""
+                    val authorChId = author?.optString("channelId") ?: ""
                     val avatarUrl = author?.optString("avatarThumbnailUrl") ?: ""
                     val likes = toolbar?.optString("likeCountNotliked") ?: ""
                     val replies = toolbar?.optString("replyCount") ?: ""
@@ -104,6 +109,7 @@ object CommentsParser {
                                 id = cId,
                                 authorName = displayName,
                                 authorHandle = displayName,
+                                authorChannelId = authorChId,
                                 authorAvatarUrl = avatarUrl,
                                 publishedTimeText = published,
                                 contentText = content,

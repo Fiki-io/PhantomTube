@@ -1414,8 +1414,33 @@ fun PlayerScreen(
             onAudioOnlyToggle = { enabled -> applyAudioOnlyState(enabled) },
             onDismissDescriptionSheet = { showDescriptionSheet = false },
             onChannelSelected = { chId, chTitle ->
+                showDescriptionSheet = false
+                showCommentsSheet = false
                 onMinimize()
                 onChannelClick?.invoke(chId, chTitle)
+            },
+            onTimestampClick = { targetSec ->
+                val clamped = if (currentDurationSec > 0f) {
+                    targetSec.coerceIn(0f, currentDurationSec)
+                } else {
+                    targetSec.coerceAtLeast(0f)
+                }
+                controller.seekTo(clamped)
+                currentPositionSec = clamped
+                mediaService?.updatePlaybackState(playerState.isPlaying, (clamped * 1000).toLong())
+                if (!playerState.isPlaying) {
+                    controller.play()
+                }
+            },
+            onVideoLinkClick = { targetVideo ->
+                showDescriptionSheet = false
+                showCommentsSheet = false
+                if (targetVideo.id != video.id) {
+                    val matchedRec = (recommendedVideos + mixPlaylist).firstOrNull { it.id == targetVideo.id }
+                    val targetVideoItem = matchedRec ?: targetVideo
+                    isInternalNavigation = false
+                    currentOnPlayNextVideo(targetVideoItem)
+                }
             },
             onLoadMoreComments = {
                 val token = commentsContinuationToken

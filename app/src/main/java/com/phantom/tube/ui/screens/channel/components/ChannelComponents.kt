@@ -540,7 +540,11 @@ fun ChannelCompactVideoRow(
 }
 
 @Composable
-fun ChannelAboutCard(profile: ChannelProfile) {
+fun ChannelAboutCard(
+    profile: ChannelProfile,
+    onChannelClick: ((String, String) -> Unit)? = null,
+    onVideoLinkClick: ((VideoItem) -> Unit)? = null
+) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -556,12 +560,21 @@ fun ChannelAboutCard(profile: ChannelProfile) {
                 color = TextPrimary
             )
             Spacer(modifier = Modifier.height(10.dp))
-            val descText = profile.description.ifBlank { stringResource(R.string.channel_no_description) }
-            Text(
-                text = descText,
-                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
-                color = TextSecondary
-            )
+            if (profile.description.isNotBlank()) {
+                com.phantom.tube.ui.components.PhantomLinkText(
+                    text = profile.description,
+                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
+                    color = TextSecondary,
+                    onChannelClick = onChannelClick,
+                    onVideoLinkClick = onVideoLinkClick
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.channel_no_description),
+                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
+                    color = TextSecondary
+                )
+            }
 
             if (profile.externalLinksText.isNotBlank()) {
                 Spacer(modifier = Modifier.height(14.dp))
@@ -573,10 +586,13 @@ fun ChannelAboutCard(profile: ChannelProfile) {
                     color = TextPrimary
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(
+                com.phantom.tube.ui.components.PhantomLinkText(
                     text = profile.externalLinksText,
                     style = MaterialTheme.typography.bodySmall,
-                    color = YouTubeRed
+                    color = TextSecondary,
+                    linkColor = YouTubeRed,
+                    onChannelClick = onChannelClick,
+                    onVideoLinkClick = onVideoLinkClick
                 )
             }
 
@@ -643,6 +659,8 @@ fun ChannelEmptyStateBox(message: String) {
 @Composable
 fun ChannelAboutBottomSheet(
     profile: ChannelProfile,
+    onChannelClick: ((String, String) -> Unit)? = null,
+    onVideoLinkClick: ((VideoItem) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -652,7 +670,11 @@ fun ChannelAboutBottomSheet(
         containerColor = YouTubeSurface,
         shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
     ) {
-        ChannelAboutCard(profile = profile)
+        ChannelAboutCard(
+            profile = profile,
+            onChannelClick = onChannelClick,
+            onVideoLinkClick = onVideoLinkClick
+        )
         Spacer(modifier = Modifier.height(24.dp))
     }
 }

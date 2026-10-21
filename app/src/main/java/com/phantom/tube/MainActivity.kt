@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
     private var isInPipMode by mutableStateOf(false)
     private var activeVideo by mutableStateOf<VideoItem?>(null)
     private var isPlayerMinimized by mutableStateOf(false)
+    private var pendingDeepLinkChannelId by mutableStateOf<String?>(null)
 
     @SuppressLint("InvalidFragmentVersionForActivityResult")
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -82,6 +83,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestNotificationPermission()
+        handleIncomingIntent(intent)
 
         val app = application as PhantomApp
         val repository = app.repository
@@ -97,6 +99,18 @@ class MainActivity : ComponentActivity() {
                 val configContext = LocaleHelper.applyLocale(baseContext, appLanguage)
                 object : android.content.ContextWrapper(configContext) {
                     override fun getBaseContext(): android.content.Context = hostActivity
+
+                    override fun startActivity(intent: android.content.Intent?) {
+                        if (intent != null) {
+                            hostActivity.startActivity(intent)
+                        }
+                    }
+
+                    override fun startActivity(intent: android.content.Intent?, options: Bundle?) {
+                        if (intent != null) {
+                            hostActivity.startActivity(intent, options)
+                        }
+                    }
                 }
             }
             val localizedConfig = remember(appLanguage, currentConfig) {
@@ -116,6 +130,15 @@ class MainActivity : ComponentActivity() {
                 var activeChannelTitle by remember { mutableStateOf("") }
                 var isSettingsOpen by remember { mutableStateOf(false) }
                 var isDownloadsOpen by remember { mutableStateOf(false) }
+
+                LaunchedEffect(pendingDeepLinkChannelId) {
+                    val targetCh = pendingDeepLinkChannelId
+                    if (!targetCh.isNullOrBlank()) {
+                        activeChannelId = targetCh
+                        activeChannelTitle = targetCh
+                        pendingDeepLinkChannelId = null
+                    }
+                }
 
                 LaunchedEffect(activeChannelId) {
                     if (!activeChannelId.isNullOrBlank()) {
@@ -315,6 +338,10 @@ class MainActivity : ComponentActivity() {
                                     activeVideo = video
                                     isPlayerMinimized = false
                                 },
+                                onChannelClick = { chId: String, chTitle: String ->
+                                    activeChannelId = chId
+                                    activeChannelTitle = chTitle
+                                },
                                 onBackClick = { activeChannelId = null },
                                 onSearchClick = {
                                     activeChannelId = null
@@ -459,6 +486,51 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    private fun handleIncomingIntent(incoming: android.content.Intent?) {
+        if (incoming == null) return
+        val parsed = when (incoming.action) {
+            android.content.Intent.ACTION_VIEW -> {
+                val dataString = incoming.dataString
+                if (!dataString.isNullOrBlank()) {
+                    com.phantom.tube.core.util.parseAppLink(dataString)
+                } else null
+            }
+            android.content.Intent.ACTION_SEND -> {
+                val sharedText = incoming.getStringExtra(android.content.Intent.EXTRA_TEXT)
+                if (!sharedText.isNullOrBlank()) {
+                    com.phantom.tube.core.util.extractYouTubeLinkFromText(sharedText)
+                } else null
+            }
+            else -> null
+        } ?: return
+
+        when (parsed) {
+            is com.phantom.tube.core.util.ParsedAppLink.YouTubeVideo -> {
+                OfflineAudioPlayerManager.stop(this)
+                activeVideo = VideoItem(
+                    id = parsed.videoId,
+                    title = "",
+                    channelTitle = "",
+                    thumbnailUrl = "https://i.ytimg.com/vi/${parsed.videoId}/hqdefault.jpg",
+                    playlistId = parsed.playlistId
+                )
+                isPlayerMinimized = false
+            }
+            is com.phantom.tube.core.util.ParsedAppLink.YouTubeChannel -> {
+                pendingDeepLinkChannelId = parsed.channelIdOrHandle
+            }
+            is com.phantom.tube.core.util.ParsedAppLink.ExternalWebUrl -> {
+                // Ignore non-YouTube URLs on MainActivity launch
+            }
+        }
     }
 
     private fun requestNotificationPermission() {
