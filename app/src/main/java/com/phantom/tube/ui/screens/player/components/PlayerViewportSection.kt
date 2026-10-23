@@ -88,10 +88,16 @@ fun BoxScope.PlayerAmbientBackdrop(
             .statusBarsPadding()
             .graphicsLayer {
                 val progress = sheetProgressProvider()
+                val drag = dragOffsetProvider()
+                val isTransitioning = progress < 0.99f || drag > 1f
                 val sheetOff = (1f - progress) * screenHeightPx
-                translationY = sheetOff + dragOffsetProvider()
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                clip = true
+                translationY = sheetOff + drag
+                if (isTransitioning) {
+                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                    clip = true
+                } else {
+                    clip = false
+                }
             }
             .background(ObsidianDark)
     )
@@ -108,6 +114,7 @@ fun BoxScope.PlayerAmbientBackdrop(
                 val dragProg = (drag / 220f).coerceIn(0f, 1f)
                 translationY = (1f - progress) * screenHeightPx + drag
                 alpha = (progress * (1f - dragProg) * 0.90f).coerceIn(0f, 1f)
+                compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
             }
             .align(Alignment.TopCenter)
     ) {
@@ -115,9 +122,10 @@ fun BoxScope.PlayerAmbientBackdrop(
             val ambientImageRequest = remember(thumbnailUrl, context) {
                 ImageRequest.Builder(context)
                     .data(thumbnailUrl)
-                    .size(160, 90)
+                    .size(96, 54)
                     .precision(Precision.INEXACT)
                     .allowRgb565(true)
+                    .allowHardware(false)
                     .build()
             }
             AsyncImage(
@@ -126,7 +134,10 @@ fun BoxScope.PlayerAmbientBackdrop(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { alpha = 0.22f }
+                    .graphicsLayer {
+                        alpha = 0.22f
+                        compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+                    }
             )
         }
         Box(
@@ -225,8 +236,12 @@ fun BoxScope.PlayerVideoViewportBox(
                 scaleX = landscapeScale
                 scaleY = landscapeScale
                 translationY = drag
-                shape = RoundedCornerShape((landscapeDragProg * 20f).dp)
-                clip = landscapeDragProg > 0f
+                if (landscapeDragProg > 0f) {
+                    shape = RoundedCornerShape((landscapeDragProg * 20f).dp)
+                    clip = true
+                } else {
+                    clip = false
+                }
             }
         else -> Modifier
             .fillMaxWidth()
@@ -234,14 +249,19 @@ fun BoxScope.PlayerVideoViewportBox(
             .graphicsLayer {
                 val progress = sheetProgressProvider()
                 val drag = dragOffsetProvider()
+                val isTransitioning = progress < 0.99f || drag > 1f
                 val dragProg = (drag / 220f).coerceIn(0f, 1f)
                 val dragScale = 1f - (dragProg * 0.04f)
                 scaleX = dragScale
                 scaleY = dragScale
                 translationY = (1f - progress) * screenHeightPx + drag
                 alpha = (progress * 1.15f).coerceIn(0f, 1f)
-                shape = RoundedCornerShape(14.dp)
-                clip = true
+                if (isTransitioning) {
+                    shape = RoundedCornerShape(14.dp)
+                    clip = true
+                } else {
+                    clip = false
+                }
             }
             .aspectRatio(16f / 9f)
             .align(Alignment.TopCenter)
@@ -256,19 +276,27 @@ fun BoxScope.PlayerVideoViewportBox(
             }
             .zIndex(if (isSheetRendered) 10f else 0f)
     ) {
+        val isSurfaceCollapsed = isAudioOnly || !isSheetRendered
         Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clipToBounds()
-                .graphicsLayer {
-                    scaleX = animatedZoomScale
-                    scaleY = animatedZoomScale
-                    transformOrigin = TransformOrigin.Center
-                }
+            modifier = if (isSurfaceCollapsed) {
+                Modifier
+                    .size(1.dp)
+                    .alpha(0.01f)
+                    .align(Alignment.TopStart)
+            } else {
+                Modifier
+                    .matchParentSize()
+                    .clipToBounds()
+                    .graphicsLayer {
+                        scaleX = animatedZoomScale
+                        scaleY = animatedZoomScale
+                        transformOrigin = TransformOrigin.Center
+                    }
+            }
         ) {
             PhantomGhostSurface(
                 videoId = video.id,
-                modifier = Modifier.matchParentSize(),
+                modifier = if (isSurfaceCollapsed) Modifier.size(1.dp) else Modifier.matchParentSize(),
                 controller = controller,
                 bridge = bridge
             )

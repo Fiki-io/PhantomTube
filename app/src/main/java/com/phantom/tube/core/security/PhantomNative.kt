@@ -217,9 +217,15 @@ object PhantomNative {
             border: 0 !important;
             outline: 0 !important;
             pointer-events: none;
-            transform: translateZ(0);
-            will-change: transform;
-            backface-visibility: hidden;
+        }
+        body.phantom-collapsed #player,
+        body.phantom-collapsed iframe {
+            width: 1px !important;
+            height: 1px !important;
+            right: auto !important;
+            bottom: auto !important;
+            overflow: hidden !important;
+            contain: strict !important;
         }
     </style>
     <script>
@@ -530,6 +536,10 @@ object PhantomNative {
 
         window.setAudioOnly = function(enabled) {
             try {
+                if (document.body) {
+                    if (enabled) document.body.classList.add('phantom-collapsed');
+                    else document.body.classList.remove('phantom-collapsed');
+                }
                 if (enabled && player) {
                     if (typeof player.setPlaybackQualityRange === 'function') {
                         player.setPlaybackQualityRange('tiny', 'tiny');
@@ -554,6 +564,10 @@ object PhantomNative {
 
         window.setVideoSurfaceActive = function(active, restoreQuality) {
             try {
+                if (document.body) {
+                    if (!active) document.body.classList.add('phantom-collapsed');
+                    else document.body.classList.remove('phantom-collapsed');
+                }
                 if (player && typeof player.setSize === 'function') {
                     if (active) {
                         player.setSize(window.innerWidth, window.innerHeight);
@@ -938,10 +952,12 @@ a[href*="youtube.com/watch"] {
         node.style.setProperty('pointer-events', 'none', 'important');
     }
 
+    var initialFullSweepDone = false;
+
     function clean() {
         rafPending = false;
         try {
-            var ceEls = document.querySelectorAll('.ytp-ce-element, .ytp-ce-video, [class*="ytp-ce"]');
+            var ceEls = document.querySelectorAll('.ytp-ce-element, .ytp-ce-video');
             if (ceEls && ceEls.length > 0) {
                 var items = [];
                 for (var i = 0; i < ceEls.length; i++) {
@@ -987,20 +1003,14 @@ a[href*="youtube.com/watch"] {
             }
         } catch(e) {}
 
-        try {
-            var els = document.querySelectorAll(combinedSelector);
-            for (var i = 0; i < els.length; i++) {
-                hideNode(els[i]);
-            }
-        } catch(e) {
-            for (var s = 0; s < selectors.length; s++) {
-                try {
-                    var fallbackEls = document.querySelectorAll(selectors[s]);
-                    for (var j = 0; j < fallbackEls.length; j++) {
-                        hideNode(fallbackEls[j]);
-                    }
-                } catch(err) {}
-            }
+        if (!initialFullSweepDone) {
+            try {
+                var els = document.querySelectorAll(combinedSelector);
+                for (var i = 0; i < els.length; i++) {
+                    hideNode(els[i]);
+                }
+                initialFullSweepDone = true;
+            } catch(e) {}
         }
 
         try {
@@ -1048,7 +1058,7 @@ a[href*="youtube.com/watch"] {
     function scheduleClean() {
         if (rafPending) return;
         rafPending = true;
-        setTimeout(clean, 180);
+        setTimeout(clean, 550);
     }
 
     clean();
@@ -1137,7 +1147,7 @@ a[href*="youtube.com/watch"] {
                     (document.head || document.documentElement).appendChild(aEl);
                 }
                 if (audioOnly) {
-                    aEl.textContent = '.html5-video-container, video.html5-main-video, video { display: none !important; visibility: hidden !important; width: 0 !important; height: 0 !important; }';
+                    aEl.textContent = 'html, body, #player, #movie_player, .html5-video-player { width: 1px !important; height: 1px !important; overflow: hidden !important; contain: strict !important; } .html5-video-container, video.html5-main-video, video { display: none !important; visibility: hidden !important; width: 0 !important; height: 0 !important; opacity: 0 !important; }';
                     var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
                     if (p) {
                         try { if (typeof p.setPlaybackQualityRange === 'function') p.setPlaybackQualityRange('tiny', 'tiny'); } catch(err) {}
@@ -1158,7 +1168,7 @@ a[href*="youtube.com/watch"] {
                 }
                 var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
                 if (!isActive) {
-                    sLock.textContent = '.html5-video-container, video.html5-main-video, video { display: none !important; visibility: hidden !important; width: 0 !important; height: 0 !important; }';
+                    sLock.textContent = 'html, body, #player, #movie_player, .html5-video-player { width: 1px !important; height: 1px !important; overflow: hidden !important; contain: strict !important; } .html5-video-container, video.html5-main-video, video { display: none !important; visibility: hidden !important; width: 0 !important; height: 0 !important; opacity: 0 !important; }';
                     if (p) {
                         try { if (typeof p.setPlaybackQualityRange === 'function') p.setPlaybackQualityRange('tiny', 'tiny'); } catch(err) {}
                         try { if (typeof p.setPlaybackQuality === 'function') p.setPlaybackQuality('tiny'); } catch(err) {}

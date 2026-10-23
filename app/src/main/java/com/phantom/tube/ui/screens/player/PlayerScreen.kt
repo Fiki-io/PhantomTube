@@ -899,6 +899,12 @@ fun PlayerScreen(
     LaunchedEffect(isMinimized) {
         if (!isMinimized) {
             dragOffsetY = 0f
+            if (!isAudioOnly) {
+                val restoreQ = playerState.currentQuality.ifBlank {
+                    repository.preferences?.defaultQuality?.value ?: "auto"
+                }
+                controller.setVideoSurfaceActive(true, restoreQ)
+            }
             try {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             } catch (_: Exception) {}
@@ -922,6 +928,7 @@ fun PlayerScreen(
                 targetValue = 0f,
                 animationSpec = IosSpringSpecs.Gentle
             )
+            controller.setVideoSurfaceActive(false)
         }
     }
 
@@ -1007,7 +1014,7 @@ fun PlayerScreen(
                         val existingIds = (recommendedVideos + mixPlaylist).map { it.id }.toSet()
                         val freshVideos = result.videos.filterNot { it.id in existingIds }
                         if (freshVideos.isNotEmpty()) {
-                            recommendedVideos = (recommendedVideos + freshVideos).take(80)
+                            recommendedVideos = (recommendedVideos + freshVideos).take(40)
                         }
                     } else if (result.continuationToken == null) {
                         canLoadMoreRecs = false

@@ -102,8 +102,10 @@ fun PhantomVideoCard(
         val thumbRequest = remember(video.thumbnailUrl, context) {
             ImageRequest.Builder(context)
                 .data(video.thumbnailUrl)
-                .size(480, 270)
+                .size(384, 216)
                 .precision(Precision.INEXACT)
+                .allowRgb565(true)
+                .allowHardware(false)
                 .crossfade(false)
                 .build()
         }
@@ -232,8 +234,10 @@ fun PhantomVideoCard(
                     val avatarRequest = remember(avatarUrl, context) {
                         ImageRequest.Builder(context)
                             .data(avatarUrl)
-                            .size(96, 96)
+                            .size(72, 72)
                             .precision(Precision.INEXACT)
+                            .allowRgb565(true)
+                            .allowHardware(false)
                             .crossfade(false)
                             .build()
                     }

@@ -146,6 +146,13 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                LaunchedEffect(currentTab, isPlayerMinimized, activeChannelId, isSettingsOpen, isDownloadsOpen) {
+                    com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                        context = this@MainActivity,
+                        aggressiveGraphicsPurge = false
+                    )
+                }
+
                 val updateManager = app.updateManager
                 val scope = rememberCoroutineScope()
                 var updateDialogState by remember { mutableStateOf<UpdateDialogState?>(null) }

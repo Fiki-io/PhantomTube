@@ -100,7 +100,7 @@ class PhantomApp : Application(), ImageLoaderFactory {
     }
 
     override fun newImageLoader(): ImageLoader {
-        val targetCacheBytes = 2L * 1024 * 1024
+        val targetCacheBytes = 1536 * 1024
 
         return ImageLoader.Builder(this)
             .okHttpClient(sharedHttpClient)
@@ -110,7 +110,7 @@ class PhantomApp : Application(), ImageLoaderFactory {
             .bitmapFactoryExifOrientationPolicy(coil.decode.ExifOrientationPolicy.IGNORE)
             .memoryCache {
                 MemoryCache.Builder(this)
-                    .maxSizeBytes(targetCacheBytes.toInt())
+                    .maxSizeBytes(targetCacheBytes)
                     .strongReferencesEnabled(true)
                     .weakReferencesEnabled(false)
                     .build()
@@ -118,11 +118,11 @@ class PhantomApp : Application(), ImageLoaderFactory {
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(24L * 1024 * 1024)
+                    .maxSizeBytes(16L * 1024 * 1024)
                     .build()
             }
             .respectCacheHeaders(false)
-            .allowHardware(true)
+            .allowHardware(false)
             .crossfade(false)
             .build()
     }
@@ -132,9 +132,10 @@ class PhantomApp : Application(), ImageLoaderFactory {
         try {
             this.imageLoader.trimMemory(level)
             if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW || level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
-                com.phantom.tube.player.PhantomRenderEngine.clearCache()
-                com.phantom.tube.player.StoryboardHelper.clearCache()
-                ChannelAvatarCache.trim()
+                com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                    context = this,
+                    aggressiveGraphicsPurge = level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
+                )
             }
         } catch (_: Exception) {
         }
@@ -143,10 +144,10 @@ class PhantomApp : Application(), ImageLoaderFactory {
     override fun onLowMemory() {
         super.onLowMemory()
         try {
-            this.imageLoader.memoryCache?.clear()
-            com.phantom.tube.player.PhantomRenderEngine.clearCache()
-            com.phantom.tube.player.StoryboardHelper.clearCache()
-            ChannelAvatarCache.clear()
+            com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                context = this,
+                aggressiveGraphicsPurge = true
+            )
         } catch (_: Exception) {
         }
     }

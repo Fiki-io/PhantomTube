@@ -45,11 +45,13 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
     }
 }
 
-class PhantomPlayerController(@Suppress("UNUSED_PARAMETER") context: Context) {
+class PhantomPlayerController(context: Context) {
+    private val appContext: Context = context.applicationContext
     private var webView: WebView? = null
     private var isReady = false
     private var pendingVideoId: String? = null
     private var pendingStartSeconds: Float = 0f
+    private var isSurfaceCollapsed = false
 
     fun attachWebView(view: WebView) {
         this.webView = view
@@ -65,13 +67,41 @@ class PhantomPlayerController(@Suppress("UNUSED_PARAMETER") context: Context) {
         }
     }
 
+    fun setPhysicalViewportCollapsed(collapsed: Boolean) {
+        if (isSurfaceCollapsed == collapsed) return
+        isSurfaceCollapsed = collapsed
+        val target = webView ?: return
+        target.post {
+            try {
+                val lp = target.layoutParams
+                if (lp != null) {
+                    val targetSize = if (collapsed) 1 else ViewGroup.LayoutParams.MATCH_PARENT
+                    if (lp.width != targetSize || lp.height != targetSize) {
+                        lp.width = targetSize
+                        lp.height = targetSize
+                        target.layoutParams = lp
+                        target.requestLayout()
+                    }
+                }
+                if (collapsed) {
+                    com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                        context = appContext,
+                        webView = target,
+                        aggressiveGraphicsPurge = true
+                    )
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     fun loadVideo(videoId: String, startSeconds: Float = 0f) {
         if (isReady && webView != null) {
-            webView?.post {
-                try {
-                    webView?.clearCache(false)
-                } catch (_: Exception) {}
-            }
+            com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                context = appContext,
+                webView = webView,
+                aggressiveGraphicsPurge = false
+            )
             evaluateJs("window.loadVideo('$videoId', $startSeconds);")
         } else {
             pendingVideoId = videoId
@@ -108,10 +138,12 @@ class PhantomPlayerController(@Suppress("UNUSED_PARAMETER") context: Context) {
     }
 
     fun setAudioOnly(enabled: Boolean) {
+        setPhysicalViewportCollapsed(enabled)
         evaluateJs("if (window.setAudioOnly) window.setAudioOnly($enabled);")
     }
 
     fun setVideoSurfaceActive(active: Boolean, restoreQuality: String = "auto") {
+        setPhysicalViewportCollapsed(!active)
         evaluateJs("if (window.setVideoSurfaceActive) window.setVideoSurfaceActive($active, '$restoreQuality');")
     }
 
@@ -144,6 +176,11 @@ class PhantomPlayerController(@Suppress("UNUSED_PARAMETER") context: Context) {
         webView = null
         isReady = false
         pendingVideoId = null
+        isSurfaceCollapsed = false
+        com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+            context = appContext,
+            aggressiveGraphicsPurge = true
+        )
     }
 }
 
@@ -181,6 +218,9 @@ fun PhantomGhostSurface(
                     displayZoomControls = false
                     setGeolocationEnabled(false)
                     setNeedInitialFocus(false)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        safeBrowsingEnabled = false
+                    }
 
                     // Clean Chrome User-Agent
                     userAgentString = com.phantom.tube.core.security.PhantomNative.getUserAgent()
