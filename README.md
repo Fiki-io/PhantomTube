@@ -1,6 +1,6 @@
 # PhantomTube
 
-An ultra-lightweight, privacy-focused alternative YouTube client for Android, built with Kotlin, Jetpack Compose, and native C++ core architecture.
+An ultra-lightweight, privacy-focused alternative YouTube client for Android, built with 100% pure Kotlin and Jetpack Compose.
 
 Repository: [https://github.com/Fiki-io/PhantomTube](https://github.com/Fiki-io/PhantomTube)  
 Package: `com.phantom.tube`  
@@ -104,7 +104,7 @@ com.phantom.tube/
 ├── core/
 │   ├── crash/         # Uncaught exception boundary and crash reporting activity
 │   ├── database/      # Room Database (History, Favorites, Subscriptions, Downloads)
-│   ├── security/      # JNI bridge (PhantomNative) and signature verification
+│   ├── security/      # Engine script/CSS/endpoint provider (PhantomNative)
 │   ├── theme/         # Material 3 design system, typography, and color tokens
 │   └── util/          # Localization, region resolution, and context helpers
 ├── data/
@@ -129,14 +129,13 @@ com.phantom.tube/
 
 | Layer | Component |
 |---|---|
-| Programming Language | Kotlin 1.9+, C++17 |
+| Programming Language | 100% Pure Kotlin (JVM 17) |
 | UI Framework | Jetpack Compose (Material Design 3) |
 | Architecture | MVVM with Reactive StateFlow & Coroutines |
-| Local Persistence | Room Database (SQLite) 2.6.1 |
-| Networking | OkHttp 4.12.0, AndroidX WebKit 1.11.0 |
-| Native Layer | Android NDK, CMake (`libphantom_core.so`) |
-| Image Loading | Coil Compose 2.6.0 |
-| Audio & Media | AndroidX Media 1.7.0, Foreground Service, MediaSession |
+| Local Persistence | Native Android SQLite (`PhantomDatabase`) |
+| Networking | Native `HttpURLConnection`, AndroidX WebView |
+| Image Loading | Custom Async Memory/Disk Image Loader (`PhantomAsyncImage`) |
+| Audio & Media | Android Foreground Service, `MediaSession` & `AudioTrack` |
 
 ---
 
@@ -155,8 +154,6 @@ com.phantom.tube/
 ### Prerequisites
 - JDK 17 (Eclipse Temurin recommended)
 - Android SDK (API 34)
-- Android NDK (r25c or newer)
-- CMake 3.22.1+
 
 ### Build via Command Line
 Clone the repository and build the release APK using Gradle:
@@ -174,7 +171,7 @@ app/build/outputs/apk/release/app-release.apk
 ```
 
 ### Continuous Integration (GitHub Actions)
-This repository includes an automated build pipeline configured in `.github/workflows/build.yml`. Pushes or workflow dispatches automatically execute on Ubuntu runners using preinstalled Android SDK/NDK and upload signed release APK artifacts.
+This repository includes an automated build pipeline configured in `.github/workflows/build.yml`. Pushes or workflow dispatches automatically execute on Ubuntu runners using preinstalled Android SDK and upload signed release APK artifacts.
 
 ---
 

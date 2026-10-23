@@ -7,39 +7,18 @@ android {
     namespace = "com.phantom.tube"
     compileSdk = 34
 
-    val envNdk = System.getenv("ANDROID_NDK_ROOT") ?: System.getenv("ANDROID_NDK_HOME")
-    if (!envNdk.isNullOrBlank() && file(envNdk).exists()) {
-        val ndkDir = file(envNdk)
-        ndkPath = ndkDir.absolutePath
-        ndkVersion = ndkDir.name
-    }
-
     defaultConfig {
         applicationId = "com.phantom.tube"
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
-        versionName = "2.10.21"
+        versionCode = 4
+        versionName = "2.10.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
-        ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-        }
         resourceConfigurations += listOf("en", "id", "in", "es", "ja", "ru")
-        externalNativeBuild {
-            cmake {
-                arguments += listOf("-DANDROID_STL=none")
-            }
-        }
-    }
-
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-        }
     }
 
     signingConfigs {
@@ -108,9 +87,6 @@ android {
         includeInBundle = false
     }
     packaging {
-        jniLibs {
-            useLegacyPackaging = true
-        }
         resources {
             excludes += listOf(
                 "/META-INF/{AL2.0,LGPL2.1}",

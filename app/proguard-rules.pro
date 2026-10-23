@@ -2,12 +2,7 @@
 # Designed for maximum dead-code elimination while preserving clean package hierarchy
 # to avoid false-positive heuristic detections in Google Play Protect and AV scanners.
 
-# 1. Native JNI & JSInterface Protection
--keepclassmembers class * {
-    native <methods>;
-}
--keep class com.phantom.tube.core.security.PhantomNative { *; }
-
+# 1. JSInterface Protection
 -keepattributes JavascriptInterface
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;

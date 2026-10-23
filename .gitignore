@@ -21,3 +21,4 @@ debug.keystore.base64
 release-*/
 *.apk
 metadata.json
+.aistudio/
