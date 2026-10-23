@@ -40,6 +40,8 @@ import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.Forward30
+import androidx.compose.material.icons.filled.Forward5
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Lock
@@ -47,6 +49,8 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Replay30
+import androidx.compose.material.icons.filled.Replay5
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -399,7 +403,7 @@ fun BoxScope.DoubleTapSeekFeedbackOverlay(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "-${seekAccumulatedSeconds} dtk",
+                    text = "-${stringResource(R.string.settings_seek_seconds, seekAccumulatedSeconds.toString())}",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
@@ -440,7 +444,7 @@ fun BoxScope.DoubleTapSeekFeedbackOverlay(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "+${seekAccumulatedSeconds} dtk",
+                    text = "+${stringResource(R.string.settings_seek_seconds, seekAccumulatedSeconds.toString())}",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
@@ -526,6 +530,7 @@ fun BoxScope.PlayerControlsOverlay(
     hasCaptions: Boolean,
     isQualityMenuExpanded: Boolean,
     isZoomToFill: Boolean,
+    doubleTapSeekSeconds: Int = 10,
     currentTimeSecProvider: () -> Float,
     durationSecProvider: () -> Float,
     bufferedFractionProvider: () -> Float,
@@ -578,7 +583,11 @@ fun BoxScope.PlayerControlsOverlay(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
-                    .padding(start = 12.dp, end = 12.dp, top = 10.dp),
+                    .padding(
+                        start = if (isFullscreen) 24.dp else 12.dp,
+                        end = if (isFullscreen) 24.dp else 12.dp,
+                        top = if (isFullscreen) 16.dp else 10.dp
+                    ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -799,9 +808,22 @@ fun BoxScope.PlayerControlsOverlay(
                     onClick = onSkipPrevious
                 )
 
+                val rewindIcon = when (doubleTapSeekSeconds) {
+                    5 -> Icons.Default.Replay5
+                    10 -> Icons.Default.Replay10
+                    30 -> Icons.Default.Replay30
+                    else -> Icons.Default.FastRewind
+                }
+                val forwardIcon = when (doubleTapSeekSeconds) {
+                    5 -> Icons.Default.Forward5
+                    10 -> Icons.Default.Forward10
+                    30 -> Icons.Default.Forward30
+                    else -> Icons.Default.FastForward
+                }
+
                 PhantomIconButton(
-                    icon = Icons.Default.Replay10,
-                    contentDescription = stringResource(R.string.seek_rewind_10s),
+                    icon = rewindIcon,
+                    contentDescription = "-${stringResource(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString())}",
                     size = 42.dp,
                     iconSize = 22.dp,
                     onClick = onRewind10s
@@ -816,8 +838,8 @@ fun BoxScope.PlayerControlsOverlay(
                 )
 
                 PhantomIconButton(
-                    icon = Icons.Default.Forward10,
-                    contentDescription = stringResource(R.string.seek_forward_10s),
+                    icon = forwardIcon,
+                    contentDescription = "+${stringResource(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString())}",
                     size = 42.dp,
                     iconSize = 22.dp,
                     onClick = onForward10s

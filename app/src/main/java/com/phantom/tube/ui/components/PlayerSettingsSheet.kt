@@ -70,6 +70,9 @@ import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeSurface
 import java.util.Locale
 
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+
 private enum class PlayerSheetPage(val depth: Int) {
     MAIN(0),
     QUALITY(1),
@@ -109,16 +112,34 @@ fun PlayerSettingsSheet(
         }
     }
 
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(180)) + slideInVertically(
+    val enterTransition = if (isFullscreen) {
+        fadeIn(tween(180)) + slideInHorizontally(
+            initialOffsetX = { it / 2 },
+            animationSpec = IosSpringSpecs.GentleOffset
+        )
+    } else {
+        fadeIn(tween(180)) + slideInVertically(
             initialOffsetY = { it / 2 },
             animationSpec = IosSpringSpecs.GentleOffset
-        ),
-        exit = fadeOut(tween(150)) + slideOutVertically(
+        )
+    }
+
+    val exitTransition = if (isFullscreen) {
+        fadeOut(tween(150)) + slideOutHorizontally(
+            targetOffsetX = { it / 2 },
+            animationSpec = IosSpringSpecs.GentleOffset
+        )
+    } else {
+        fadeOut(tween(150)) + slideOutVertically(
             targetOffsetY = { it / 2 },
             animationSpec = IosSpringSpecs.GentleOffset
-        ),
+        )
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = enterTransition,
+        exit = exitTransition,
         modifier = modifier.fillMaxSize()
     ) {
         Box(
@@ -133,7 +154,7 @@ fun PlayerSettingsSheet(
             contentAlignment = if (isFullscreen) Alignment.CenterEnd else Alignment.BottomCenter
         ) {
             val sheetShape = if (isFullscreen) {
-                RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
+                RoundedCornerShape(22.dp)
             } else {
                 RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
             }
@@ -143,8 +164,8 @@ fun PlayerSettingsSheet(
                     .then(
                         if (isFullscreen) {
                             Modifier
-                                .widthIn(max = 420.dp)
-                                .fillMaxWidth(0.52f)
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .widthIn(min = 340.dp, max = 400.dp)
                                 .fillMaxHeight()
                         } else {
                             Modifier
@@ -165,22 +186,24 @@ fun PlayerSettingsSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(bottom = 16.dp)
+                        .then(if (isFullscreen) Modifier else Modifier.navigationBarsPadding())
+                        .padding(bottom = if (isFullscreen) 8.dp else 16.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 10.dp, bottom = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    if (!isFullscreen) {
                         Box(
                             modifier = Modifier
-                                .width(38.dp)
-                                .height(4.dp)
-                                .clip(CircleShape)
-                                .background(TextMuted.copy(alpha = 0.45f))
-                        )
+                                .fillMaxWidth()
+                                .padding(top = 10.dp, bottom = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(38.dp)
+                                    .height(4.dp)
+                                    .clip(CircleShape)
+                                    .background(TextMuted.copy(alpha = 0.45f))
+                            )
+                        }
                     }
 
                     AnimatedContent(
@@ -315,38 +338,40 @@ private fun PlayerSettingsMainPage(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
     ) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 22.dp, vertical = 14.dp)
         ) {
             Text(
                 text = stringResource(R.string.settings_player_title),
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     fontSize = 17.sp
                 ),
-                color = TextPrimary
+                color = TextPrimary,
+                modifier = Modifier.align(Alignment.Center)
             )
-            IconButton(
-                onClick = onDismiss,
+            Icon(
+                imageVector = Icons.Rounded.Close,
+                contentDescription = stringResource(R.string.action_close),
+                tint = TextPrimary,
                 modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(GlassSurface)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Close,
-                    contentDescription = stringResource(R.string.action_close),
-                    tint = TextSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+                    .align(Alignment.CenterEnd)
+                    .size(22.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss
+                    )
+            )
         }
 
-        HorizontalDivider(color = GlassBorderDim)
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            thickness = 0.5.dp,
+            color = GlassBorderDim
+        )
 
         PlayerSheetActionItem(
             icon = Icons.Rounded.Hd,
@@ -354,6 +379,11 @@ private fun PlayerSettingsMainPage(
             value = if (isAudioOnly) stringResource(R.string.settings_audio_only_player_title) else qualityLabel,
             valueAccent = !currentQuality.equals("auto", ignoreCase = true) || isAudioOnly,
             onClick = onOpenQuality
+        )
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            thickness = 0.5.dp,
+            color = GlassBorderDim
         )
 
         PlayerSheetActionItem(
@@ -363,6 +393,11 @@ private fun PlayerSettingsMainPage(
             valueAccent = kotlin.math.abs(currentSpeed - 1.0f) >= 0.01f,
             onClick = onOpenSpeed
         )
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            thickness = 0.5.dp,
+            color = GlassBorderDim
+        )
 
         PlayerSheetActionItem(
             icon = Icons.Rounded.FastForward,
@@ -370,6 +405,11 @@ private fun PlayerSettingsMainPage(
             value = stringResource(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString()),
             valueAccent = doubleTapSeekSeconds != 10,
             onClick = onOpenSeek
+        )
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            thickness = 0.5.dp,
+            color = GlassBorderDim
         )
 
         PlayerSheetActionItem(
@@ -381,7 +421,8 @@ private fun PlayerSettingsMainPage(
         )
 
         HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 20.dp),
+            thickness = 0.5.dp,
             color = GlassBorderDim
         )
 
@@ -392,6 +433,11 @@ private fun PlayerSettingsMainPage(
             checked = isAudioOnly,
             onCheckedChange = onAudioOnlyToggle
         )
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            thickness = 0.5.dp,
+            color = GlassBorderDim
+        )
 
         PlayerSheetToggleItem(
             icon = Icons.Rounded.Repeat,
@@ -399,6 +445,11 @@ private fun PlayerSettingsMainPage(
             subtitle = stringResource(R.string.settings_loop_video_desc),
             checked = isLoopEnabled,
             onCheckedChange = onLoopToggle
+        )
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            thickness = 0.5.dp,
+            color = GlassBorderDim
         )
 
         PlayerSheetToggleItem(

@@ -113,10 +113,10 @@ fun OfflineAudioPlayerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = YouTubeDark,
-        tonalElevation = 8.dp,
+        containerColor = YouTubeSurface,
+        tonalElevation = 0.dp,
         dragHandle = null,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
     ) {
         Column(
             modifier = Modifier

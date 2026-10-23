@@ -119,8 +119,8 @@ fun BubbleBottomNav(
                     .fillMaxHeight()
                     .padding(horizontal = 4.dp, vertical = 2.dp)
                     .clip(RoundedCornerShape(26.dp))
-                    .background(Color(0x30FFFFFF))
-                    .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(26.dp))
+                    .background(Color(0xFF28282C))
+                    .border(0.5.dp, Color(0xFF3A3A3F), RoundedCornerShape(26.dp))
             )
 
             // Item-item tab di atas pil geser
@@ -158,7 +158,7 @@ fun BubbleBottomNav(
                     )
 
                     val iconColor by animateColorAsState(
-                        targetValue = if (isSelected) YouTubeRed else TextSecondary,
+                        targetValue = if (isSelected) TextPrimary else TextSecondary,
                         animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f),
                         label = "tab_icon_color"
                     )

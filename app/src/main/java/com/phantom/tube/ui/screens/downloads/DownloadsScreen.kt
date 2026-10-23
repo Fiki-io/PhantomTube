@@ -159,13 +159,7 @@ fun DownloadsScreen(
             .fillMaxSize()
             .background(ObsidianDark)
     ) {
-        // Strip bilah status hitam (di atas header unduhan, bawah baterai)
-        Spacer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsTopHeight(WindowInsets.statusBars)
-                .background(SystemStatusBarColor)
-        )
+        com.phantom.tube.ui.components.PhantomStatusBarStrip()
 
         // TOP HEADER BAR
         Row(

@@ -364,6 +364,7 @@ fun BoxScope.PlayerVideoViewportBox(
                 hasCaptions = hasCaptions,
                 isQualityMenuExpanded = isQualityMenuExpanded,
                 isZoomToFill = isZoomToFill,
+                doubleTapSeekSeconds = doubleTapSeekSeconds,
                 currentTimeSecProvider = currentTimeSecProvider,
                 durationSecProvider = durationSecProvider,
                 bufferedFractionProvider = bufferedFractionProvider,

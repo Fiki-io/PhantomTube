@@ -137,6 +137,12 @@ fun PlayerScreen(
         val activity = context.findActivity()
         val window = activity?.window
         if (window != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val lp = window.attributes
+                lp.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                window.attributes = lp
+            }
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             if (isFullscreen && !isMinimized) {
                 insetsController.systemBarsBehavior =
@@ -222,7 +228,10 @@ fun PlayerScreen(
     }
 
     var showSettingsSheet by remember { mutableStateOf(false) }
-    var doubleTapSeekSeconds by remember { mutableIntStateOf(10) }
+    val prefDoubleTapSeekFlow = remember(repository) { repository.preferences?.doubleTapSeekSeconds }
+    val prefDoubleTapSeek by (prefDoubleTapSeekFlow?.collectAsState() ?: remember { mutableIntStateOf(10) })
+    var fallbackDoubleTapSeek by remember { mutableIntStateOf(10) }
+    val doubleTapSeekSeconds = if (prefDoubleTapSeekFlow != null) prefDoubleTapSeek else fallbackDoubleTapSeek
     var isLoopEnabled by remember { mutableStateOf(false) }
     var isAutoplayNext by remember { mutableStateOf(true) }
     var isAudioOnly by remember { mutableStateOf(false) }
@@ -1204,6 +1213,8 @@ fun PlayerScreen(
                 controller.setPlaybackRate(nextSpeed)
             },
             onOpenSettings = {
+                isControlsVisible = false
+                isQualityMenuExpanded = false
                 showCommentsSheet = false
                 showDescriptionSheet = false
                 showMixSheet = false
@@ -1211,7 +1222,14 @@ fun PlayerScreen(
             },
             onSkipPrevious = { playPrevious() },
             onRewind10s = {
-                val newTime = (currentPositionSec - 10f).coerceAtLeast(0f)
+                val delta = doubleTapSeekSeconds
+                seekAccumulatedSeconds = if (seekAnimationSide == SeekFeedbackDirection.REWIND) {
+                    seekAccumulatedSeconds + delta
+                } else {
+                    delta
+                }
+                seekAnimationSide = SeekFeedbackDirection.REWIND
+                val newTime = (currentPositionSec - delta.toFloat()).coerceAtLeast(0f)
                 controller.seekTo(newTime)
                 currentPositionSec = newTime
                 mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
@@ -1220,7 +1238,14 @@ fun PlayerScreen(
                 if (playerState.isPlaying) controller.pause() else controller.play()
             },
             onForward10s = {
-                val newTime = (currentPositionSec + 10f).coerceAtMost(currentDurationSec)
+                val delta = doubleTapSeekSeconds
+                seekAccumulatedSeconds = if (seekAnimationSide == SeekFeedbackDirection.FORWARD) {
+                    seekAccumulatedSeconds + delta
+                } else {
+                    delta
+                }
+                seekAnimationSide = SeekFeedbackDirection.FORWARD
+                val newTime = (currentPositionSec + delta.toFloat()).coerceAtMost(currentDurationSec)
                 controller.seekTo(newTime)
                 currentPositionSec = newTime
                 mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
@@ -1400,7 +1425,8 @@ fun PlayerScreen(
                 controller.setPlaybackQuality(quality)
             },
             onDoubleTapSeekSelected = { seconds ->
-                doubleTapSeekSeconds = seconds
+                fallbackDoubleTapSeek = seconds
+                repository.preferences?.setDoubleTapSeekSeconds(seconds)
             },
             onSleepTimerSelected = { option ->
                 sleepTimerOption = option

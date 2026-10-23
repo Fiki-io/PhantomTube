@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.material.icons.rounded.Hd
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.History
@@ -86,6 +87,7 @@ fun SettingsScreen(
     val contentCountry by preferences.contentCountry.collectAsState()
     val defaultQuality by preferences.defaultQuality.collectAsState()
     val defaultSpeed by preferences.defaultSpeed.collectAsState()
+    val doubleTapSeekSeconds by preferences.doubleTapSeekSeconds.collectAsState()
     val bgPlayback by preferences.backgroundPlaybackEnabled.collectAsState()
     val autoPip by preferences.autoPipEnabled.collectAsState()
 
@@ -107,6 +109,7 @@ fun SettingsScreen(
     var showRegionDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
+    var showSeekDialog by remember { mutableStateOf(false) }
     var showClearWatchHistoryConfirm by remember { mutableStateOf(false) }
     var showClearSearchHistoryConfirm by remember { mutableStateOf(false) }
     var showClearCacheConfirm by remember { mutableStateOf(false) }
@@ -114,7 +117,6 @@ fun SettingsScreen(
 
     BackHandler(onBack = onBackClick)
 
-    val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     val qualityOptions = listOf(
@@ -139,35 +141,31 @@ fun SettingsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(YouTubeDark)
-            .padding(top = statusBarPadding)
     ) {
+        com.phantom.tube.ui.components.PhantomStatusBarStrip()
+
         SettingsSubScreenHeader(
             title = stringResource(R.string.settings_title),
-            subtitle = stringResource(R.string.settings_version_format, BuildConfig.VERSION_NAME),
             onBack = onBackClick
         )
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = navBarPadding + 32.dp)
+            contentPadding = PaddingValues(top = 4.dp, bottom = navBarPadding + 32.dp)
         ) {
             item {
                 SettingsSectionHeader(stringResource(R.string.settings_section_general))
                 SettingsGroupCard {
                     SettingsValueRow(
                         icon = Icons.Rounded.Language,
-                        iconTint = Color(0xFF0A84FF),
                         title = stringResource(R.string.settings_app_language),
-                        subtitle = stringResource(R.string.settings_app_language_desc),
                         valueText = currentLanguageLabel,
                         onClick = { showLanguageDialog = true }
                     )
                     SettingsDivider()
                     SettingsValueRow(
                         icon = Icons.Rounded.Public,
-                        iconTint = Color(0xFF30D158),
                         title = stringResource(R.string.settings_content_region),
-                        subtitle = stringResource(R.string.settings_content_region_desc),
                         valueText = currentRegionLabel,
                         onClick = { showRegionDialog = true }
                     )
@@ -179,7 +177,6 @@ fun SettingsScreen(
                 SettingsGroupCard {
                     SettingsValueRow(
                         icon = Icons.Rounded.Hd,
-                        iconTint = Color(0xFFBF5AF2),
                         title = stringResource(R.string.settings_default_quality),
                         valueText = currentQualityLabel,
                         onClick = { showQualityDialog = true }
@@ -187,7 +184,6 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsValueRow(
                         icon = Icons.Rounded.Speed,
-                        iconTint = Color(0xFFFF9F0A),
                         title = stringResource(R.string.settings_default_speed),
                         valueText = if (defaultSpeed == 1.0f) {
                             stringResource(R.string.settings_speed_normal)
@@ -197,9 +193,15 @@ fun SettingsScreen(
                         onClick = { showSpeedDialog = true }
                     )
                     SettingsDivider()
+                    SettingsValueRow(
+                        icon = Icons.Rounded.FastForward,
+                        title = stringResource(R.string.settings_double_tap_seek),
+                        valueText = stringResource(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString()),
+                        onClick = { showSeekDialog = true }
+                    )
+                    SettingsDivider()
                     SettingsToggleRow(
                         icon = Icons.Rounded.Headphones,
-                        iconTint = Color(0xFF5E5CE6),
                         title = stringResource(R.string.settings_bg_playback),
                         subtitle = stringResource(R.string.settings_bg_playback_desc),
                         checked = bgPlayback,
@@ -208,7 +210,6 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsToggleRow(
                         icon = Icons.Rounded.PictureInPictureAlt,
-                        iconTint = Color(0xFF0A84FF),
                         title = stringResource(R.string.settings_auto_pip),
                         subtitle = stringResource(R.string.settings_auto_pip_desc),
                         checked = autoPip,
@@ -222,7 +223,6 @@ fun SettingsScreen(
                 SettingsGroupCard {
                     SettingsToggleRow(
                         icon = Icons.Rounded.Shield,
-                        iconTint = Color(0xFF30D158),
                         title = stringResource(R.string.settings_sponsorblock_enable),
                         subtitle = stringResource(R.string.settings_sponsorblock_desc),
                         checked = sbEnabled,
@@ -231,7 +231,6 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsToggleRow(
                         icon = Icons.Rounded.AutoAwesome,
-                        iconTint = Color(0xFF0A84FF),
                         title = stringResource(R.string.settings_sponsorblock_auto_skip),
                         subtitle = if (sbAutoSkip) {
                             stringResource(R.string.settings_sponsorblock_auto_skip_desc)
@@ -245,7 +244,6 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsToggleRow(
                         icon = Icons.Rounded.Shield,
-                        iconTint = Color(0xFF00D400),
                         title = stringResource(R.string.settings_skip_sponsor),
                         checked = skipSponsor,
                         enabled = sbEnabled,
@@ -254,7 +252,6 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsToggleRow(
                         icon = Icons.Rounded.Shield,
-                        iconTint = Color(0xFFFFFF00),
                         title = stringResource(R.string.settings_skip_selfpromo),
                         checked = skipSelfPromo,
                         enabled = sbEnabled,
@@ -263,7 +260,6 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsToggleRow(
                         icon = Icons.Rounded.Shield,
-                        iconTint = Color(0xFFCC00FF),
                         title = stringResource(R.string.settings_skip_interaction),
                         checked = skipInteraction,
                         enabled = sbEnabled,
@@ -272,7 +268,6 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsToggleRow(
                         icon = Icons.Rounded.Shield,
-                        iconTint = Color(0xFF00FFFF),
                         title = stringResource(R.string.settings_skip_intro),
                         checked = skipIntro,
                         enabled = sbEnabled,
@@ -281,7 +276,6 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsToggleRow(
                         icon = Icons.Rounded.Shield,
-                        iconTint = Color(0xFF0202ED),
                         title = stringResource(R.string.settings_skip_outro),
                         checked = skipOutro,
                         enabled = sbEnabled,
@@ -295,7 +289,6 @@ fun SettingsScreen(
                 SettingsGroupCard {
                     SettingsToggleRow(
                         icon = Icons.Rounded.VisibilityOff,
-                        iconTint = Color(0xFFFF9F0A),
                         title = stringResource(R.string.settings_pause_history),
                         subtitle = stringResource(R.string.settings_pause_history_desc),
                         checked = pauseWatchHistory,
@@ -304,7 +297,6 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsValueRow(
                         icon = Icons.Rounded.DeleteSweep,
-                        iconTint = Color(0xFFFF453A),
                         title = stringResource(R.string.settings_clear_watch_history),
                         valueText = "",
                         onClick = { showClearWatchHistoryConfirm = true }
@@ -312,7 +304,6 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsValueRow(
                         icon = Icons.Rounded.History,
-                        iconTint = Color(0xFFFF9F0A),
                         title = stringResource(R.string.settings_clear_search_history),
                         valueText = "",
                         onClick = { showClearSearchHistoryConfirm = true }
@@ -324,18 +315,14 @@ fun SettingsScreen(
                     }
                     SettingsValueRow(
                         icon = Icons.Rounded.CleaningServices,
-                        iconTint = Color(0xFF64D2FF),
                         title = stringResource(R.string.settings_clear_cache),
-                        subtitle = stringResource(R.string.settings_cache_size),
                         valueText = formattedCache,
                         onClick = { showClearCacheConfirm = true }
                     )
                     SettingsDivider()
                     SettingsValueRow(
                         icon = Icons.Rounded.Security,
-                        iconTint = Color(0xFF30D158),
                         title = stringResource(R.string.settings_privacy_policy_title),
-                        subtitle = stringResource(R.string.settings_privacy_policy_desc),
                         valueText = "",
                         onClick = {
                             context.openExternalUrl("https://github.com/Fiki-io/PhantomTube/blob/main/PRIVACY_POLICY.md")
@@ -349,7 +336,6 @@ fun SettingsScreen(
                 SettingsGroupCard {
                     SettingsValueRow(
                         icon = Icons.Rounded.Info,
-                        iconTint = Color(0xFFFF375F),
                         title = stringResource(R.string.settings_app_version),
                         valueText = "v${BuildConfig.VERSION_NAME}",
                         onClick = {}
@@ -357,25 +343,20 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsValueRow(
                         icon = Icons.Rounded.SystemUpdate,
-                        iconTint = Color(0xFF30D158),
                         title = stringResource(R.string.settings_check_update),
-                        subtitle = stringResource(R.string.settings_check_update_desc),
                         valueText = "",
                         onClick = onCheckUpdateClick
                     )
                     SettingsDivider()
                     SettingsValueRow(
                         icon = Icons.Rounded.BugReport,
-                        iconTint = Color(0xFFFF9F0A),
                         title = stringResource(R.string.settings_feedback),
-                        subtitle = stringResource(R.string.settings_feedback_desc),
                         valueText = "",
                         onClick = { showFeedbackDialog = true }
                     )
                     SettingsDivider()
                     SettingsValueRow(
                         icon = Icons.Rounded.Code,
-                        iconTint = Color(0xFFBF5AF2),
                         title = stringResource(R.string.settings_github),
                         valueText = "GitHub",
                         onClick = {
@@ -390,7 +371,7 @@ fun SettingsScreen(
     if (showLanguageDialog) {
         SettingsSingleChoiceDialog(
             title = stringResource(R.string.settings_app_language),
-            options = LocaleHelper.SUPPORTED_LANGUAGES.map { it.code to "${it.displayName} (${it.flag})" },
+            options = LocaleHelper.SUPPORTED_LANGUAGES.map { it.code to it.displayName },
             selectedValue = appLanguage,
             onSelect = { newLang ->
                 if (newLang != appLanguage) {
@@ -405,7 +386,7 @@ fun SettingsScreen(
     if (showRegionDialog) {
         SettingsSingleChoiceDialog(
             title = stringResource(R.string.settings_content_region),
-            options = RegionHelper.SUPPORTED_REGIONS.map { it.code to "${it.name} (${it.code})" },
+            options = RegionHelper.SUPPORTED_REGIONS.map { it.code to it.name },
             selectedValue = contentCountry,
             onSelect = { preferences.setContentCountry(it) },
             onDismiss = { showRegionDialog = false }
@@ -436,6 +417,23 @@ fun SettingsScreen(
             selectedValue = defaultSpeed,
             onSelect = { preferences.setDefaultSpeed(it) },
             onDismiss = { showSpeedDialog = false }
+        )
+    }
+
+    if (showSeekDialog) {
+        val seekOptions = listOf(5, 10, 15, 20, 30, 60)
+        SettingsSingleChoiceDialog(
+            title = stringResource(R.string.settings_double_tap_seek),
+            options = seekOptions.map { sec ->
+                sec to if (sec == 10) {
+                    context.getString(R.string.settings_seek_seconds_default, sec.toString())
+                } else {
+                    context.getString(R.string.settings_seek_seconds, sec.toString())
+                }
+            },
+            selectedValue = doubleTapSeekSeconds,
+            onSelect = { preferences.setDoubleTapSeekSeconds(it) },
+            onDismiss = { showSeekDialog = false }
         )
     }
 

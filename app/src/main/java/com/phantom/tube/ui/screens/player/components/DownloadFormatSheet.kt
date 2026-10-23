@@ -153,9 +153,10 @@ fun DownloadFormatSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = ObsidianDark,
+        containerColor = com.phantom.tube.core.theme.YouTubeSurface,
         contentColor = TextPrimary,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        tonalElevation = 0.dp,
+        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         dragHandle = {
             Box(
                 modifier = Modifier

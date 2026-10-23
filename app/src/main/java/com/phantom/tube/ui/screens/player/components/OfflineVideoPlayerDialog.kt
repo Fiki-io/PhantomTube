@@ -29,13 +29,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.Forward30
+import androidx.compose.material.icons.filled.Forward5
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Replay30
+import androidx.compose.material.icons.filled.Replay5
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -100,6 +107,9 @@ fun OfflineVideoPlayerDialog(
 
     var isManualLandscape by remember { mutableStateOf(false) }
     val isLandscape = isDeviceLandscape || isManualLandscape
+
+    val preferences = remember(context) { com.phantom.tube.data.settings.PhantomPreferences(context) }
+    val doubleTapSeekSeconds by preferences.doubleTapSeekSeconds.collectAsState()
 
     var videoViewRef by remember { mutableStateOf<VideoView?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
@@ -260,29 +270,31 @@ fun OfflineVideoPlayerDialog(
                     .align(Alignment.Center)
             )
 
-            // Touch Gestures: Single Tap (Controls) & Double Tap (Seek -10s / +10s)
+            // Touch Gestures: Single Tap (Controls) & Double Tap (Seek -N / +N seconds)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(Unit) {
+                    .pointerInput(doubleTapSeekSeconds) {
                         detectTapGestures(
                             onTap = {
                                 showControls = !showControls
                             },
                             onDoubleTap = { offset ->
+                                val deltaMs = doubleTapSeekSeconds * 1000
+                                val label = context.getString(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString())
                                 videoViewRef?.let { vv ->
                                     val current = vv.currentPosition
                                     val maxDur = durationMs.coerceAtLeast(1)
                                     if (offset.x < size.width / 2) {
-                                        val newPos = (current - 10000).coerceAtLeast(0)
+                                        val newPos = (current - deltaMs).coerceAtLeast(0)
                                         vv.seekTo(newPos)
                                         currentPositionMs = newPos
-                                        seekNoticeText = context.getString(R.string.player_seek_notice_rewind)
+                                        seekNoticeText = "-$label"
                                     } else {
-                                        val newPos = (current + 10000).coerceAtMost(maxDur)
+                                        val newPos = (current + deltaMs).coerceAtMost(maxDur)
                                         vv.seekTo(newPos)
                                         currentPositionMs = newPos
-                                        seekNoticeText = context.getString(R.string.player_seek_notice_forward)
+                                        seekNoticeText = "+$label"
                                     }
                                 }
                             }
@@ -380,30 +392,45 @@ fun OfflineVideoPlayerDialog(
                         }
                     }
 
-                    // Center Control Row: Replay10, Play/Pause, Forward10
+                    // Center Control Row: Replay, Play/Pause, Forward
                     Row(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalArrangement = Arrangement.spacedBy(24.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Rewind 10s Button
+                        val rewindIcon = when (doubleTapSeekSeconds) {
+                            5 -> Icons.Default.Replay5
+                            10 -> Icons.Default.Replay10
+                            30 -> Icons.Default.Replay30
+                            else -> Icons.Default.FastRewind
+                        }
+                        val forwardIcon = when (doubleTapSeekSeconds) {
+                            5 -> Icons.Default.Forward5
+                            10 -> Icons.Default.Forward10
+                            30 -> Icons.Default.Forward30
+                            else -> Icons.Default.FastForward
+                        }
+
+                        // Rewind Button
                         Box(
                             modifier = Modifier
                                 .size(48.dp)
                                 .background(Color.Black.copy(alpha = 0.6f), CircleShape)
                                 .clickable {
+                                    val deltaMs = doubleTapSeekSeconds * 1000
+                                    val label = context.getString(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString())
                                     videoViewRef?.let { vv ->
-                                        val newPos = (vv.currentPosition - 10000).coerceAtLeast(0)
+                                        val newPos = (vv.currentPosition - deltaMs).coerceAtLeast(0)
                                         vv.seekTo(newPos)
                                         currentPositionMs = newPos
-                                        seekNoticeText = context.getString(R.string.player_seek_notice_rewind)
+                                        seekNoticeText = "-$label"
                                     }
                                 },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Replay10,
-                                contentDescription = stringResource(R.string.seek_rewind_10s),
+                                imageVector = rewindIcon,
+                                contentDescription = "-${stringResource(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString())}",
                                 tint = TextPrimary,
                                 modifier = Modifier.size(26.dp)
                             )
@@ -435,25 +462,27 @@ fun OfflineVideoPlayerDialog(
                             )
                         }
 
-                        // Forward 10s Button
+                        // Forward Button
                         Box(
                             modifier = Modifier
                                 .size(48.dp)
                                 .background(Color.Black.copy(alpha = 0.6f), CircleShape)
                                 .clickable {
+                                    val deltaMs = doubleTapSeekSeconds * 1000
+                                    val label = context.getString(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString())
                                     videoViewRef?.let { vv ->
                                         val maxDur = durationMs.coerceAtLeast(1)
-                                        val newPos = (vv.currentPosition + 10000).coerceAtMost(maxDur)
+                                        val newPos = (vv.currentPosition + deltaMs).coerceAtMost(maxDur)
                                         vv.seekTo(newPos)
                                         currentPositionMs = newPos
-                                        seekNoticeText = context.getString(R.string.player_seek_notice_forward)
+                                        seekNoticeText = "+$label"
                                     }
                                 },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Forward10,
-                                contentDescription = stringResource(R.string.seek_forward_10s),
+                                imageVector = forwardIcon,
+                                contentDescription = "+${stringResource(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString())}",
                                 tint = TextPrimary,
                                 modifier = Modifier.size(26.dp)
                             )

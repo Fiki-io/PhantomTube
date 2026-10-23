@@ -70,11 +70,17 @@ fun PlayerScrubberControls(
     val formattedCurrent = remember(currentSec.toLong()) { formatPlayerSeconds(currentSec.toLong()) }
     val formattedDuration = remember(durSec.toLong()) { formatPlayerSeconds(durSec.toLong()) }
 
-    Column(modifier = modifier) {
+    Column(
+        modifier = modifier.padding(
+            start = if (isFullscreen) 20.dp else 0.dp,
+            end = if (isFullscreen) 20.dp else 0.dp,
+            bottom = if (isFullscreen) 10.dp else 0.dp
+        )
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 12.dp, bottom = 2.dp),
+                .padding(start = if (isFullscreen) 4.dp else 12.dp, end = if (isFullscreen) 4.dp else 12.dp, bottom = 2.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {

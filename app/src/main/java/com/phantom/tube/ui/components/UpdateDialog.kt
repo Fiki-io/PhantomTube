@@ -94,7 +94,7 @@ fun UpdateDialog(
                 .padding(16.dp),
             shape = RoundedCornerShape(24.dp),
             color = ObsidianSurface,
-            tonalElevation = 8.dp
+            tonalElevation = 0.dp
         ) {
             Column(
                 modifier = Modifier

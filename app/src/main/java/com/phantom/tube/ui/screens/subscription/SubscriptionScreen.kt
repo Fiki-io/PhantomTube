@@ -199,13 +199,7 @@ fun SubscriptionScreen(
             .fillMaxSize()
             .background(ObsidianDark)
     ) {
-        // Strip bilah status hitam (di atas header koleksi, bawah baterai)
-        Spacer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsTopHeight(WindowInsets.statusBars)
-                .background(SystemStatusBarColor)
-        )
+        com.phantom.tube.ui.components.PhantomStatusBarStrip()
 
         // Header Koleksi
         Row(

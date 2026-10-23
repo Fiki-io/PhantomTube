@@ -180,28 +180,28 @@ object PhantomNative {
         html, body {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             background-color: #000000;
             overflow: hidden;
             -webkit-user-select: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
-        #player {
-            width: 100%;
-            height: 100%;
+        #player, iframe {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            border: 0 !important;
+            outline: 0 !important;
             pointer-events: none;
             transform: translateZ(0);
             will-change: transform;
             backface-visibility: hidden;
-        }
-        iframe {
-            width: 100% !important;
-            height: 100% !important;
-            border: 0 !important;
-            outline: 0 !important;
-            transform: translateZ(0);
         }
     </style>
     <script>
@@ -292,6 +292,18 @@ object PhantomNative {
 
             player = new YT.Player('player', playerConfig);
         }
+
+        window.addEventListener('resize', function() {
+            try {
+                if (player && typeof player.setSize === 'function') {
+                    player.setSize(window.innerWidth, window.innerHeight);
+                }
+                var iframe = document.querySelector('iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: 'PHANTOM_CLEAN' }, '*');
+                }
+            } catch(e) {}
+        });
 
         function sendStoryboard() {
             try {
@@ -565,6 +577,30 @@ object PhantomNative {
 """
 
     private const val RAW_CSS_RULES = """
+/* 0. Force full-bleed responsive video container & stream across portrait and landscape fullscreen */
+html, body, #player, #movie_player, .html5-video-player, .html5-video-container {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    background-color: #000000 !important;
+}
+video.html5-main-video, .html5-video-container video {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    object-fit: contain !important;
+}
+
 /* 1. Endscreen elements & annotations (video cards, playlists, videowall) */
 .ytp-ce-element,
 .ytp-ce-element *,
@@ -910,19 +946,38 @@ a[href*="youtube.com/watch"] {
 
         try {
             var player = document.querySelector('.html5-video-player');
-            if (player && player.children) {
-                var kids = player.children;
-                for (var k = 0; k < kids.length; k++) {
-                    var child = kids[k];
-                    var cName = (child.className || '').toString().toLowerCase();
-                    if (child.classList.contains('html5-video-container') ||
-                        child.tagName.toLowerCase() === 'video' ||
-                        cName.indexOf('caption') !== -1 ||
-                        cName.indexOf('subtitle') !== -1) {
-                        continue;
+            if (player) {
+                player.style.setProperty('width', '100%', 'important');
+                player.style.setProperty('height', '100%', 'important');
+                if (player.children) {
+                    var kids = player.children;
+                    for (var k = 0; k < kids.length; k++) {
+                        var child = kids[k];
+                        var cName = (child.className || '').toString().toLowerCase();
+                        if (child.classList.contains('html5-video-container') ||
+                            child.tagName.toLowerCase() === 'video' ||
+                            cName.indexOf('caption') !== -1 ||
+                            cName.indexOf('subtitle') !== -1) {
+                            continue;
+                        }
+                        hideNode(child);
                     }
-                    hideNode(child);
                 }
+            }
+            var container = document.querySelector('.html5-video-container');
+            if (container && container.style) {
+                container.style.setProperty('width', '100%', 'important');
+                container.style.setProperty('height', '100%', 'important');
+                container.style.setProperty('top', '0px', 'important');
+                container.style.setProperty('left', '0px', 'important');
+            }
+            var vid = document.querySelector('video.html5-main-video') || document.querySelector('video');
+            if (vid && vid.style) {
+                vid.style.setProperty('width', '100%', 'important');
+                vid.style.setProperty('height', '100%', 'important');
+                vid.style.setProperty('top', '0px', 'important');
+                vid.style.setProperty('left', '0px', 'important');
+                vid.style.setProperty('object-fit', 'contain', 'important');
             }
         } catch(e) {}
     }

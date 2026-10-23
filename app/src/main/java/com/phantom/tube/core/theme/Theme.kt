@@ -17,13 +17,19 @@ private val DarkColorScheme = darkColorScheme(
     onPrimary = Color.White,
     secondary = YouTubeSurfaceLight,
     onSecondary = TextPrimary,
-    tertiary = YouTubeRed,
+    tertiary = YouTubeSurfaceLight,
     background = YouTubeDark,
     onBackground = TextPrimary,
     surface = YouTubeSurface,
     onSurface = TextPrimary,
     surfaceVariant = YouTubeSurfaceLight,
-    onSurfaceVariant = TextSecondary
+    onSurfaceVariant = TextSecondary,
+    surfaceTint = Color.Transparent,
+    surfaceContainerLowest = YouTubeDark,
+    surfaceContainerLow = YouTubeSurface,
+    surfaceContainer = YouTubeSurface,
+    surfaceContainerHigh = YouTubeSurface,
+    surfaceContainerHighest = YouTubeSurfaceLight
 )
 
 @Composable

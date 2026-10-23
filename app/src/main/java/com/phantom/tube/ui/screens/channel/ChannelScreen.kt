@@ -148,7 +148,6 @@ fun ChannelScreen(
         }
     }
 
-    val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     val currentProfile = profile
@@ -178,8 +177,9 @@ fun ChannelScreen(
         modifier = modifier
             .fillMaxSize()
             .background(YouTubeDark)
-            .padding(top = statusBarPadding)
     ) {
+        com.phantom.tube.ui.components.PhantomStatusBarStrip()
+
         ChannelTopBar(
             title = currentProfile?.title?.ifBlank { initialChannelTitle } ?: initialChannelTitle,
             isSearchActive = isSearchActive,

@@ -67,13 +67,7 @@ fun HistoryScreen(
             .fillMaxSize()
             .background(ObsidianDark)
     ) {
-        // Strip bilah status hitam (di atas header riwayat, bawah baterai)
-        Spacer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsTopHeight(WindowInsets.statusBars)
-                .background(SystemStatusBarColor)
-        )
+        com.phantom.tube.ui.components.PhantomStatusBarStrip()
 
         // Header
         Row(

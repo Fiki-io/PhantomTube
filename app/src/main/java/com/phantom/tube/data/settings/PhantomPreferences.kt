@@ -41,6 +41,16 @@ class PhantomPreferences(context: Context) {
         prefs.edit().putFloat(KEY_DEFAULT_SPEED, speed).apply()
     }
 
+    private val _doubleTapSeekSeconds = MutableStateFlow(
+        prefs.getInt(KEY_DOUBLE_TAP_SEEK_SECONDS, 10)
+    )
+    val doubleTapSeekSeconds: StateFlow<Int> = _doubleTapSeekSeconds.asStateFlow()
+
+    fun setDoubleTapSeekSeconds(seconds: Int) {
+        _doubleTapSeekSeconds.value = seconds
+        prefs.edit().putInt(KEY_DOUBLE_TAP_SEEK_SECONDS, seconds).apply()
+    }
+
     private val _backgroundPlaybackEnabled = MutableStateFlow(
         prefs.getBoolean(KEY_BG_PLAYBACK, true)
     )
@@ -210,6 +220,7 @@ class PhantomPreferences(context: Context) {
 
         private const val KEY_DEFAULT_QUALITY = "pref_default_quality"
         private const val KEY_DEFAULT_SPEED = "pref_default_speed"
+        private const val KEY_DOUBLE_TAP_SEEK_SECONDS = "pref_double_tap_seek_seconds"
         private const val KEY_BG_PLAYBACK = "pref_bg_playback"
         private const val KEY_AUTO_PIP = "pref_auto_pip"
 

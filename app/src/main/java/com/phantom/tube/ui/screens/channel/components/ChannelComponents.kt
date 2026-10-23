@@ -668,6 +668,7 @@ fun ChannelAboutBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = YouTubeSurface,
+        tonalElevation = 0.dp,
         shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
     ) {
         ChannelAboutCard(

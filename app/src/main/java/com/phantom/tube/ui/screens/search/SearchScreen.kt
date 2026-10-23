@@ -346,13 +346,7 @@ fun SearchScreen(
             .fillMaxSize()
             .background(ObsidianDark)
     ) {
-        // Strip bilah status hitam (di atas input pencarian, bawah baterai)
-        Spacer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsTopHeight(WindowInsets.statusBars)
-                .background(SystemStatusBarColor)
-        )
+        com.phantom.tube.ui.components.PhantomStatusBarStrip()
 
         // YouTube Search Input Header
         Row(
