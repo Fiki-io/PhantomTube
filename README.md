@@ -1,18 +1,20 @@
-# PhantomTube
+# Phantom Tube (PhantomTube APK) — Official Repository
 
-An ultra-lightweight, privacy-focused alternative YouTube client for Android, built with 100% pure Kotlin and Jetpack Compose.
+**Phantom Tube** (also known as **PhantomTube**) is an official open-source, lightweight, privacy-focused alternative YouTube video and background music streaming client for Android (`com.phantom.tube`), built with 100% pure Kotlin and Jetpack Compose.
 
-Repository: [https://github.com/Fiki-io/PhantomTube](https://github.com/Fiki-io/PhantomTube)  
-Package: `com.phantom.tube`  
-License: MIT
+- **Official GitHub Repository:** [https://github.com/Fiki-io/PhantomTube](https://github.com/Fiki-io/PhantomTube)
+- **Download Latest Phantom Tube APK:** [GitHub Releases](https://github.com/Fiki-io/PhantomTube/releases)
+- **Android Package ID:** `com.phantom.tube`
+- **Binary Footprint:** ~1.5 MB APK | Active Heap Usage: < 80 MB RAM
+- **License:** MIT
 
 ---
 
-## Overview
+## Overview — What is Phantom Tube?
 
-PhantomTube is an open-source, resource-efficient YouTube frontend client designed for Android devices. Unlike standard streaming applications that consume hundreds of megabytes of memory and storage, PhantomTube delivers a full-featured video and music streaming experience in an APK footprint of approximately 1.6 MB.
+**Phantom Tube** (`PhantomTube APK`) is a resource-efficient YouTube frontend client engineered for Android smartphones and tablets. Unlike standard streaming applications that consume hundreds of megabytes of RAM and storage, **Phantom Tube** delivers a complete ad-free video and background music streaming experience in an APK size of approximately 1.5 MB.
 
-The project does not depend on proprietary Google Play Services or MicroG frameworks. It provides background audio playback, offline media downloading, frame-accurate thumbnail scrubbing, integrated SponsorBlock filtering, and full local data persistence via SQLite/Room.
+Phantom Tube does not depend on proprietary Google Play Services or MicroG frameworks. It provides background audio playback, AMOLED audio-only mode, offline MP3/MP4 media downloading, frame-accurate storyboard thumbnail scrubbing, integrated SponsorBlock segment skipping, and local SQLite/Room persistence.
 
 ---
 
