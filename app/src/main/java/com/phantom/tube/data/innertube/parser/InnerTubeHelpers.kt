@@ -144,11 +144,24 @@ object InnerTubeHelpers {
         return trimmed
     }
 
+    private val AVATAR_SIZE_REGEX = Regex("""=s\d+(-[a-zA-Z0-9_-]+)?""")
+
+    fun optimizeAvatarUrl(raw: String?): String {
+        val norm = normalizeUrl(raw)
+        if (norm.isBlank()) return ""
+        if (norm.contains("ggpht.com") || norm.contains("googleusercontent.com")) {
+            if (AVATAR_SIZE_REGEX.containsMatchIn(norm)) {
+                return AVATAR_SIZE_REGEX.replace(norm, "=s88-c-k-c0x00ffffff-no-rj")
+            }
+        }
+        return norm
+    }
+
     fun extractThumbnail(obj: JSONObject?, videoId: String): String {
-        if (obj == null) return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else ""
+        if (obj == null) return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/mqdefault.jpg" else ""
         val thumbnails = obj.optJSONArray("thumbnails")
         if (thumbnails != null && thumbnails.length() > 0) {
-            // Prefer medium-high resolution (width 320..720) to save up to 75% bitmap RAM over 1080p maxresdefault
+            // Prefer compact 16:9 resolution (width 240..380) to minimize bitmap RAM while staying sharp
             var chosenUrl = ""
             for (i in 0 until thumbnails.length()) {
                 val item = thumbnails.optJSONObject(i) ?: continue
@@ -156,7 +169,7 @@ object InnerTubeHelpers {
                 val w = item.optInt("width", 0)
                 if (url.isNotBlank()) {
                     chosenUrl = url
-                    if (w in 320..720) {
+                    if (w in 240..380) {
                         break
                     }
                 }
@@ -165,22 +178,22 @@ object InnerTubeHelpers {
                 return normalizeUrl(chosenUrl)
             }
         }
-        return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else ""
+        return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/mqdefault.jpg" else ""
     }
 
     private fun pickAvatarSourceUrl(sources: org.json.JSONArray?): String {
         if (sources == null || sources.length() == 0) return ""
-        // Avatars are rendered at 36dp; pick compact resolution (<= 120px or first item) instead of 800x800
+        // Avatars are rendered at 36dp; pick compact resolution (<= 120px or first item) and clamp CDN size param
         for (i in 0 until sources.length()) {
             val item = sources.optJSONObject(i) ?: continue
             val url = item.optString("url")
             val w = item.optInt("width", 0)
-            if (url.isNotBlank() && (w in 48..140 || i == 0)) {
-                return normalizeUrl(url)
+            if (url.isNotBlank() && (w in 48..120 || i == 0)) {
+                return optimizeAvatarUrl(url)
             }
         }
         val first = sources.optJSONObject(0)?.optString("url") ?: ""
-        return normalizeUrl(first)
+        return optimizeAvatarUrl(first)
     }
 
     fun extractAvatar(json: JSONObject?): String {

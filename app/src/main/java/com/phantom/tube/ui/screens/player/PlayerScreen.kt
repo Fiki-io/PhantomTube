@@ -692,15 +692,30 @@ fun PlayerScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
-                val isBgAllowed = repository.preferences?.backgroundPlaybackEnabled?.value ?: true
-                val activity = context.findActivity()
-                val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    activity?.isInPictureInPictureMode == true
-                } else false
-                if (!isBgAllowed && !inPip) {
-                    controller.pause()
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    val isBgAllowed = repository.preferences?.backgroundPlaybackEnabled?.value ?: true
+                    val activity = context.findActivity()
+                    val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        activity?.isInPictureInPictureMode == true
+                    } else false
+                    if (!inPip) {
+                        if (!isBgAllowed) {
+                            controller.pause()
+                        } else {
+                            controller.setVideoSurfaceActive(false)
+                        }
+                    }
                 }
+                Lifecycle.Event.ON_START -> {
+                    if (!isAudioOnly) {
+                        val restoreQ = playerState.currentQuality.ifBlank {
+                            repository.preferences?.defaultQuality?.value ?: "auto"
+                        }
+                        controller.setVideoSurfaceActive(true, restoreQ)
+                    }
+                }
+                else -> {}
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -723,6 +738,7 @@ fun PlayerScreen(
         lastRecordedPositionSec = 0f
         storyboardData = null
         StoryboardHelper.clearCache()
+        repository.clearCommentsCache()
         isScrubbing = false
         isQualityMenuExpanded = false
         controller.requestStoryboard()

@@ -291,6 +291,10 @@ object PhantomDownloader {
                     delay(1000)
                     continue
                 }
+            } finally {
+                try {
+                    response.close()
+                } catch (_: Exception) {}
             }
         }
 

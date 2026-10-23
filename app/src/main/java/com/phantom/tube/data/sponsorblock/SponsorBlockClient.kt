@@ -25,12 +25,12 @@ class SponsorBlockClient(
                 .get()
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                return@withContext emptyList()
+            val body = httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext emptyList()
+                }
+                response.body?.string() ?: return@withContext emptyList()
             }
-
-            val body = response.body?.string() ?: return@withContext emptyList()
             val array = JSONArray(body)
             val segments = mutableListOf<SponsorSegment>()
 

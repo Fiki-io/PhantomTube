@@ -33,10 +33,14 @@ class ImageLoader internal constructor(
     private val defaultConfig: Bitmap.Config,
     maxParallelism: Int
 ) {
-    private val decodeSemaphore = Semaphore(maxParallelism.coerceAtLeast(2))
+    private val decodeSemaphore = Semaphore(maxParallelism.coerceIn(1, 2))
+
+    private val decodeTempBuffer = object : ThreadLocal<ByteArray>() {
+        override fun initialValue(): ByteArray = ByteArray(16 * 1024)
+    }
 
     private val bitmapRamCache = object : LruCache<String, Bitmap>(
-        (memoryCache?.maxSizeBytes ?: (6 * 1024 * 1024)).coerceAtLeast(2 * 1024 * 1024)
+        (memoryCache?.maxSizeBytes ?: (2 * 1024 * 1024)).coerceIn(1024 * 1024, 2560 * 1024)
     ) {
         override fun sizeOf(key: String, value: Bitmap): Int {
             return value.allocationByteCount.coerceAtLeast(1)
@@ -46,6 +50,16 @@ class ImageLoader internal constructor(
     init {
         memoryCache?.onClear = {
             bitmapRamCache.evictAll()
+        }
+    }
+
+    fun trimMemory(level: Int) {
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ||
+            level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
+        ) {
+            bitmapRamCache.evictAll()
+        } else if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE) {
+            bitmapRamCache.trimToSize(bitmapRamCache.maxSize() / 2)
         }
     }
 
@@ -71,12 +85,24 @@ class ImageLoader internal constructor(
                 throwable = IllegalStateException("Empty image bytes")
             )
 
+            val isAvatarUrl = (url.contains("ggpht.com") || url.contains("googleusercontent.com")) && !url.contains("=w")
+            val maxW = when {
+                request.targetWidth > 0 -> request.targetWidth.coerceAtMost(320)
+                isAvatarUrl -> 88
+                else -> 320
+            }
+            val maxH = when {
+                request.targetHeight > 0 -> request.targetHeight.coerceAtMost(180)
+                isAvatarUrl -> 88
+                else -> 180
+            }
+
             val bitmap = decodeSemaphore.withPermit {
                 decodeBitmap(
                     bytes = rawBytes,
-                    targetWidth = request.targetWidth,
-                    targetHeight = request.targetHeight,
-                    config = if (request.allowRgb565) Bitmap.Config.RGB_565 else request.bitmapConfig
+                    targetWidth = maxW,
+                    targetHeight = maxH,
+                    config = Bitmap.Config.RGB_565
                 )
             } ?: return@withContext ErrorResult(throwable = IllegalStateException("Decode failed"))
 
@@ -126,32 +152,53 @@ class ImageLoader internal constructor(
         targetHeight: Int,
         config: Bitmap.Config
     ): Bitmap? {
-        if (targetWidth > 0 && targetHeight > 0) {
-            val boundsOpts = BitmapFactory.Options().apply {
-                inJustDecodeBounds = true
+        val tempBuf = decodeTempBuffer.get()
+        val boundsOpts = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+            inTempStorage = tempBuf
+        }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOpts)
+        val srcW = boundsOpts.outWidth
+        val srcH = boundsOpts.outHeight
+        if (srcW <= 0 || srcH <= 0) return null
+
+        val effW = if (targetWidth > 0) targetWidth else 320
+        val effH = if (targetHeight > 0) targetHeight else 180
+
+        var sampleSize = 1
+        if (srcW > effW || srcH > effH) {
+            val halfW = srcW / 2
+            val halfH = srcH / 2
+            while ((halfW / sampleSize) >= effW && (halfH / sampleSize) >= effH) {
+                sampleSize *= 2
             }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOpts)
-            val srcW = boundsOpts.outWidth
-            val srcH = boundsOpts.outHeight
-            var sampleSize = 1
-            if (srcW > targetWidth || srcH > targetHeight) {
-                val halfW = srcW / 2
-                val halfH = srcH / 2
-                while ((halfW / sampleSize) >= targetWidth && (halfH / sampleSize) >= targetHeight) {
-                    sampleSize *= 2
+        }
+
+        val decodeOpts = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+            inPreferredConfig = config
+            inTempStorage = tempBuf
+            inDither = true
+        }
+        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOpts) ?: return null
+
+        if (decoded.width > (effW * 1.25f).toInt() && decoded.height > (effH * 1.25f).toInt()) {
+            val scale = minOf(effW.toFloat() / decoded.width.toFloat(), effH.toFloat() / decoded.height.toFloat())
+            val scaledW = (decoded.width * scale).toInt().coerceAtLeast(1)
+            val scaledH = (decoded.height * scale).toInt().coerceAtLeast(1)
+            if (scaledW < decoded.width && scaledH < decoded.height) {
+                return try {
+                    val scaled = Bitmap.createScaledBitmap(decoded, scaledW, scaledH, true)
+                    if (scaled !== decoded) {
+                        decoded.recycle()
+                    }
+                    scaled
+                } catch (_: Throwable) {
+                    decoded
                 }
             }
-            val decodeOpts = BitmapFactory.Options().apply {
-                inSampleSize = sampleSize
-                inPreferredConfig = config
-            }
-            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOpts)
-        } else {
-            val decodeOpts = BitmapFactory.Options().apply {
-                inPreferredConfig = config
-            }
-            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOpts)
         }
+        return decoded
     }
 
     private fun sha256Hex(input: String): String {

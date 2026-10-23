@@ -388,11 +388,14 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
             try {
                 val req = ImageRequest.Builder(this@PhantomOfflineAudioService)
                     .data(url)
+                    .size(160, 90)
+                    .bitmapConfig(Bitmap.Config.RGB_565)
+                    .allowRgb565(true)
                     .allowHardware(false)
                     .build()
                 val result = (imageLoader.execute(req) as? SuccessResult)?.drawable
                 val bitmap = (result as? BitmapDrawable)?.bitmap
-                if (bitmap != null) {
+                if (bitmap != null && !bitmap.isRecycled) {
                     withContext(Dispatchers.Main) {
                         if (lastThumbnailUrl == url) {
                             currentBitmap = bitmap
@@ -418,9 +421,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
             .putString(MediaMetadata.METADATA_KEY_ARTIST, track.channelTitle)
             .putLong(MediaMetadata.METADATA_KEY_DURATION, dur)
 
-        if (bitmap != null) {
+        if (bitmap != null && !bitmap.isRecycled) {
             metadataBuilder.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, bitmap)
-            metadataBuilder.putBitmap(MediaMetadata.METADATA_KEY_ART, bitmap)
         }
         mediaSession?.setMetadata(metadataBuilder.build())
     }

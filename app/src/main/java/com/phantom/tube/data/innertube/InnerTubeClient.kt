@@ -82,8 +82,10 @@ class InnerTubeClient(
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string() ?: return@withContext FeedResult()
+            val responseBody = httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext FeedResult()
+                response.body?.string() ?: return@withContext FeedResult()
+            }
             return@withContext InnerTubeParser.parseFeedWithContinuation(responseBody)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -121,8 +123,10 @@ class InnerTubeClient(
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string() ?: return@withContext null
+            val responseBody = httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                response.body?.string() ?: return@withContext null
+            }
             return@withContext InnerTubeParser.parseWatchNext(responseBody, videoId)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -146,8 +150,10 @@ class InnerTubeClient(
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string() ?: return@withContext FeedResult()
+            val responseBody = httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext FeedResult()
+                response.body?.string() ?: return@withContext FeedResult()
+            }
             return@withContext InnerTubeParser.parseWatchNextContinuation(responseBody, currentVideoId)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -168,13 +174,73 @@ class InnerTubeClient(
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string() ?: return@withContext CommentsResult()
+            val responseBody = httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext CommentsResult()
+                response.body?.string() ?: return@withContext CommentsResult()
+            }
             return@withContext InnerTubeParser.parseComments(responseBody)
         } catch (e: Exception) {
             e.printStackTrace()
             return@withContext CommentsResult()
         }
+    }
+
+    private val STREAM_AVATAR_URL_REGEX =
+        Regex("""https://yt3\.(?:ggpht|googleusercontent)\.com/[a-zA-Z0-9_=-]+(?:/[a-zA-Z0-9_=-]+)*=s\d+[^"\\]*""")
+
+    /**
+     * Zero-DOM streaming avatar extractor.
+     * Reads only the leading header bytes (max 96 KB) from the browse stream to locate the channel avatar
+     * without allocating a multi-megabyte JSON String or JSONObject DOM tree.
+     */
+    suspend fun fetchChannelAvatarFast(channelId: String): String? = withContext(Dispatchers.IO) {
+        val targetChannelId = channelId.trim()
+        if (!targetChannelId.startsWith("UC")) return@withContext null
+        try {
+            val bodyJson = JSONObject().apply {
+                put("context", createClientContext())
+                put("browseId", targetChannelId)
+            }
+            val request = Request.Builder()
+                .url(com.phantom.tube.core.security.PhantomNative.getBrowseEndpoint())
+                .header("Content-Type", "application/json")
+                .header("User-Agent", userAgent)
+                .post(bodyJson.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val stream = response.body?.byteStream() ?: return@withContext null
+                val buffer = ByteArray(8192)
+                val out = java.io.ByteArrayOutputStream(32768)
+                var totalRead = 0
+                val maxHeaderBytes = 96 * 1024
+                while (totalRead < maxHeaderBytes) {
+                    val read = stream.read(buffer)
+                    if (read <= 0) break
+                    out.write(buffer, 0, read)
+                    totalRead += read
+                    if (totalRead >= 16384) {
+                        val partial = out.toString("UTF-8")
+                        val match = STREAM_AVATAR_URL_REGEX.find(partial)
+                        if (match != null) {
+                            return@withContext com.phantom.tube.data.innertube.parser.InnerTubeHelpers.optimizeAvatarUrl(
+                                match.value
+                            )
+                        }
+                    }
+                }
+                val fullSlice = out.toString("UTF-8")
+                val match = STREAM_AVATAR_URL_REGEX.find(fullSlice)
+                if (match != null) {
+                    return@withContext com.phantom.tube.data.innertube.parser.InnerTubeHelpers.optimizeAvatarUrl(
+                        match.value
+                    )
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return@withContext null
     }
 
     suspend fun fetchChannel(
@@ -212,8 +278,10 @@ class InnerTubeClient(
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string() ?: return@withContext null
+            val responseBody = httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                response.body?.string() ?: return@withContext null
+            }
             return@withContext InnerTubeParser.parseChannelPage(responseBody, targetChannelId)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -237,8 +305,10 @@ class InnerTubeClient(
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string() ?: return@withContext FeedResult()
+            val responseBody = httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext FeedResult()
+                response.body?.string() ?: return@withContext FeedResult()
+            }
             return@withContext InnerTubeParser.parseChannelContinuation(responseBody)
         } catch (e: Exception) {
             e.printStackTrace()

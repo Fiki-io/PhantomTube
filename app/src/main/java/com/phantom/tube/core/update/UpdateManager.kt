@@ -78,12 +78,12 @@ class UpdateManager(
                 .header("User-Agent", "Phantom-Updater/${getCurrentVersionName()}")
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                return@withContext UpdateCheckResult.Error("HTTP ${response.code}")
+            val body = httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext UpdateCheckResult.Error("HTTP ${response.code}")
+                }
+                response.body?.string() ?: return@withContext UpdateCheckResult.Error("Empty response")
             }
-
-            val body = response.body?.string() ?: return@withContext UpdateCheckResult.Error("Empty response")
             val json = JSONObject(body)
 
             val serverVersionCode = json.optInt("versionCode", 0)
@@ -129,39 +129,40 @@ class UpdateManager(
                 .url(downloadUrl)
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            if (!response.isSuccessful) return@withContext null
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
 
-            val body = response.body ?: return@withContext null
-            val contentLength = body.contentLength()
+                val body = response.body ?: return@withContext null
+                val contentLength = body.contentLength()
 
-            val targetDir = context.getExternalFilesDir(null) ?: context.cacheDir
-            val targetFile = File(targetDir, "Phantom-Update.apk")
-            if (targetFile.exists()) {
-                targetFile.delete()
-            }
+                val targetDir = context.getExternalFilesDir(null) ?: context.cacheDir
+                val targetFile = File(targetDir, "Phantom-Update.apk")
+                if (targetFile.exists()) {
+                    targetFile.delete()
+                }
 
-            body.byteStream().use { input ->
-                FileOutputStream(targetFile).use { output ->
-                    val buffer = ByteArray(8 * 1024)
-                    var bytesRead: Int
-                    var totalRead = 0L
+                body.byteStream().use { input ->
+                    FileOutputStream(targetFile).use { output ->
+                        val buffer = ByteArray(8 * 1024)
+                        var bytesRead: Int
+                        var totalRead = 0L
 
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                        totalRead += bytesRead
-                        if (contentLength > 0) {
-                            val progress = totalRead.toFloat() / contentLength.toFloat()
-                            withContext(Dispatchers.Main) {
-                                onProgress(progress.coerceIn(0f, 1f))
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                            totalRead += bytesRead
+                            if (contentLength > 0) {
+                                val progress = totalRead.toFloat() / contentLength.toFloat()
+                                withContext(Dispatchers.Main) {
+                                    onProgress(progress.coerceIn(0f, 1f))
+                                }
                             }
                         }
+                        output.flush()
                     }
-                    output.flush()
                 }
-            }
 
-            targetFile
+                targetFile
+            }
         } catch (e: Exception) {
             null
         }

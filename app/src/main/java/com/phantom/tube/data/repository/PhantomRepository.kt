@@ -275,10 +275,17 @@ class PhantomRepository(
 
     private val commentsCache = java.util.concurrent.ConcurrentHashMap<String, CommentsResult>()
 
+    fun clearCommentsCache() {
+        commentsCache.clear()
+    }
+
     suspend fun getComments(continuationToken: String): CommentsResult {
         commentsCache[continuationToken]?.let { return it }
         val result = innerTubeClient.fetchComments(continuationToken)
         if (result.comments.isNotEmpty()) {
+            if (commentsCache.size >= 4) {
+                commentsCache.clear()
+            }
             commentsCache[continuationToken] = result
         }
         return result

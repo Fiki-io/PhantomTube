@@ -43,7 +43,7 @@ object ChannelAvatarCache {
     }
 
     fun put(channelId: String?, channelTitle: String?, avatarUrl: String?) {
-        val clean = InnerTubeHelpers.normalizeUrl(avatarUrl)
+        val clean = InnerTubeHelpers.optimizeAvatarUrl(avatarUrl)
         if (clean.isBlank()) return
 
         if (!channelId.isNullOrBlank()) {
@@ -94,21 +94,16 @@ object ChannelAvatarCache {
                 val recheck = get(channelId, channelTitle)
                 if (recheck.isNotBlank()) return@withPermit recheck
 
-                val profile = c.fetchChannel(channelId = channelId)
-                val avatar = InnerTubeHelpers.normalizeUrl(profile?.avatarUrl)
+                val avatar = c.fetchChannelAvatarFast(channelId = channelId).orEmpty()
                 if (avatar.isNotBlank()) {
                     put(channelId, channelTitle, avatar)
-                    val profTitle = profile?.title
-                    if (!profTitle.isNullOrBlank()) {
-                        put(channelId, profTitle, avatar)
-                    }
                     return@withContext avatar
                 } else {
                     if (failedIds.size > MAX_CACHE_ENTRIES) failedIds.clear()
                     failedIds.add(channelId)
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Silently ignore network hiccups; avoid crashing UI
         } finally {
             inFlight.remove(channelId)

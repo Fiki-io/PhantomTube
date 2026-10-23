@@ -24,11 +24,14 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
 ) : WebView(context, attrs, defStyleAttr) {
 
     init {
-        // Enforce GPU hardware acceleration layer for smooth 60/120fps video rendering
-        setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        // Render directly to the hardware-accelerated window surface without allocating a duplicate offscreen FBO texture
+        setLayerType(View.LAYER_TYPE_NONE, null)
         isVerticalScrollBarEnabled = false
         isHorizontalScrollBarEnabled = false
         overScrollMode = View.OVER_SCROLL_NEVER
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            setRendererPriorityPolicy(RENDERER_PRIORITY_BOUND, true)
+        }
     }
 
     override fun onWindowVisibilityChanged(visibility: Int) {
@@ -64,6 +67,11 @@ class PhantomPlayerController(@Suppress("UNUSED_PARAMETER") context: Context) {
 
     fun loadVideo(videoId: String, startSeconds: Float = 0f) {
         if (isReady && webView != null) {
+            webView?.post {
+                try {
+                    webView?.clearCache(false)
+                } catch (_: Exception) {}
+            }
             evaluateJs("window.loadVideo('$videoId', $startSeconds);")
         } else {
             pendingVideoId = videoId
@@ -103,6 +111,10 @@ class PhantomPlayerController(@Suppress("UNUSED_PARAMETER") context: Context) {
         evaluateJs("if (window.setAudioOnly) window.setAudioOnly($enabled);")
     }
 
+    fun setVideoSurfaceActive(active: Boolean, restoreQuality: String = "auto") {
+        evaluateJs("if (window.setVideoSurfaceActive) window.setVideoSurfaceActive($active, '$restoreQuality');")
+    }
+
     fun requestStoryboard() {
         evaluateJs("if (window.requestStoryboard) window.requestStoryboard();")
     }
@@ -122,6 +134,7 @@ class PhantomPlayerController(@Suppress("UNUSED_PARAMETER") context: Context) {
                 (parent as? ViewGroup)?.removeView(this)
                 stopLoading()
                 clearHistory()
+                clearCache(false)
                 loadUrl("about:blank")
                 removeAllViews()
                 destroy()
@@ -163,6 +176,9 @@ fun PhantomGhostSurface(
                     allowFileAccess = false
                     allowContentAccess = false
                     offscreenPreRaster = false
+                    setSupportZoom(false)
+                    builtInZoomControls = false
+                    displayZoomControls = false
                     setGeolocationEnabled(false)
                     setNeedInitialFocus(false)
 
@@ -170,7 +186,7 @@ fun PhantomGhostSurface(
                     userAgentString = com.phantom.tube.core.security.PhantomNative.getUserAgent()
                 }
 
-                clearCache(true)
+                clearCache(false)
                 webChromeClient = WebChromeClient()
 
                 webViewClient = object : WebViewClient() {
@@ -200,6 +216,11 @@ fun PhantomGhostSurface(
 
 object PhantomRenderEngine {
     private var customHttpClient: okhttp3.OkHttpClient? = null
+    private val EMPTY_BYTES = ByteArray(0)
+    private val NO_CONTENT_HEADERS = mapOf(
+        "Access-Control-Allow-Origin" to "*",
+        "Cache-Control" to "no-store"
+    )
 
     fun init(client: okhttp3.OkHttpClient) {
         customHttpClient = client
@@ -217,7 +238,7 @@ object PhantomRenderEngine {
     private val httpClient: okhttp3.OkHttpClient
         get() = customHttpClient ?: defaultHttpClient
 
-    private const val MAX_CSS_CACHE_ENTRIES = 3
+    private const val MAX_CSS_CACHE_ENTRIES = 2
     private val cssCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
 
     fun clearCache() {
@@ -229,10 +250,21 @@ object PhantomRenderEngine {
 
     fun intercept(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
-        if (request.method != "GET") return null
-
         val reqType = com.phantom.tube.core.security.PhantomNative.classifyRequestUrl(url)
         if (reqType == 0) return null
+
+        if (reqType == 4) {
+            return WebResourceResponse(
+                "text/plain",
+                "utf-8",
+                204,
+                "No Content",
+                NO_CONTENT_HEADERS,
+                java.io.ByteArrayInputStream(EMPTY_BYTES)
+            )
+        }
+
+        if (request.method != "GET") return null
 
         if (reqType == 1) {
             val html = com.phantom.tube.core.security.PhantomNative.getHtml()
@@ -276,64 +308,65 @@ object PhantomRenderEngine {
                 }
             }
 
-            val resp = httpClient.newCall(reqBuilder.build()).execute()
-            if (!resp.isSuccessful) return null
+            httpClient.newCall(reqBuilder.build()).execute().use { resp ->
+                if (!resp.isSuccessful) return null
 
-            if (isPlayerCss) {
-                val rawCss = resp.body?.string() ?: ""
-                val modifiedCss = rawCss + "\n\n/* Phantom Clean Engine */\n" + CSS_RULES
-                val bytes = modifiedCss.toByteArray(Charsets.UTF_8)
-                if (cssCache.size >= MAX_CSS_CACHE_ENTRIES) {
-                    cssCache.clear()
-                }
-                cssCache[url] = bytes
-                val headers = mapOf(
-                    "Content-Type" to "text/css; charset=utf-8",
-                    "Access-Control-Allow-Origin" to "*"
-                )
-                return WebResourceResponse("text/css", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(bytes))
-            }
-
-            if (isEmbedHtml) {
-                val rawHtml = resp.body?.string() ?: ""
-                val styleNonceMatch = Regex("""<style[^>]*nonce=["']([^"']+)["']""").find(rawHtml)
-                    ?: Regex("""nonce=["']([^"']+)["']""").find(rawHtml)
-                val styleNonce = styleNonceMatch?.groupValues?.get(1) ?: ""
-                val styleNonceAttr = if (styleNonce.isNotEmpty()) " nonce=\"$styleNonce\"" else ""
-
-                val scriptNonceMatch = Regex("""<script[^>]*nonce=["']([^"']+)["']""").find(rawHtml)
-                    ?: Regex("""nonce=["']([^"']+)["']""").find(rawHtml)
-                val scriptNonce = scriptNonceMatch?.groupValues?.get(1) ?: ""
-                val scriptNonceAttr = if (scriptNonce.isNotEmpty()) " nonce=\"$scriptNonce\"" else ""
-
-                val styleToInject = "<style id=\"phantom-clean-engine\"$styleNonceAttr>$CSS_RULES</style>"
-                val scriptBody = com.phantom.tube.core.security.PhantomNative.getCleanEngineScript()
-                val scriptToInject = "<script id=\"phantom-clean-script\"$scriptNonceAttr>$scriptBody</script>"
-
-                val payload = styleToInject + scriptToInject
-                val modifiedHtml = when {
-                    rawHtml.contains("</head>") -> rawHtml.replace("</head>", "$payload</head>")
-                    rawHtml.contains("<body") -> rawHtml.replace("<body", "$payload<body")
-                    else -> payload + rawHtml
-                }
-
-                val bytes = modifiedHtml.toByteArray(Charsets.UTF_8)
-                val headers = mutableMapOf<String, String>()
-                for ((k, v) in resp.headers) {
-                    val lower = k.lowercase()
-                    // Strip CSP and encoding headers so injected styles and scripts run unhindered
-                    if (lower != "content-encoding" &&
-                        lower != "content-length" &&
-                        !lower.contains("content-security-policy") &&
-                        !lower.contains("x-content-security-policy") &&
-                        !lower.contains("x-webkit-csp")
-                    ) {
-                        headers[k] = v
+                if (isPlayerCss) {
+                    val rawCss = resp.body?.string() ?: ""
+                    val modifiedCss = rawCss + "\n\n/* Phantom Clean Engine */\n" + CSS_RULES
+                    val bytes = modifiedCss.toByteArray(Charsets.UTF_8)
+                    if (cssCache.size >= MAX_CSS_CACHE_ENTRIES) {
+                        cssCache.clear()
                     }
+                    cssCache[url] = bytes
+                    val headers = mapOf(
+                        "Content-Type" to "text/css; charset=utf-8",
+                        "Access-Control-Allow-Origin" to "*"
+                    )
+                    return WebResourceResponse("text/css", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(bytes))
                 }
-                headers["Content-Type"] = "text/html; charset=utf-8"
-                headers["Access-Control-Allow-Origin"] = "*"
-                return WebResourceResponse("text/html", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(bytes))
+
+                if (isEmbedHtml) {
+                    val rawHtml = resp.body?.string() ?: ""
+                    val styleNonceMatch = Regex("""<style[^>]*nonce=["']([^"']+)["']""").find(rawHtml)
+                        ?: Regex("""nonce=["']([^"']+)["']""").find(rawHtml)
+                    val styleNonce = styleNonceMatch?.groupValues?.get(1) ?: ""
+                    val styleNonceAttr = if (styleNonce.isNotEmpty()) " nonce=\"$styleNonce\"" else ""
+
+                    val scriptNonceMatch = Regex("""<script[^>]*nonce=["']([^"']+)["']""").find(rawHtml)
+                        ?: Regex("""nonce=["']([^"']+)["']""").find(rawHtml)
+                    val scriptNonce = scriptNonceMatch?.groupValues?.get(1) ?: ""
+                    val scriptNonceAttr = if (scriptNonce.isNotEmpty()) " nonce=\"$scriptNonce\"" else ""
+
+                    val styleToInject = "<style id=\"phantom-clean-engine\"$styleNonceAttr>$CSS_RULES</style>"
+                    val scriptBody = com.phantom.tube.core.security.PhantomNative.getCleanEngineScript()
+                    val scriptToInject = "<script id=\"phantom-clean-script\"$scriptNonceAttr>$scriptBody</script>"
+
+                    val payload = styleToInject + scriptToInject
+                    val modifiedHtml = when {
+                        rawHtml.contains("</head>") -> rawHtml.replace("</head>", "$payload</head>")
+                        rawHtml.contains("<body") -> rawHtml.replace("<body", "$payload<body")
+                        else -> payload + rawHtml
+                    }
+
+                    val bytes = modifiedHtml.toByteArray(Charsets.UTF_8)
+                    val headers = mutableMapOf<String, String>()
+                    for ((k, v) in resp.headers) {
+                        val lower = k.lowercase()
+                        // Strip CSP and encoding headers so injected styles and scripts run unhindered
+                        if (lower != "content-encoding" &&
+                            lower != "content-length" &&
+                            !lower.contains("content-security-policy") &&
+                            !lower.contains("x-content-security-policy") &&
+                            !lower.contains("x-webkit-csp")
+                        ) {
+                            headers[k] = v
+                        }
+                    }
+                    headers["Content-Type"] = "text/html; charset=utf-8"
+                    headers["Access-Control-Allow-Origin"] = "*"
+                    return WebResourceResponse("text/html", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(bytes))
+                }
             }
         } catch (e: Exception) {
             android.util.Log.e("PhantomCleanEngine", "Intercept error for $url", e)

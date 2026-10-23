@@ -18,6 +18,7 @@ import com.phantom.tube.data.settings.PhantomPreferences
 import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okhttp3.Cache
 import okhttp3.ConnectionPool
@@ -44,15 +45,15 @@ class PhantomApp : Application(), ImageLoaderFactory {
 
     val sharedHttpClient: OkHttpClient by lazy {
         val dispatcher = Dispatcher().apply {
-            maxRequests = 16
-            maxRequestsPerHost = 6
+            maxRequests = 8
+            maxRequestsPerHost = 4
         }
         OkHttpClient.Builder()
             .dispatcher(dispatcher)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
-            .connectionPool(ConnectionPool(6, 2, TimeUnit.MINUTES))
-            .cache(Cache(cacheDir.resolve("http_cache"), 24L * 1024 * 1024))
+            .connectionPool(ConnectionPool(3, 1, TimeUnit.MINUTES))
+            .cache(Cache(cacheDir.resolve("http_cache"), 8L * 1024 * 1024))
             .build()
             .also { sharedClientInstance = it }
     }
@@ -81,29 +82,25 @@ class PhantomApp : Application(), ImageLoaderFactory {
             preferences = preferences
         )
 
-        // Preload avatar cache with subscribed channels from local DB
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                database.subscriptionDao().getAllSubscriptions().collect { subs ->
-                    subs.forEach { sub ->
-                        if (sub.channelAvatarUrl.isNotBlank()) {
-                            ChannelAvatarCache.put(
-                                sub.channelId,
-                                sub.channelTitle,
-                                sub.channelAvatarUrl
-                            )
-                        }
+                val subs = database.subscriptionDao().getAllSubscriptions().first()
+                subs.forEach { sub ->
+                    if (sub.channelAvatarUrl.isNotBlank()) {
+                        ChannelAvatarCache.put(
+                            sub.channelId,
+                            sub.channelTitle,
+                            sub.channelAvatarUrl
+                        )
                     }
                 }
-            } catch (e: Exception) {
-                // Ignore background DB error
+            } catch (_: Exception) {
             }
         }
     }
 
     override fun newImageLoader(): ImageLoader {
-        val maxHeapBytes = Runtime.getRuntime().maxMemory()
-        val targetCacheBytes = (maxHeapBytes * 0.08).toLong().coerceIn(4L * 1024 * 1024, 10L * 1024 * 1024)
+        val targetCacheBytes = 2L * 1024 * 1024
 
         return ImageLoader.Builder(this)
             .okHttpClient(sharedHttpClient)
@@ -121,7 +118,7 @@ class PhantomApp : Application(), ImageLoaderFactory {
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(40L * 1024 * 1024)
+                    .maxSizeBytes(24L * 1024 * 1024)
                     .build()
             }
             .respectCacheHeaders(false)
@@ -132,14 +129,14 @@ class PhantomApp : Application(), ImageLoaderFactory {
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW || level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
-            try {
-                this.imageLoader.memoryCache?.clear()
+        try {
+            this.imageLoader.trimMemory(level)
+            if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW || level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
                 com.phantom.tube.player.PhantomRenderEngine.clearCache()
                 com.phantom.tube.player.StoryboardHelper.clearCache()
                 ChannelAvatarCache.trim()
-            } catch (_: Exception) {
             }
+        } catch (_: Exception) {
         }
     }
 

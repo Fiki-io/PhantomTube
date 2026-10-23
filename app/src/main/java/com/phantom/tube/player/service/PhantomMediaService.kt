@@ -46,6 +46,9 @@ class PhantomMediaService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var currentBitmap: Bitmap? = null
     private var currentThumbnailUrl: String = ""
+    private var lastNotifiedPlaying: Boolean? = null
+    private var lastNotifiedTitle: String = ""
+    private var lastNotifiedChannel: String = ""
 
     var onPlayAction: (() -> Unit)? = null
     var onPauseAction: (() -> Unit)? = null
@@ -130,6 +133,7 @@ class PhantomMediaService : Service() {
         thumbnailUrl: String = "",
         currentPositionMs: Long = -1L
     ) {
+        val metaChanged = (title != currentTitle || channel != currentChannel)
         currentTitle = title
         currentChannel = channel
         isPlaying = playing
@@ -146,8 +150,7 @@ class PhantomMediaService : Service() {
             loadThumbnail(thumbnailUrl)
         } else {
             applyMetadata(currentBitmap)
-            updatePlaybackState(playing, this.currentPositionMs)
-            startForegroundCompat(buildNotification())
+            updatePlaybackState(playing, this.currentPositionMs, forceNotify = metaChanged)
         }
     }
 
@@ -158,35 +161,39 @@ class PhantomMediaService : Service() {
         if (durationMs > 0L && durationMs != currentDurationMs) {
             currentDurationMs = durationMs
             applyMetadata(currentBitmap)
-            updatePlaybackState(isPlaying, this.currentPositionMs)
+            updatePlaybackState(isPlaying, this.currentPositionMs, forceNotify = false)
         }
     }
 
     private fun loadThumbnail(url: String) {
         applyMetadata(null)
-        updatePlaybackState(isPlaying, this.currentPositionMs)
-        startForegroundCompat(buildNotification())
+        updatePlaybackState(isPlaying, this.currentPositionMs, forceNotify = true)
 
         serviceScope.launch(Dispatchers.IO) {
             try {
                 val imageRequest = ImageRequest.Builder(this@PhantomMediaService)
                     .data(url)
+                    .size(160, 90)
+                    .bitmapConfig(Bitmap.Config.RGB_565)
+                    .allowRgb565(true)
                     .allowHardware(false)
                     .build()
                 val result = (imageLoader.execute(imageRequest) as? SuccessResult)?.drawable
                 val bitmap = (result as? BitmapDrawable)?.bitmap
-                if (bitmap != null) {
+                if (bitmap != null && !bitmap.isRecycled) {
                     withContext(Dispatchers.Main) {
                         if (currentThumbnailUrl == url) {
                             currentBitmap = bitmap
                             applyMetadata(bitmap)
+                            lastNotifiedPlaying = isPlaying
+                            lastNotifiedTitle = currentTitle
+                            lastNotifiedChannel = currentChannel
                             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                             notificationManager.notify(NOTIFICATION_ID, buildNotification())
                         }
                     }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } catch (_: Exception) {
             }
         }
     }
@@ -197,14 +204,18 @@ class PhantomMediaService : Service() {
             .putString(MediaMetadata.METADATA_KEY_ARTIST, currentChannel)
             .putLong(MediaMetadata.METADATA_KEY_DURATION, currentDurationMs)
 
-        if (bitmap != null) {
+        if (bitmap != null && !bitmap.isRecycled) {
             metadataBuilder.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, bitmap)
-            metadataBuilder.putBitmap(MediaMetadata.METADATA_KEY_ART, bitmap)
         }
         mediaSession?.setMetadata(metadataBuilder.build())
     }
 
-    fun updatePlaybackState(playing: Boolean, currentPositionMs: Long = -1L) {
+    fun updatePlaybackState(playing: Boolean, currentPositionMs: Long = -1L, forceNotify: Boolean = false) {
+        val stateChanged = (lastNotifiedPlaying != playing) ||
+            (lastNotifiedTitle != currentTitle) ||
+            (lastNotifiedChannel != currentChannel) ||
+            forceNotify
+
         isPlaying = playing
         if (currentPositionMs >= 0L) {
             this.currentPositionMs = currentPositionMs
@@ -230,8 +241,13 @@ class PhantomMediaService : Service() {
             .build()
         mediaSession?.setPlaybackState(playbackState)
 
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID, buildNotification())
+        if (stateChanged) {
+            lastNotifiedPlaying = playing
+            lastNotifiedTitle = currentTitle
+            lastNotifiedChannel = currentChannel
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify(NOTIFICATION_ID, buildNotification())
+        }
     }
 
     private fun startForegroundCompat(notification: Notification) {
