@@ -17,31 +17,9 @@ import java.util.concurrent.atomic.AtomicLong
 object PhantomMemoryOptimizer {
 
     private const val MIN_TRIM_INTERVAL_MS = 1500L
-    private const val TRIM_LEVEL_COMPLETE = 80
-    private const val TRIM_LEVEL_UI_HIDDEN = ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
 
     private val optimizerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val lastTrimTimestampMs = AtomicLong(0L)
-
-    private val windowManagerInstance: Any? by lazy {
-        runCatching {
-            val clazz = Class.forName("android.view.WindowManagerGlobal")
-            val getInstance = clazz.getDeclaredMethod("getInstance")
-            getInstance.isAccessible = true
-            getInstance.invoke(null)
-        }.getOrNull()
-    }
-
-    private val windowManagerTrimMethod: Method? by lazy {
-        runCatching {
-            windowManagerInstance?.javaClass?.getDeclaredMethod(
-                "trimMemory",
-                Int::class.javaPrimitiveType
-            )?.apply {
-                isAccessible = true
-            }
-        }.getOrNull()
-    }
 
     private val vmRuntimeInstance: Any? by lazy {
         runCatching {
@@ -86,29 +64,19 @@ object PhantomMemoryOptimizer {
 
         optimizerScope.launch {
             runCatching {
-                PhantomRenderEngine.clearCache()
-                StoryboardHelper.clearCache()
                 ChannelAvatarCache.trim()
-                appContext.imageLoader.memoryCache?.let { cache ->
-                    if (aggressiveGraphicsPurge) {
-                        cache.clear()
-                    } else {
-                        appContext.imageLoader.trimMemory( ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)
-                    }
+                if (aggressiveGraphicsPurge) {
+                    PhantomRenderEngine.clearCache()
+                    StoryboardHelper.clearCache()
+                    appContext.imageLoader.trimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)
                 }
             }
 
-            runCatching {
-                val trimLevel = if (aggressiveGraphicsPurge) TRIM_LEVEL_COMPLETE else TRIM_LEVEL_UI_HIDDEN
-                windowManagerTrimMethod?.invoke(windowManagerInstance, trimLevel)
-            }
-
-            runCatching {
-                if (vmRequestGcMethod != null) {
-                    vmRequestGcMethod?.invoke(vmRuntimeInstance)
-                } else {
-                    System.runFinalization()
-                    Runtime.getRuntime().gc()
+            if (aggressiveGraphicsPurge) {
+                runCatching {
+                    if (vmRequestGcMethod != null) {
+                        vmRequestGcMethod?.invoke(vmRuntimeInstance)
+                    }
                 }
             }
         }

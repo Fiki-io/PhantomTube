@@ -93,9 +93,8 @@ fun BoxScope.PlayerPortraitSheetContent(
             .fillMaxSize()
             .graphicsLayer {
                 val progress = sheetProgressProvider()
-                val drag = dragOffsetProvider()
-                val contentAlpha = (progress * (1f - (drag / 90f) * 1.5f)).coerceIn(0f, 1f)
-                translationY = (1f - progress) * screenHeightPx + drag
+                val contentAlpha = (progress / 0.25f).coerceIn(0f, 1f)
+                translationY = (1f - progress) * screenHeightPx
                 alpha = contentAlpha
             }
             .statusBarsPadding()
@@ -240,9 +239,8 @@ fun BoxScope.PlayerPortraitSheetContent(
                 .align(Alignment.BottomCenter)
                 .graphicsLayer {
                     val progress = sheetProgressProvider()
-                    val drag = dragOffsetProvider()
-                    translationY = (1f - progress) * screenHeightPx + drag
-                    alpha = (progress * (1f - (drag / 90f) * 1.5f)).coerceIn(0f, 1f)
+                    translationY = (1f - progress) * screenHeightPx
+                    alpha = (progress / 0.25f).coerceIn(0f, 1f)
                 }
                 .zIndex(4f)
                 .navigationBarsPadding()

@@ -869,6 +869,7 @@ fun PlayerScreen(
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx().coerceAtLeast(1f) }
 
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var portraitDragPx by remember { mutableFloatStateOf(0f) }
     val animatedDragOffset by animateFloatAsState(
         targetValue = dragOffsetY,
         animationSpec = spring(
@@ -881,24 +882,15 @@ fun PlayerScreen(
     val haptic = LocalHapticFeedback.current
     var hasTriggeredHaptic by remember { mutableStateOf(false) }
 
-    LaunchedEffect(dragOffsetY) {
-        val threshold = if (isFullscreen) 80f else 180f
-        if (dragOffsetY > threshold && !hasTriggeredHaptic) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            hasTriggeredHaptic = true
-        } else if (dragOffsetY == 0f) {
-            hasTriggeredHaptic = false
-        }
-    }
-
     val fullSheetProgress = remember { Animatable(if (isMinimized) 0f else 1f) }
     val isSheetRendered by remember {
-        derivedStateOf { !isMinimized || fullSheetProgress.value > 0.01f }
+        derivedStateOf { !isMinimized || fullSheetProgress.value > 0.005f }
     }
 
     LaunchedEffect(isMinimized) {
         if (!isMinimized) {
             dragOffsetY = 0f
+            portraitDragPx = 0f
             if (!isAudioOnly) {
                 val restoreQ = playerState.currentQuality.ifBlank {
                     repository.preferences?.defaultQuality?.value ?: "auto"
@@ -918,59 +910,90 @@ fun PlayerScreen(
             showCommentsSheet = false
             showSettingsSheet = false
             showDownloadSheet = false
-            // Handoff dragOffsetY directly into fullSheetProgress to prevent double-offset jump
-            if (dragOffsetY > 0f && screenHeightPx > 0f) {
-                val handoffProgress = (1f - (dragOffsetY / screenHeightPx)).coerceIn(0f, 1f)
-                dragOffsetY = 0f
-                fullSheetProgress.snapTo(handoffProgress)
-            }
+            dragOffsetY = 0f
+            portraitDragPx = 0f
             fullSheetProgress.animateTo(
                 targetValue = 0f,
                 animationSpec = IosSpringSpecs.Gentle
             )
-            controller.setVideoSurfaceActive(false)
         }
     }
 
     val lazyListState = rememberLazyListState()
 
     val dragModifier = if (!isMinimized) {
-        Modifier.pointerInput(isFullscreen) {
+        Modifier.pointerInput(isFullscreen, screenHeightPx) {
             detectVerticalDragGestures(
                 onVerticalDrag = { change, dragAmount ->
-                    if (dragAmount > 0f || dragOffsetY > 0f) {
-                        change.consume()
-                        dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
-                        if (dragOffsetY > 15f) {
-                            showMixSheet = false
-                            showDescriptionSheet = false
-                            showCommentsSheet = false
-                            showSettingsSheet = false
+                    if (isFullscreen) {
+                        if (dragAmount > 0f || dragOffsetY > 0f) {
+                            change.consume()
+                            dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                            if (dragOffsetY > 80f && !hasTriggeredHaptic) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                hasTriggeredHaptic = true
+                            }
+                        }
+                    } else {
+                        if (dragAmount > 0f || portraitDragPx > 0f) {
+                            change.consume()
+                            portraitDragPx = (portraitDragPx + dragAmount).coerceIn(0f, screenHeightPx)
+                            val targetProgress = (1f - (portraitDragPx / screenHeightPx)).coerceIn(0f, 1f)
+                            scope.launch {
+                                fullSheetProgress.snapTo(targetProgress)
+                            }
+                            if (portraitDragPx > 15f) {
+                                showMixSheet = false
+                                showDescriptionSheet = false
+                                showCommentsSheet = false
+                                showSettingsSheet = false
+                            }
+                            if (portraitDragPx > 180f && !hasTriggeredHaptic) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                hasTriggeredHaptic = true
+                            }
                         }
                     }
                 },
                 onDragEnd = {
+                    val triggeredFullscreenDrag = dragOffsetY
+                    val triggeredPortraitDrag = portraitDragPx
+                    dragOffsetY = 0f
+                    portraitDragPx = 0f
+                    hasTriggeredHaptic = false
                     if (isFullscreen) {
-                        if (dragOffsetY > 80f) {
-                            dragOffsetY = 0f
+                        if (triggeredFullscreenDrag > 80f) {
                             exitFullscreenToPortrait()
-                        } else {
-                            dragOffsetY = 0f
                         }
                     } else {
-                        if (dragOffsetY > 180f) {
+                        if (triggeredPortraitDrag > 180f) {
                             showMixSheet = false
                             showDescriptionSheet = false
                             showCommentsSheet = false
                             showSettingsSheet = false
                             onMinimize()
                         } else {
-                            dragOffsetY = 0f
+                            scope.launch {
+                                fullSheetProgress.animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = IosSpringSpecs.Gentle
+                                )
+                            }
                         }
                     }
                 },
                 onDragCancel = {
                     dragOffsetY = 0f
+                    portraitDragPx = 0f
+                    hasTriggeredHaptic = false
+                    if (!isFullscreen && !isMinimized) {
+                        scope.launch {
+                            fullSheetProgress.animateTo(
+                                targetValue = 1f,
+                                animationSpec = IosSpringSpecs.Gentle
+                            )
+                        }
+                    }
                 }
             )
         }
@@ -1055,7 +1078,7 @@ fun PlayerScreen(
         }
     }
 
-    val effectiveDragOffsetProvider = { if (isMinimized) 0f else animatedDragOffset }
+    val effectiveDragOffsetProvider = { if (isFullscreen && !isMinimized) animatedDragOffset else 0f }
 
     Box(
         modifier = if (!isSheetRendered) {
@@ -1066,11 +1089,10 @@ fun PlayerScreen(
                 .drawBehind {
                     val progress = fullSheetProgress.value
                     val drag = effectiveDragOffsetProvider()
-                    val dragProg = (drag / 220f).coerceIn(0f, 1f)
                     val scrimAlpha = if (isFullscreen) {
                         (1f - (drag / 120f)).coerceIn(0f, 0.95f)
                     } else {
-                        (progress * (1f - dragProg) * 0.78f).coerceIn(0f, 0.78f)
+                        (progress * 0.78f).coerceIn(0f, 0.78f)
                     }
                     if (scrimAlpha > 0f) {
                         drawRect(ObsidianDark.copy(alpha = scrimAlpha))

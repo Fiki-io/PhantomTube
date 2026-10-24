@@ -147,7 +147,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                LaunchedEffect(currentTab, isPlayerMinimized, activeChannelId, isSettingsOpen, isDownloadsOpen) {
+                LaunchedEffect(currentTab, activeChannelId, isSettingsOpen, isDownloadsOpen) {
                     com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
                         context = this@MainActivity,
                         aggressiveGraphicsPurge = false

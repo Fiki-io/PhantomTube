@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -75,8 +77,7 @@ fun BoxScope.PlayerAmbientBackdrop(
             .statusBarsPadding()
             .graphicsLayer {
                 val progress = sheetProgressProvider()
-                val dragProg = (dragOffsetProvider() / 220f).coerceIn(0f, 1f)
-                alpha = (progress * (1f - dragProg * 2f)).coerceIn(0f, 1f)
+                alpha = ((progress - 0.92f) / 0.08f).coerceIn(0f, 1f)
             }
             .background(SystemStatusBarColor)
     )
@@ -88,16 +89,9 @@ fun BoxScope.PlayerAmbientBackdrop(
             .statusBarsPadding()
             .graphicsLayer {
                 val progress = sheetProgressProvider()
-                val drag = dragOffsetProvider()
-                val isTransitioning = progress < 0.99f || drag > 1f
                 val sheetOff = (1f - progress) * screenHeightPx
-                translationY = sheetOff + drag
-                if (isTransitioning) {
-                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                    clip = true
-                } else {
-                    clip = false
-                }
+                translationY = sheetOff
+                alpha = (progress / 0.25f).coerceIn(0f, 1f)
             }
             .background(ObsidianDark)
     )
@@ -110,10 +104,9 @@ fun BoxScope.PlayerAmbientBackdrop(
             .statusBarsPadding()
             .graphicsLayer {
                 val progress = sheetProgressProvider()
-                val drag = dragOffsetProvider()
-                val dragProg = (drag / 220f).coerceIn(0f, 1f)
-                translationY = (1f - progress) * screenHeightPx + drag
-                alpha = (progress * (1f - dragProg) * 0.90f).coerceIn(0f, 1f)
+                val sheetAlpha = (progress / 0.25f).coerceIn(0f, 1f)
+                translationY = (1f - progress) * screenHeightPx
+                alpha = (sheetAlpha * 0.90f).coerceIn(0f, 1f)
                 compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
             }
             .align(Alignment.TopCenter)
@@ -223,11 +216,7 @@ fun BoxScope.PlayerVideoViewportBox(
     var isControlsLocked by remember(video.id) { mutableStateOf(false) }
 
     val videoBoxModifier = when {
-        !isSheetRendered -> Modifier
-            .size(1.dp)
-            .alpha(0.01f)
-            .align(Alignment.TopStart)
-        isFullscreen -> Modifier
+        isFullscreen && isSheetRendered -> Modifier
             .fillMaxSize()
             .graphicsLayer {
                 val drag = dragOffsetProvider()
@@ -246,21 +235,20 @@ fun BoxScope.PlayerVideoViewportBox(
         else -> Modifier
             .fillMaxWidth()
             .statusBarsPadding()
+            .offset {
+                IntOffset(0, if (isSheetRendered) 0 else (screenHeightPx.toInt() * 2))
+            }
             .graphicsLayer {
                 val progress = sheetProgressProvider()
-                val drag = dragOffsetProvider()
-                val isTransitioning = progress < 0.99f || drag > 1f
-                val dragProg = (drag / 220f).coerceIn(0f, 1f)
-                val dragScale = 1f - (dragProg * 0.04f)
-                scaleX = dragScale
-                scaleY = dragScale
-                translationY = (1f - progress) * screenHeightPx + drag
-                alpha = (progress * 1.15f).coerceIn(0f, 1f)
-                if (isTransitioning) {
-                    shape = RoundedCornerShape(14.dp)
-                    clip = true
+                translationY = if (isSheetRendered) {
+                    (1f - progress) * screenHeightPx
                 } else {
-                    clip = false
+                    screenHeightPx * 2f
+                }
+                alpha = if (isSheetRendered) {
+                    (progress * 1.25f).coerceIn(0f, 1f)
+                } else {
+                    0f
                 }
             }
             .aspectRatio(16f / 9f)
@@ -269,14 +257,16 @@ fun BoxScope.PlayerVideoViewportBox(
 
     Box(
         modifier = videoBoxModifier
-            .then(if (isControlsLocked) Modifier else dragModifier)
+            .then(if (isControlsLocked || !isSheetRendered) Modifier else dragModifier)
             .background(Color.Black)
             .onGloballyPositioned { coords ->
-                onViewportMeasured(coords.size.width.toFloat(), coords.size.height.toFloat())
+                if (isSheetRendered) {
+                    onViewportMeasured(coords.size.width.toFloat(), coords.size.height.toFloat())
+                }
             }
             .zIndex(if (isSheetRendered) 10f else 0f)
     ) {
-        val isSurfaceCollapsed = isAudioOnly || !isSheetRendered
+        val isSurfaceCollapsed = isAudioOnly
         Box(
             modifier = if (isSurfaceCollapsed) {
                 Modifier
