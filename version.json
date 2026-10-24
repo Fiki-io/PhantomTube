@@ -1,6 +1,0 @@
-{
-  "versionCode": 4,
-  "versionName": "2.10.1",
-  "downloadUrl": "https://github.com/Fiki-io/Phantom/releases/download/v2.10.1/Phantom-Release-APK.apk",
-  "changelog": "- Rilis v2.10.1\n- Fix rotasi fullscreen landscape otomatis & orientasi sensor\n- Fix infinite scroll beranda dan rekomendasi pemutar\n- Optimasi recomposition Jetpack Compose & isolasi scrubber\n- Penyatuan OkHttpClient pooling dan Coil disk cache\n- Akselerasi query Room Database dengan index\n- Optimasi ekstrem konsumsi RAM (RGB_565, 12% memory ceiling, WebView trim)\n- Pembersihan bloatware & dependensi mati (Media3)\n- Pengurangan ukuran APK dan optimasi R8 passes 5"
-}
