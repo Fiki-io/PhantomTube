@@ -21,22 +21,21 @@ Phantom Tube does not depend on proprietary Google Play Services or MicroG frame
 ## Preview
 
 <p align="center">
-  <img src="screenshots/Screenshot_20261008-191503.jpg" width="160" alt="Home Feed">
-  <img src="screenshots/Screenshot_20261008-191506.jpg" width="160" alt="Video Player">
-  <img src="screenshots/Screenshot_20261008-191509.jpg" width="160" alt="Player Controls">
+  <img src="screenshots/Screenshot_20261024-164918.jpg" width="160" alt="Home Feed">
+  <img src="screenshots/Screenshot_20261024-164921.jpg" width="160" alt="Video Player">
+  <img src="screenshots/Screenshot_20261024-164928.jpg" width="160" alt="Player Controls">
 </p>
 
 <p align="center">
-  <img src="screenshots/Screenshot_20261008-191520.jpg" width="160" alt="Storyboard Scrubber">
-  <img src="screenshots/Screenshot_20261008-191524.jpg" width="160" alt="Comments Sheet">
-  <img src="screenshots/Screenshot_20261008-191531.jpg" width="160" alt="Mix Queue">
+  <img src="screenshots/Screenshot_20261024-164936.jpg" width="160" alt="Storyboard Scrubber">
+  <img src="screenshots/Screenshot_20261024-164941.jpg" width="160" alt="Comments Sheet">
+  <img src="screenshots/Screenshot_20261024-164948.jpg" width="160" alt="Mix Queue">
 </p>
 
 <p align="center">
-  <img src="screenshots/Screenshot_20261008-191544.jpg" width="160" alt="Offline Audio Player">
-  <img src="screenshots/Screenshot_20261008-191549.jpg" width="160" alt="Downloads List">
-  <img src="screenshots/Screenshot_20261008-191552.jpg" width="160" alt="Search Interface">
-  <img src="screenshots/Screenshot_20261008-192812.jpg" width="160" alt="Settings Screen">
+  <img src="screenshots/Screenshot_20261024-164950.jpg" width="160" alt="Offline Audio Player">
+  <img src="screenshots/Screenshot_20261024-165118.jpg" width="160" alt="Downloads List">
+  <img src="screenshots/Screenshot_20261024-165133.jpg" width="160" alt="Search Interface">
 </p>
 
 ---
