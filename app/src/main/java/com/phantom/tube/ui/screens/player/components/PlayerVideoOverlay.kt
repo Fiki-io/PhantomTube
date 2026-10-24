@@ -220,12 +220,12 @@ fun BoxScope.PlayerLockedOverlay(
             ) {
                 Icon(
                     imageVector = Icons.Default.LockOpen,
-                    contentDescription = "Buka Kunci",
+                    contentDescription = stringResource(R.string.player_unlock_screen),
                     tint = YouTubeRed,
                     modifier = Modifier.size(18.dp)
                 )
                 Text(
-                    text = "Layar Terkunci • Ketuk untuk Membuka",
+                    text = stringResource(R.string.player_screen_locked_tap_to_unlock),
                     color = Color.White,
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.Bold
@@ -593,7 +593,7 @@ fun BoxScope.PlayerControlsOverlay(
             ) {
                 PhantomIconButton(
                     icon = Icons.Default.ExpandMore,
-                    contentDescription = "Perkecil Player",
+                    contentDescription = stringResource(R.string.player_minimize),
                     size = 38.dp,
                     iconSize = 24.dp,
                     onClick = onMinimizeOrExitFullscreen
@@ -619,7 +619,7 @@ fun BoxScope.PlayerControlsOverlay(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ClosedCaption,
-                            contentDescription = if (isCaptionsEnabled) "Matikan Teks" else "Hidupkan Teks",
+                            contentDescription = stringResource(if (isCaptionsEnabled) R.string.player_captions_turn_off else R.string.player_captions_turn_on),
                             tint = if (isCaptionsEnabled && hasCaptions) YouTubeRed
                             else if (!hasCaptions) Color.White.copy(alpha = 0.35f)
                             else Color.White.copy(alpha = 0.75f),
@@ -681,9 +681,10 @@ fun BoxScope.PlayerControlsOverlay(
                                 .background(Color(0xFF212121), RoundedCornerShape(12.dp))
                                 .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
                         ) {
-                            val qualityOptions = remember(playerState.availableQualities) {
+                            val autoQualityLabel = stringResource(R.string.settings_quality_auto)
+                            val qualityOptions = remember(playerState.availableQualities, autoQualityLabel) {
                                 if (playerState.availableQualities.isNotEmpty()) {
-                                    val list = mutableListOf(VideoQualityOption("auto", "Otomatis (Disarankan)"))
+                                    val list = mutableListOf(VideoQualityOption("auto", autoQualityLabel))
                                     val availableSet = playerState.availableQualities.toSet()
                                     ALL_STANDARD_QUALITIES.filter { it.code != "auto" && availableSet.contains(it.code) }.forEach {
                                         list.add(it)
@@ -738,7 +739,7 @@ fun BoxScope.PlayerControlsOverlay(
                     ) {
                         Icon(
                             imageVector = if (isZoomToFill) Icons.Default.FitScreen else Icons.Default.CropFree,
-                            contentDescription = if (isZoomToFill) "Rasio Asli" else "Zoom Penuhi Layar",
+                            contentDescription = stringResource(if (isZoomToFill) R.string.player_zoom_original else R.string.player_zoom_fill),
                             tint = if (isZoomToFill) Color.White else Color.White.copy(alpha = 0.65f),
                             modifier = Modifier.size(19.dp)
                         )
@@ -756,7 +757,7 @@ fun BoxScope.PlayerControlsOverlay(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Lock,
-                            contentDescription = "Kunci Layar",
+                            contentDescription = stringResource(R.string.player_lock_screen),
                             tint = Color.White.copy(alpha = 0.75f),
                             modifier = Modifier.size(17.dp)
                         )

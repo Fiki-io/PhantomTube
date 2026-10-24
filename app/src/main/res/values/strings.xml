@@ -396,4 +396,8 @@
     <string name="download_desc_mp4_360">MP4 • Data Saver 360p</string>
     <string name="download_desc_mp4_240">MP4 • Low Quality 240p</string>
     <string name="download_desc_mp4_144">MP4 • Compact Size 144p</string>
+    <string name="player_lock_screen">Lock Screen</string>
+    <string name="player_unlock_screen">Unlock Screen</string>
+    <string name="player_screen_locked_tap_to_unlock">Screen Locked • Tap to Unlock</string>
+    <string name="downloads_shuffle_button">Shuffle</string>
 </resources>

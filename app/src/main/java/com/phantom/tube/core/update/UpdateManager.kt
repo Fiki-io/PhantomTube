@@ -116,7 +116,7 @@ class UpdateManager(
                 UpdateCheckResult.UpToDate
             }
         } catch (e: Exception) {
-            UpdateCheckResult.Error(e.message ?: context.getString(R.string.settings_update_check_failed_toast))
+            UpdateCheckResult.Error(e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName)
         }
     }
 

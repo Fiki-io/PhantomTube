@@ -1222,7 +1222,10 @@ fun PlayerScreen(
             },
             onToggleZoom = {
                 isZoomToFill = !isZoomToFill
-                showNotice(if (isZoomToFill) "Di-zoom untuk memenuhi" else "Asli")
+                showNotice(
+                    if (isZoomToFill) context.getString(R.string.player_zoom_fill)
+                    else context.getString(R.string.player_zoom_original)
+                )
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             },
             onCycleSpeed = {

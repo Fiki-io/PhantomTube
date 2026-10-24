@@ -268,13 +268,13 @@ fun OfflineAudioPlayerSheet(
                         OfflineAudioPlayerManager.toggleShuffle(context)
                         Toast.makeText(
                             context,
-                            if (!isShuffle) "Acak lagu aktif" else "Acak lagu nonaktif",
+                            if (!isShuffle) context.getString(R.string.downloads_shuffle_on) else context.getString(R.string.downloads_shuffle_off),
                             Toast.LENGTH_SHORT
                         ).show()
                     }) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
-                            contentDescription = "Acak",
+                            contentDescription = stringResource(R.string.downloads_shuffle_button),
                             tint = if (isShuffle) YouTubeRed else TextMuted,
                             modifier = Modifier.size(24.dp)
                         )
@@ -287,7 +287,7 @@ fun OfflineAudioPlayerSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipPrevious,
-                            contentDescription = "Lagu Sebelumnya",
+                            contentDescription = stringResource(R.string.player_prev_video),
                             tint = TextPrimary,
                             modifier = Modifier.size(32.dp)
                         )
@@ -304,7 +304,7 @@ fun OfflineAudioPlayerSheet(
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.player_play),
                             tint = Color.White,
                             modifier = Modifier.size(36.dp)
                         )

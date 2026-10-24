@@ -396,4 +396,8 @@
     <string name="download_desc_mp4_360">MP4 • Standar Hemat Kuota</string>
     <string name="download_desc_mp4_240">MP4 • Kualitas Rendah 240p</string>
     <string name="download_desc_mp4_144">MP4 • Sangat Hemat Ruang 144p</string>
+    <string name="player_lock_screen">Kunci Layar</string>
+    <string name="player_unlock_screen">Buka Kunci</string>
+    <string name="player_screen_locked_tap_to_unlock">Layar Terkunci • Ketuk untuk Membuka</string>
+    <string name="downloads_shuffle_button">Acak</string>
 </resources>

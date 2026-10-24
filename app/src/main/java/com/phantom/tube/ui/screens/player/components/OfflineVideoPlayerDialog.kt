@@ -108,7 +108,10 @@ fun OfflineVideoPlayerDialog(
     var isManualLandscape by remember { mutableStateOf(false) }
     val isLandscape = isDeviceLandscape || isManualLandscape
 
-    val preferences = remember(context) { com.phantom.tube.data.settings.PhantomPreferences(context) }
+    val preferences = remember(context) {
+        (context.applicationContext as? com.phantom.tube.PhantomApp)?.preferences
+            ?: com.phantom.tube.data.settings.PhantomPreferences(context.applicationContext)
+    }
     val doubleTapSeekSeconds by preferences.doubleTapSeekSeconds.collectAsState()
 
     var videoViewRef by remember { mutableStateOf<VideoView?>(null) }

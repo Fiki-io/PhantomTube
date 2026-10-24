@@ -180,14 +180,14 @@ class MainActivity : ComponentActivity() {
                             is UpdateCheckResult.UpToDate -> {
                                 Toast.makeText(
                                     this@MainActivity,
-                                    getString(R.string.settings_up_to_date_toast, updateManager.getCurrentVersionName()),
+                                    localizedContext.getString(R.string.settings_up_to_date_toast, updateManager.getCurrentVersionName()),
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
                             is UpdateCheckResult.Error -> {
                                 Toast.makeText(
                                     this@MainActivity,
-                                    getString(R.string.settings_update_check_failed_toast, result.message),
+                                    localizedContext.getString(R.string.settings_update_check_failed_toast, result.message),
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -484,7 +484,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                     } else {
                                         updateDialogState = UpdateDialogState.Error(
-                                            message = getString(R.string.update_dialog_download_failed),
+                                            message = localizedContext.getString(R.string.update_dialog_download_failed),
                                             onRetry = {
                                                 updateDialogState = UpdateDialogState.Available(info)
                                             }

@@ -210,7 +210,7 @@ fun CommentItemRow(
             if (comment.replyCountText.isNotBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "${comment.replyCountText} balasan",
+                    text = stringResource(R.string.player_replies_count, comment.replyCountText),
                     color = Color(0xFF3EA6FF),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold

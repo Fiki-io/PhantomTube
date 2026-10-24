@@ -396,4 +396,8 @@
     <string name="download_desc_mp4_360">MP4 • Экономия трафика 360p</string>
     <string name="download_desc_mp4_240">MP4 • Низкое качество 240p</string>
     <string name="download_desc_mp4_144">MP4 • Минимальный размер 144p</string>
+    <string name="player_lock_screen">Заблокировать экран</string>
+    <string name="player_unlock_screen">Разблокировать экран</string>
+    <string name="player_screen_locked_tap_to_unlock">Экран заблокирован • Нажмите для разблокировки</string>
+    <string name="downloads_shuffle_button">Перемешать</string>
 </resources>

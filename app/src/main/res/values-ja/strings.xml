@@ -396,4 +396,8 @@
     <string name="download_desc_mp4_360">MP4 • データ節約 360p</string>
     <string name="download_desc_mp4_240">MP4 • 低画質 240p</string>
     <string name="download_desc_mp4_144">MP4 • 最小サイズ 144p</string>
+    <string name="player_lock_screen">画面をロック</string>
+    <string name="player_unlock_screen">ロックを解除</string>
+    <string name="player_screen_locked_tap_to_unlock">画面ロック中 • タップして解除</string>
+    <string name="downloads_shuffle_button">シャッフル</string>
 </resources>
