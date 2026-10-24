@@ -146,7 +146,7 @@ class PhantomDatabase private constructor(context: Context) :
         }
 
         override fun getAllHistory(): Flow<List<WatchHistoryEntity>> =
-            observeTable("watch_history") { queryHistory(null) }
+            observeTable("watch_history") { queryHistory(200) }
 
         override suspend fun getRecentWatched(limit: Int): List<WatchHistoryEntity> =
             withContext(Dispatchers.IO) { queryHistory(limit) }

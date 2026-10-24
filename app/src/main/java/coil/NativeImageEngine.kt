@@ -87,12 +87,12 @@ class ImageLoader internal constructor(
 
             val isAvatarUrl = (url.contains("ggpht.com") || url.contains("googleusercontent.com")) && !url.contains("=w")
             val maxW = when {
-                request.targetWidth > 0 -> request.targetWidth.coerceAtMost(320)
+                request.targetWidth > 0 -> request.targetWidth.coerceAtMost(2048)
                 isAvatarUrl -> 88
                 else -> 320
             }
             val maxH = when {
-                request.targetHeight > 0 -> request.targetHeight.coerceAtMost(180)
+                request.targetHeight > 0 -> request.targetHeight.coerceAtMost(2048)
                 isAvatarUrl -> 88
                 else -> 180
             }

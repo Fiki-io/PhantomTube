@@ -388,4 +388,12 @@
     <string name="sponsor_category_outro">Outro</string>
     <string name="sponsor_category_selfpromo">Promo</string>
     <string name="sponsor_category_interaction">Interaction</string>
+    <string name="download_desc_mp3_320">MP3 • Best Studio Quality</string>
+    <string name="download_desc_mp3_256">MP3 • High Quality</string>
+    <string name="download_desc_mp3_128">MP3 • Standard Compact Size</string>
+    <string name="download_desc_mp4_1080">MP4 • High Resolution 1080p</string>
+    <string name="download_desc_mp4_720">MP4 • Clear Resolution 720p</string>
+    <string name="download_desc_mp4_360">MP4 • Data Saver 360p</string>
+    <string name="download_desc_mp4_240">MP4 • Low Quality 240p</string>
+    <string name="download_desc_mp4_144">MP4 • Compact Size 144p</string>
 </resources>

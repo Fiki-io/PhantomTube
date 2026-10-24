@@ -388,4 +388,12 @@
     <string name="sponsor_category_outro">Outro</string>
     <string name="sponsor_category_selfpromo">Promo</string>
     <string name="sponsor_category_interaction">Interaksi</string>
+    <string name="download_desc_mp3_320">MP3 • Kualitas Studio Terbaik</string>
+    <string name="download_desc_mp3_256">MP3 • Kualitas Tinggi</string>
+    <string name="download_desc_mp3_128">MP3 • Standar Hemat Memori</string>
+    <string name="download_desc_mp4_1080">MP4 • Resolusi Tinggi 1080p</string>
+    <string name="download_desc_mp4_720">MP4 • Resolusi Jernih 720p</string>
+    <string name="download_desc_mp4_360">MP4 • Standar Hemat Kuota</string>
+    <string name="download_desc_mp4_240">MP4 • Kualitas Rendah 240p</string>
+    <string name="download_desc_mp4_144">MP4 • Sangat Hemat Ruang 144p</string>
 </resources>

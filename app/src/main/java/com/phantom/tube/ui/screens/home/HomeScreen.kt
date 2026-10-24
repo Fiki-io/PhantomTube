@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -83,10 +84,13 @@ fun HomeScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val pullRefreshState = rememberPullToRefreshState()
-    val watchHistory by repository.getWatchHistory().collectAsState(initial = emptyList())
-    val historyMap = remember(watchHistory) {
-        watchHistory.associate { it.videoId to it.progressFraction }
-    }
+    val historyMap by remember(repository) {
+        repository.getWatchHistory()
+            .map { list ->
+                list.associate { it.videoId to ((it.progressFraction * 50).toInt() / 50f) }
+            }
+            .distinctUntilChanged()
+    }.collectAsState(initial = emptyMap())
     val contentCountry by (repository.preferences?.contentCountry ?: kotlinx.coroutines.flow.MutableStateFlow("ID")).collectAsState()
 
     fun categoryToQuery(category: String, country: String): String {

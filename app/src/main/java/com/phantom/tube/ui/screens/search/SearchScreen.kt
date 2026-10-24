@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -123,10 +124,13 @@ fun SearchScreen(
     val searchListState = remember(lastSearchQuery) { LazyListState() }
 
     val searchHistory by repository.getSearchHistory().collectAsState(initial = emptyList())
-    val watchHistory by repository.getWatchHistory().collectAsState(initial = emptyList())
-    val historyMap = remember(watchHistory) {
-        watchHistory.associate { it.videoId to it.progressFraction }
-    }
+    val historyMap by remember(repository) {
+        repository.getWatchHistory()
+            .map { list ->
+                list.associate { it.videoId to ((it.progressFraction * 50).toInt() / 50f) }
+            }
+            .distinctUntilChanged()
+    }.collectAsState(initial = emptyMap())
 
     // Instant local history matching (0ms latency, always reactive while typing)
     val matchingHistory = remember(searchQuery, searchHistory) {
@@ -483,7 +487,7 @@ fun SearchScreen(
                                         )
                                         Spacer(modifier = Modifier.width(14.dp))
                                         Text(
-                                            text = "Telusuri \"${searchQuery.trim()}\"",
+                                            text = "${stringResource(R.string.search_for_prefix)} \"${searchQuery.trim()}\"",
                                             color = TextPrimary,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Medium,
@@ -542,10 +546,11 @@ fun SearchScreen(
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
+                                                val channelBadge = stringResource(R.string.search_channel_badge)
                                                 val subline = if (!item.channelHandle.isNullOrBlank()) {
-                                                    "${item.channelHandle} • Saluran"
+                                                    "${item.channelHandle} • $channelBadge"
                                                 } else {
-                                                    "Channel • Saluran"
+                                                    channelBadge
                                                 }
                                                 Text(
                                                     text = subline,
@@ -560,7 +565,7 @@ fun SearchScreen(
 
                                             Icon(
                                                 imageVector = Icons.Default.NorthWest,
-                                                contentDescription = "Buka channel",
+                                                contentDescription = stringResource(R.string.search_open_channel),
                                                 tint = TextMuted,
                                                 modifier = Modifier
                                                     .size(16.dp)

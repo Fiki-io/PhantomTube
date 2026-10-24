@@ -85,7 +85,7 @@ object PhantomDownloader {
 
                 val notif = Notification.Builder(context, CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.stat_sys_download)
-                    .setContentTitle("Mengunduh: ${videoTitle.ifBlank { cleanName }}")
+                    .setContentTitle(context.getString(R.string.download_progress_title, videoTitle.ifBlank { cleanName }))
                     .setContentText(progressText)
                     .setProgress(100, percent.coerceIn(0, 100), percent < 0)
                     .setOngoing(true)
@@ -149,7 +149,7 @@ object PhantomDownloader {
             }
 
             if (response == null || !response.isSuccessful) {
-                lastError = Exception("Gagal terhubung ke server unduhan")
+                lastError = Exception(context.getString(R.string.download_error_general))
                 if (attempt < 3) {
                     delay(1200)
                     continue
@@ -159,7 +159,7 @@ object PhantomDownloader {
 
             val body = response.body
             if (body == null) {
-                lastError = Exception("File kosong dari server")
+                lastError = Exception(context.getString(R.string.download_error_general))
                 if (attempt < 3) {
                     delay(1000)
                     continue
@@ -187,10 +187,10 @@ object PhantomDownloader {
                     }
 
                     val uri = context.contentResolver.insert(collection, contentValues)
-                        ?: throw Exception("Gagal membuat entri file di penyimpanan publik")
+                        ?: throw Exception(context.getString(R.string.download_error_general))
 
                     val outputStream: OutputStream = context.contentResolver.openOutputStream(uri)
-                        ?: throw Exception("Gagal membuka aliran penyimpanan")
+                        ?: throw Exception(context.getString(R.string.download_error_general))
 
                     var totalRead = 0L
                     var lastReport = 0L
@@ -298,7 +298,7 @@ object PhantomDownloader {
             }
         }
 
-        Result.failure(lastError ?: Exception("Gagal mengunduh file media"))
+        Result.failure(lastError ?: Exception(context.getString(R.string.download_error_general)))
     }
 
     fun openDownloadedFile(context: Context, fileUriString: String, mimeType: String) {
@@ -308,12 +308,16 @@ object PhantomDownloader {
                 setDataAndType(uri, mimeType)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            val chooser = Intent.createChooser(intent, "Buka file dengan").apply {
+            val chooser = Intent.createChooser(intent, context.getString(R.string.downloads_chooser_play)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(chooser)
         } catch (e: Exception) {
-            android.widget.Toast.makeText(context, "Tidak dapat membuka file: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.downloads_toast_no_external),
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
         }
     }
 }

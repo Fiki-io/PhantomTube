@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,12 +125,12 @@ class MainActivity : ComponentActivity() {
                 LocalConfiguration provides localizedConfig
             ) {
                 PhantomTheme {
-                var currentTab by remember { mutableStateOf(NavTab.HOME) }
-                var activeChannelId by remember { mutableStateOf<String?>(null) }
-                var rememberedChannelId by remember { mutableStateOf("") }
-                var activeChannelTitle by remember { mutableStateOf("") }
-                var isSettingsOpen by remember { mutableStateOf(false) }
-                var isDownloadsOpen by remember { mutableStateOf(false) }
+                var currentTab by rememberSaveable { mutableStateOf(NavTab.HOME) }
+                var activeChannelId by rememberSaveable { mutableStateOf<String?>(null) }
+                var rememberedChannelId by rememberSaveable { mutableStateOf("") }
+                var activeChannelTitle by rememberSaveable { mutableStateOf("") }
+                var isSettingsOpen by rememberSaveable { mutableStateOf(false) }
+                var isDownloadsOpen by rememberSaveable { mutableStateOf(false) }
 
                 LaunchedEffect(pendingDeepLinkChannelId) {
                     val targetCh = pendingDeepLinkChannelId
@@ -167,7 +168,11 @@ class MainActivity : ComponentActivity() {
 
                 fun triggerManualUpdateCheck() {
                     scope.launch {
-                        Toast.makeText(this@MainActivity, "Memeriksa pembaruan...", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@MainActivity,
+                            localizedContext.getString(R.string.settings_checking_update_toast),
+                            Toast.LENGTH_SHORT
+                        ).show()
                         when (val result = updateManager.checkForUpdate()) {
                             is UpdateCheckResult.UpdateAvailable -> {
                                 updateDialogState = UpdateDialogState.Available(result.info)

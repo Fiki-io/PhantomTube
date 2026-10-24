@@ -12,6 +12,7 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Icon
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaMetadata
 import android.media.MediaPlayer
@@ -51,6 +52,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     private var mediaSession: MediaSession? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var progressJob: Job? = null
@@ -133,6 +135,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 // Status shuffle dikelola di OfflineAudioPlayerManager
             }
             ACTION_STOP -> {
+                abandonAudioFocus()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -179,6 +182,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 }
 
                 override fun onStop() {
+                    abandonAudioFocus()
                     this@PhantomOfflineAudioService.stopSelf()
                 }
             })
@@ -190,6 +194,33 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Phantom:OfflineAudioWakeLock")?.apply {
             setReferenceCounted(false)
+        }
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        val am = audioManager ?: return true
+        val req = audioFocusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .build()
+            )
+            .setAcceptsDelayedFocusGain(true)
+            .setOnAudioFocusChangeListener(this)
+            .build()
+            .also { audioFocusRequest = it }
+
+        val res = am.requestAudioFocus(req)
+        return res == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    private fun abandonAudioFocus() {
+        val am = audioManager ?: return
+        audioFocusRequest?.let { req ->
+            try {
+                am.abandonAudioFocusRequest(req)
+            } catch (_: Exception) {}
         }
     }
 
@@ -237,6 +268,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 }
 
                 setOnPreparedListener { mp ->
+                    requestAudioFocus()
+                    mp.setVolume(1.0f, 1.0f)
                     mp.start()
                     val dur = mp.duration.toLong().coerceAtLeast(0L)
                     OfflineAudioPlayerManager.updateDuration(dur)
@@ -281,6 +314,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     private fun resumePlayback() {
         val mp = mediaPlayer ?: return
         if (!mp.isPlaying) {
+            requestAudioFocus()
+            mp.setVolume(1.0f, 1.0f)
             mp.start()
             OfflineAudioPlayerManager.updatePlaybackState(true)
             startProgressTracker()
@@ -328,6 +363,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
             else -> {
                 // Selesai seluruh antrean
                 pausePlayback()
+                abandonAudioFocus()
                 seekTo(0L)
                 return
             }
@@ -562,14 +598,30 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
     override fun onAudioFocusChange(focusChange: Int) {
         when (focusChange) {
-            AudioManager.AUDIOFOCUS_LOSS -> pausePlayback()
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pausePlayback()
-            AudioManager.AUDIOFOCUS_GAIN -> resumePlayback()
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                pausePlayback()
+                abandonAudioFocus()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                pausePlayback()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                try {
+                    mediaPlayer?.setVolume(0.25f, 0.25f)
+                } catch (_: Exception) {}
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                try {
+                    mediaPlayer?.setVolume(1.0f, 1.0f)
+                } catch (_: Exception) {}
+                resumePlayback()
+            }
         }
     }
 
     override fun onDestroy() {
         stopProgressTracker()
+        abandonAudioFocus()
         releasePlayer()
         try {
             if (wakeLock?.isHeld == true) {

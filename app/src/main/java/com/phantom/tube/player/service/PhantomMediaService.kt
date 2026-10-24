@@ -120,6 +120,12 @@ class PhantomMediaService : Service() {
                 override fun onSeekTo(pos: Long) {
                     onSeekAction?.invoke(pos)
                 }
+
+                override fun onStop() {
+                    onPauseAction?.invoke()
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
             })
             isActive = true
         }
@@ -339,8 +345,10 @@ class PhantomMediaService : Service() {
                 "Phantom:PlaybackWakeLock"
             ).apply {
                 setReferenceCounted(false)
-                acquire(3 * 60 * 60 * 1000L) // 3 hours safety timeout
             }
+        }
+        if (wakeLock?.isHeld != true) {
+            wakeLock?.acquire(3 * 60 * 60 * 1000L) // 3 hours safety timeout
         }
     }
 
@@ -363,6 +371,11 @@ class PhantomMediaService : Service() {
             ACTION_PAUSE -> onPauseAction?.invoke()
             ACTION_NEXT -> onNextAction?.invoke()
             ACTION_PREVIOUS -> onPreviousAction?.invoke()
+            ACTION_STOP -> {
+                onPauseAction?.invoke()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
         }
         return START_NOT_STICKY
     }

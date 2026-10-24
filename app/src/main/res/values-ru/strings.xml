@@ -388,4 +388,12 @@
     <string name="sponsor_category_outro">Аутро</string>
     <string name="sponsor_category_selfpromo">Самореклама</string>
     <string name="sponsor_category_interaction">Взаимодействие</string>
+    <string name="download_desc_mp3_320">MP3 • Студийное качество</string>
+    <string name="download_desc_mp3_256">MP3 • Высокое качество</string>
+    <string name="download_desc_mp3_128">MP3 • Стандартный компактный</string>
+    <string name="download_desc_mp4_1080">MP4 • Высокое разрешение 1080p</string>
+    <string name="download_desc_mp4_720">MP4 • Четкое разрешение 720p</string>
+    <string name="download_desc_mp4_360">MP4 • Экономия трафика 360p</string>
+    <string name="download_desc_mp4_240">MP4 • Низкое качество 240p</string>
+    <string name="download_desc_mp4_144">MP4 • Минимальный размер 144p</string>
 </resources>

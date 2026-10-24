@@ -27,7 +27,9 @@ data class StoryboardFrame(
     val frameWidth: Int,
     val frameHeight: Int,
     val cropX: Int,
-    val cropY: Int
+    val cropY: Int,
+    val sheetWidth: Int = frameWidth,
+    val sheetHeight: Int = frameHeight
 )
 
 data class StoryboardData(
@@ -73,7 +75,9 @@ data class StoryboardData(
             frameWidth = level.width,
             frameHeight = level.height,
             cropX = col * level.width,
-            cropY = row * level.height
+            cropY = row * level.height,
+            sheetWidth = (level.width * level.cols).coerceAtLeast(level.width),
+            sheetHeight = (level.height * level.rows).coerceAtLeast(level.height)
         )
     }
 }
@@ -148,6 +152,7 @@ object StoryboardHelper {
             try {
                 val request = ImageRequest.Builder(context)
                     .data(frame.sheetUrl)
+                    .size(frame.sheetWidth, frame.sheetHeight)
                     .bitmapConfig(Bitmap.Config.RGB_565)
                     .allowHardware(false) // Required for Bitmap.createBitmap cropping
                     .build()
@@ -164,10 +169,18 @@ object StoryboardHelper {
         if (sheetBitmap == null || sheetBitmap.isRecycled) return@withContext null
 
         try {
-            val safeX = frame.cropX.coerceIn(0, (sheetBitmap.width - frame.frameWidth).coerceAtLeast(0))
-            val safeY = frame.cropY.coerceIn(0, (sheetBitmap.height - frame.frameHeight).coerceAtLeast(0))
-            val safeW = frame.frameWidth.coerceAtMost(sheetBitmap.width - safeX)
-            val safeH = frame.frameHeight.coerceAtMost(sheetBitmap.height - safeY)
+            val scaleX = if (frame.sheetWidth > 0) sheetBitmap.width.toFloat() / frame.sheetWidth.toFloat() else 1f
+            val scaleY = if (frame.sheetHeight > 0) sheetBitmap.height.toFloat() / frame.sheetHeight.toFloat() else 1f
+
+            val scaledW = (frame.frameWidth * scaleX).toInt().coerceAtLeast(1)
+            val scaledH = (frame.frameHeight * scaleY).toInt().coerceAtLeast(1)
+            val scaledX = (frame.cropX * scaleX).toInt()
+            val scaledY = (frame.cropY * scaleY).toInt()
+
+            val safeX = scaledX.coerceIn(0, (sheetBitmap.width - scaledW).coerceAtLeast(0))
+            val safeY = scaledY.coerceIn(0, (sheetBitmap.height - scaledH).coerceAtLeast(0))
+            val safeW = scaledW.coerceAtMost(sheetBitmap.width - safeX)
+            val safeH = scaledH.coerceAtMost(sheetBitmap.height - safeY)
 
             if (safeW > 0 && safeH > 0) {
                 val cropped = Bitmap.createBitmap(sheetBitmap, safeX, safeY, safeW, safeH)

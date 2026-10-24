@@ -388,4 +388,12 @@
     <string name="sponsor_category_outro">アウトロ</string>
     <string name="sponsor_category_selfpromo">自己宣伝</string>
     <string name="sponsor_category_interaction">高評価・登録のお願い</string>
+    <string name="download_desc_mp3_320">MP3 • 最高スタジオ音質</string>
+    <string name="download_desc_mp3_256">MP3 • 高音質</string>
+    <string name="download_desc_mp3_128">MP3 • 標準・省容量</string>
+    <string name="download_desc_mp4_1080">MP4 • 高解像度 1080p</string>
+    <string name="download_desc_mp4_720">MP4 • クリアな解像度 720p</string>
+    <string name="download_desc_mp4_360">MP4 • データ節約 360p</string>
+    <string name="download_desc_mp4_240">MP4 • 低画質 240p</string>
+    <string name="download_desc_mp4_144">MP4 • 最小サイズ 144p</string>
 </resources>

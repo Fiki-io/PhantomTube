@@ -376,7 +376,6 @@ fun SettingsScreen(
             onSelect = { newLang ->
                 if (newLang != appLanguage) {
                     preferences.setAppLanguage(newLang)
-                    context.findActivity()?.recreate()
                 }
             },
             onDismiss = { showLanguageDialog = false }

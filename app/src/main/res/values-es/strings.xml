@@ -388,4 +388,12 @@
     <string name="sponsor_category_outro">Outro</string>
     <string name="sponsor_category_selfpromo">Promoción</string>
     <string name="sponsor_category_interaction">Interacción</string>
+    <string name="download_desc_mp3_320">MP3 • Mejor calidad de estudio</string>
+    <string name="download_desc_mp3_256">MP3 • Alta calidad</string>
+    <string name="download_desc_mp3_128">MP3 • Tamaño compacto estándar</string>
+    <string name="download_desc_mp4_1080">MP4 • Alta resolución 1080p</string>
+    <string name="download_desc_mp4_720">MP4 • Resolución nítida 720p</string>
+    <string name="download_desc_mp4_360">MP4 • Ahorro de datos 360p</string>
+    <string name="download_desc_mp4_240">MP4 • Baja calidad 240p</string>
+    <string name="download_desc_mp4_144">MP4 • Tamaño mínimo 144p</string>
 </resources>

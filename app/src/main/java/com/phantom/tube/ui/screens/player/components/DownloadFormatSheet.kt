@@ -93,14 +93,14 @@ fun DownloadFormatSheet(
     var selectedFormatTab by remember { mutableIntStateOf(0) } // 0 = Audio (MP3), 1 = Video (MP4)
     var downloadState by remember { mutableStateOf<DownloadState>(DownloadState.Idle) }
 
-    val audioQualities = remember { PhantomDownloadEngine.getAudioQualities() }
-    val videoQualities = remember { PhantomDownloadEngine.getVideoQualities() }
+    val audioQualities = remember(context) { PhantomDownloadEngine.getAudioQualities(context) }
+    val videoQualities = remember(context) { PhantomDownloadEngine.getVideoQualities(context) }
 
     fun triggerDownload(quality: AvailableQuality) {
         downloadState = DownloadState.Converting(quality.label)
         scope.launch {
             Toast.makeText(context, context.getString(R.string.download_prep_toast, quality.label), Toast.LENGTH_SHORT).show()
-            val convertResult = PhantomDownloadEngine.convertMedia(video.id, quality)
+            val convertResult = PhantomDownloadEngine.convertMedia(video.id, quality, context)
             convertResult.onSuccess { dlRes ->
                 downloadState = DownloadState.Downloading(quality.label, 0, 0L, 0L)
                 val downloadRes = PhantomDownloader.downloadMedia(
