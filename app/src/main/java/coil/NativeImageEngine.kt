@@ -58,6 +58,9 @@ class ImageLoader internal constructor(
             level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
         ) {
             bitmapRamCache.evictAll()
+            val cacheDir = diskCache?.directory ?: File(context.cacheDir, "image_cache")
+            val maxBytes = diskCache?.maxSizeBytes ?: (16L * 1024 * 1024)
+            pruneDiskCache(cacheDir, maxBytes)
         } else if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE) {
             bitmapRamCache.trimToSize(bitmapRamCache.maxSize() / 2)
         }
@@ -115,6 +118,8 @@ class ImageLoader internal constructor(
         }
     }
 
+    private val diskWriteCount = java.util.concurrent.atomic.AtomicInteger(0)
+
     private fun readFromDiskOrNetwork(url: String): ByteArray? {
         val cacheDir = diskCache?.directory ?: File(context.cacheDir, "image_cache")
         if (!cacheDir.exists()) {
@@ -123,6 +128,7 @@ class ImageLoader internal constructor(
         val diskFile = File(cacheDir, sha256Hex(url))
         if (diskFile.exists() && diskFile.length() > 64L) {
             try {
+                diskFile.setLastModified(System.currentTimeMillis())
                 return diskFile.readBytes()
             } catch (_: Exception) {
             }
@@ -140,9 +146,36 @@ class ImageLoader internal constructor(
             if (bytes.isEmpty()) return null
             try {
                 diskFile.writeBytes(bytes)
+                val maxBytes = diskCache?.maxSizeBytes ?: (16L * 1024 * 1024)
+                pruneDiskCacheIfNeeded(cacheDir, maxBytes)
             } catch (_: Exception) {
             }
             bytes
+        }
+    }
+
+    private fun pruneDiskCacheIfNeeded(cacheDir: File, maxSizeBytes: Long) {
+        if (diskWriteCount.incrementAndGet() % 25 != 0) return
+        pruneDiskCache(cacheDir, maxSizeBytes)
+    }
+
+    private fun pruneDiskCache(cacheDir: File, maxSizeBytes: Long) {
+        try {
+            val files = cacheDir.listFiles() ?: return
+            var totalSize = files.sumOf { it.length() }
+            if (totalSize <= maxSizeBytes) return
+
+            val sortedFiles = files.sortedBy { it.lastModified() }
+            val targetSize = (maxSizeBytes * 0.75).toLong()
+
+            for (file in sortedFiles) {
+                val len = file.length()
+                if (file.delete()) {
+                    totalSize -= len
+                    if (totalSize <= targetSize) break
+                }
+            }
+        } catch (_: Exception) {
         }
     }
 

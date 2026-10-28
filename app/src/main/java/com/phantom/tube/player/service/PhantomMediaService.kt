@@ -11,6 +11,9 @@ import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Icon
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
@@ -31,11 +34,14 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class PhantomMediaService : Service() {
+class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     private val binder = LocalBinder()
     private var mediaSession: MediaSession? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var resumeOnFocusGain: Boolean = false
     private var currentTitle: String = "Phantom Player"
     private var currentChannel: String = ""
     private var isPlaying: Boolean = false
@@ -78,6 +84,7 @@ class PhantomMediaService : Service() {
             com.phantom.tube.player.offline.OfflineAudioPlayerManager.stop(this)
         } catch (_: Exception) {}
 
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         createNotificationChannel()
         setupMediaSession()
         startForegroundCompat(buildNotification())
@@ -227,9 +234,13 @@ class PhantomMediaService : Service() {
             this.currentPositionMs = currentPositionMs
         }
         if (playing) {
+            requestAudioFocus()
             acquireWakeLock()
         } else {
             releaseWakeLock()
+            if (!resumeOnFocusGain) {
+                abandonAudioFocus()
+            }
         }
 
         val state = if (playing) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
@@ -380,7 +391,68 @@ class PhantomMediaService : Service() {
         return START_NOT_STICKY
     }
 
+    private fun requestAudioFocus(): Boolean {
+        val am = audioManager ?: return true
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val req = audioFocusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .build()
+                )
+                .setAcceptsDelayedFocusGain(true)
+                .setOnAudioFocusChangeListener(this)
+                .build()
+                .also { audioFocusRequest = it }
+            am.requestAudioFocus(req) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            am.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        val am = audioManager ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { req ->
+                try {
+                    am.abandonAudioFocusRequest(req)
+                } catch (_: Exception) {}
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            try {
+                am.abandonAudioFocus(this)
+            } catch (_: Exception) {}
+        }
+    }
+
+    override fun onAudioFocusChange(focusChange: Int) {
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                resumeOnFocusGain = false
+                onPauseAction?.invoke()
+                abandonAudioFocus()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                if (isPlaying) {
+                    resumeOnFocusGain = true
+                    onPauseAction?.invoke()
+                }
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (resumeOnFocusGain) {
+                    resumeOnFocusGain = false
+                    onPlayAction?.invoke()
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
+        abandonAudioFocus()
         serviceScope.cancel()
         currentBitmap = null
         releaseWakeLock()

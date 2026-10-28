@@ -13,8 +13,14 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import com.phantom.tube.PhantomApp
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -29,6 +35,99 @@ import java.util.concurrent.TimeUnit
 object PhantomDownloader {
 
     private const val CHANNEL_ID = "phantom_downloads"
+
+    private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val _downloadStates = MutableStateFlow<Map<String, DownloadState>>(emptyMap())
+    val downloadStates: StateFlow<Map<String, DownloadState>> = _downloadStates.asStateFlow()
+
+    fun getDownloadState(videoId: String): DownloadState {
+        return _downloadStates.value[videoId] ?: DownloadState.Idle
+    }
+
+    fun resetDownloadState(videoId: String) {
+        _downloadStates.value = _downloadStates.value - videoId
+    }
+
+    fun enqueueDownload(
+        context: Context,
+        video: com.phantom.tube.data.model.VideoItem,
+        quality: AvailableQuality,
+        repository: com.phantom.tube.data.repository.PhantomRepository
+    ) {
+        val videoId = video.id
+        val appContext = context.applicationContext
+
+        _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Converting(quality.label))
+
+        downloadScope.launch {
+            withContext(Dispatchers.Main) {
+                android.widget.Toast.makeText(
+                    appContext,
+                    appContext.getString(R.string.download_prep_toast, quality.label),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            val convertResult = PhantomDownloadEngine.convertMedia(videoId, quality, appContext)
+            convertResult.onSuccess { dlRes ->
+                _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Downloading(quality.label, 0, 0L, 0L))
+
+                val downloadRes = downloadMedia(
+                    context = appContext,
+                    downloadUrl = dlRes.url,
+                    suggestedFileName = dlRes.filename,
+                    mimeType = dlRes.mimeType,
+                    videoTitle = video.title.ifBlank { dlRes.filename },
+                    onProgress = { percent, downloaded, total ->
+                        _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Downloading(quality.label, percent, downloaded, total))
+                    }
+                )
+
+                downloadRes.onSuccess { fileInfo ->
+                    _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Success(
+                        fileName = fileInfo.fileName,
+                        filePath = fileInfo.filePath,
+                        fileUri = fileInfo.fileUri
+                    ))
+
+                    val entity = com.phantom.tube.core.database.DownloadEntity(
+                        id = "${videoId}_${quality.formatType}_${quality.qualityValue}",
+                        videoId = videoId,
+                        title = video.title.ifBlank { fileInfo.fileName },
+                        channelTitle = video.channelTitle,
+                        thumbnailUrl = video.thumbnailUrl,
+                        format = if (quality.formatType == "audio") "MP3" else "MP4",
+                        qualityLabel = quality.label,
+                        fileName = fileInfo.fileName,
+                        fileUri = fileInfo.fileUri,
+                        filePath = fileInfo.filePath,
+                        fileSize = fileInfo.fileSize
+                    )
+                    repository.saveDownload(entity)
+
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            appContext,
+                            appContext.getString(R.string.download_saved_toast, fileInfo.filePath),
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }.onFailure { dlErr ->
+                    val msg = dlErr.message ?: appContext.getString(R.string.download_error_general)
+                    _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Error(msg))
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(appContext, msg, android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+            }.onFailure { convErr ->
+                val msg = convErr.message ?: appContext.getString(R.string.download_error_convert)
+                _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Error(msg))
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(appContext, msg, android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     private val httpClient: OkHttpClient by lazy {
         (PhantomApp.sharedClientInstance?.newBuilder() ?: OkHttpClient.Builder())
@@ -189,48 +288,58 @@ object PhantomDownloader {
                     val uri = context.contentResolver.insert(collection, contentValues)
                         ?: throw Exception(context.getString(R.string.download_error_general))
 
-                    val outputStream: OutputStream = context.contentResolver.openOutputStream(uri)
-                        ?: throw Exception(context.getString(R.string.download_error_general))
+                    var isSuccess = false
+                    try {
+                        val outputStream: OutputStream = context.contentResolver.openOutputStream(uri)
+                            ?: throw Exception(context.getString(R.string.download_error_general))
 
-                    var totalRead = 0L
-                    var lastReport = 0L
-                    val buffer = ByteArray(32 * 1024)
-                    var bytesRead: Int
+                        var totalRead = 0L
+                        var lastReport = 0L
+                        val buffer = ByteArray(32 * 1024)
+                        var bytesRead: Int
 
-                    outputStream.use { out ->
-                        body.byteStream().use { inStream ->
-                            while (inStream.read(buffer).also { bytesRead = it } != -1) {
-                                out.write(buffer, 0, bytesRead)
-                                totalRead += bytesRead
-                                val now = System.currentTimeMillis()
-                                if (now - lastReport > 250 || totalRead == totalBytes) {
-                                    lastReport = now
-                                    val percent = if (totalBytes > 0) ((totalRead * 100) / totalBytes).toInt() else -1
-                                    onProgress(percent, totalRead, totalBytes)
-                                    updateNotification(percent, totalRead, totalBytes)
+                        outputStream.use { out ->
+                            body.byteStream().use { inStream ->
+                                while (inStream.read(buffer).also { bytesRead = it } != -1) {
+                                    out.write(buffer, 0, bytesRead)
+                                    totalRead += bytesRead
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastReport > 250 || totalRead == totalBytes) {
+                                        lastReport = now
+                                        val percent = if (totalBytes > 0) ((totalRead * 100) / totalBytes).toInt() else -1
+                                        onProgress(percent, totalRead, totalBytes)
+                                        updateNotification(percent, totalRead, totalBytes)
+                                    }
                                 }
+                                out.flush()
                             }
-                            out.flush()
+                        }
+
+                        // Lepaskan pending agar langsung terdeteksi semua aplikasi eksternal
+                        contentValues.clear()
+                        contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                        context.contentResolver.update(uri, contentValues, null, null)
+
+                        val displayPath = "$relativeSubfolder/$cleanName"
+                        showCompletedNotification(uri, displayPath)
+                        isSuccess = true
+
+                        return@withContext Result.success(
+                            DownloadedFileInfo(
+                                fileName = cleanName,
+                                fileUri = uri.toString(),
+                                filePath = displayPath,
+                                fileSize = totalRead,
+                                mimeType = mimeType
+                            )
+                        )
+                    } finally {
+                        if (!isSuccess) {
+                            try {
+                                context.contentResolver.delete(uri, null, null)
+                            } catch (_: Exception) {}
                         }
                     }
-
-                    // Lepaskan pending agar langsung terdeteksi semua aplikasi eksternal
-                    contentValues.clear()
-                    contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                    context.contentResolver.update(uri, contentValues, null, null)
-
-                    val displayPath = "$relativeSubfolder/$cleanName"
-                    showCompletedNotification(uri, displayPath)
-
-                    return@withContext Result.success(
-                        DownloadedFileInfo(
-                            fileName = cleanName,
-                            fileUri = uri.toString(),
-                            filePath = displayPath,
-                            fileSize = totalRead,
-                            mimeType = mimeType
-                        )
-                    )
                 } else {
                     // Fallback untuk Android 8.0 - 9.0 (API 26 - 28)
                     val baseDir = Environment.getExternalStoragePublicDirectory(
@@ -240,50 +349,60 @@ object PhantomDownloader {
                     if (!targetDir.exists()) targetDir.mkdirs()
 
                     val targetFile = File(targetDir, cleanName)
-                    val outputStream = FileOutputStream(targetFile)
+                    var isSuccess = false
+                    try {
+                        val outputStream = FileOutputStream(targetFile)
 
-                    var totalRead = 0L
-                    var lastReport = 0L
-                    val buffer = ByteArray(32 * 1024)
-                    var bytesRead: Int
+                        var totalRead = 0L
+                        var lastReport = 0L
+                        val buffer = ByteArray(32 * 1024)
+                        var bytesRead: Int
 
-                    outputStream.use { out ->
-                        body.byteStream().use { inStream ->
-                            while (inStream.read(buffer).also { bytesRead = it } != -1) {
-                                out.write(buffer, 0, bytesRead)
-                                totalRead += bytesRead
-                                val now = System.currentTimeMillis()
-                                if (now - lastReport > 250 || totalRead == totalBytes) {
-                                    lastReport = now
-                                    val percent = if (totalBytes > 0) ((totalRead * 100) / totalBytes).toInt() else -1
-                                    onProgress(percent, totalRead, totalBytes)
-                                    updateNotification(percent, totalRead, totalBytes)
+                        outputStream.use { out ->
+                            body.byteStream().use { inStream ->
+                                while (inStream.read(buffer).also { bytesRead = it } != -1) {
+                                    out.write(buffer, 0, bytesRead)
+                                    totalRead += bytesRead
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastReport > 250 || totalRead == totalBytes) {
+                                        lastReport = now
+                                        val percent = if (totalBytes > 0) ((totalRead * 100) / totalBytes).toInt() else -1
+                                        onProgress(percent, totalRead, totalBytes)
+                                        updateNotification(percent, totalRead, totalBytes)
+                                    }
                                 }
+                                out.flush()
                             }
-                            out.flush()
+                        }
+
+                        val fileUri = Uri.fromFile(targetFile)
+                        MediaScannerConnection.scanFile(
+                            context,
+                            arrayOf(targetFile.absolutePath),
+                            arrayOf(mimeType),
+                            null
+                        )
+
+                        val displayPath = targetFile.absolutePath
+                        showCompletedNotification(fileUri, displayPath)
+                        isSuccess = true
+
+                        return@withContext Result.success(
+                            DownloadedFileInfo(
+                                fileName = cleanName,
+                                fileUri = fileUri.toString(),
+                                filePath = displayPath,
+                                fileSize = totalRead,
+                                mimeType = mimeType
+                            )
+                        )
+                    } finally {
+                        if (!isSuccess && targetFile.exists()) {
+                            try {
+                                targetFile.delete()
+                            } catch (_: Exception) {}
                         }
                     }
-
-                    val fileUri = Uri.fromFile(targetFile)
-                    MediaScannerConnection.scanFile(
-                        context,
-                        arrayOf(targetFile.absolutePath),
-                        arrayOf(mimeType),
-                        null
-                    )
-
-                    val displayPath = targetFile.absolutePath
-                    showCompletedNotification(fileUri, displayPath)
-
-                    return@withContext Result.success(
-                        DownloadedFileInfo(
-                            fileName = cleanName,
-                            fileUri = fileUri.toString(),
-                            filePath = displayPath,
-                            fileSize = totalRead,
-                            mimeType = mimeType
-                        )
-                    )
                 }
             } catch (e: Exception) {
                 lastError = e
@@ -298,6 +417,9 @@ object PhantomDownloader {
             }
         }
 
+        try {
+            notificationManager?.cancel(notificationId)
+        } catch (_: Exception) {}
         Result.failure(lastError ?: Exception(context.getString(R.string.download_error_general)))
     }
 

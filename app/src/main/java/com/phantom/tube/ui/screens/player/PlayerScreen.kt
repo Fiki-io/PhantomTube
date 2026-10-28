@@ -177,8 +177,8 @@ fun PlayerScreen(
     var lastSkippedFromSec by remember { mutableFloatStateOf(0f) }
     var lastSkippedCategory by remember { mutableStateOf("sponsor") }
     var lastTargetSkipEndSec by remember { mutableFloatStateOf(0f) }
-    val skippedSegmentUuids = remember(video.id) { mutableSetOf<String>() }
-    val undoneSegmentUuids = remember(video.id) { mutableSetOf<String>() }
+    val skippedSegmentUuids = remember(video.id) { java.util.concurrent.ConcurrentHashMap.newKeySet<String>() }
+    val undoneSegmentUuids = remember(video.id) { java.util.concurrent.ConcurrentHashMap.newKeySet<String>() }
     var appliedDefaultsVideoId by remember { mutableStateOf<String?>(null) }
     var hasSyncedMediaSessionInitialPosition by remember(video.id) { mutableStateOf(false) }
     var lastSyncedMediaSessionSec by remember(video.id) { mutableFloatStateOf(0f) }
@@ -731,7 +731,20 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(video.id, mediaService) {
+    LaunchedEffect(mediaService) {
+        val service = mediaService ?: return@LaunchedEffect
+        val lastPos = (currentPositionSec * 1000).toLong()
+        service.updateMediaInfo(
+            title = currentVideo.title,
+            channel = currentVideo.channelTitle,
+            durationMs = (currentDurationSec * 1000).toLong(),
+            playing = playerState.isPlaying,
+            thumbnailUrl = currentVideo.thumbnailUrl,
+            currentPositionMs = lastPos
+        )
+    }
+
+    LaunchedEffect(video.id) {
         playerState = PlayerState(videoId = video.id)
         appliedDefaultsVideoId = null
         sponsorSegments = emptyList()

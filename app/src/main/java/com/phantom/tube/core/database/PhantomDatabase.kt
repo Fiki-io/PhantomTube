@@ -40,16 +40,13 @@ class PhantomDatabase private constructor(context: Context) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS watch_history")
-        db.execSQL("DROP TABLE IF EXISTS favorites")
-        db.execSQL("DROP TABLE IF EXISTS search_history")
-        db.execSQL("DROP TABLE IF EXISTS subscriptions")
-        db.execSQL("DROP TABLE IF EXISTS downloads")
+        // Non-destructive migration: ensure all expected tables and indexes exist without wiping user data
         createTables(db)
     }
 
     override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        onUpgrade(db, oldVersion, newVersion)
+        // Preserve user data safely on downgrade
+        createTables(db)
     }
 
     private fun createTables(db: SQLiteDatabase) {

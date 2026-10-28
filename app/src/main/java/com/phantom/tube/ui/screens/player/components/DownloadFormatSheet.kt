@@ -1,6 +1,5 @@
 package com.phantom.tube.ui.screens.player.components
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -42,11 +41,11 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,7 +61,6 @@ import androidx.compose.ui.unit.dp
 import com.phantom.tube.R
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.phantom.tube.core.database.DownloadEntity
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
@@ -88,66 +86,21 @@ fun DownloadFormatSheet(
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
     var selectedFormatTab by remember { mutableIntStateOf(0) } // 0 = Audio (MP3), 1 = Video (MP4)
-    var downloadState by remember { mutableStateOf<DownloadState>(DownloadState.Idle) }
+
+    val activeDownloads by PhantomDownloader.downloadStates.collectAsState()
+    val downloadState = activeDownloads[video.id] ?: DownloadState.Idle
 
     val audioQualities = remember(context) { PhantomDownloadEngine.getAudioQualities(context) }
     val videoQualities = remember(context) { PhantomDownloadEngine.getVideoQualities(context) }
 
     fun triggerDownload(quality: AvailableQuality) {
-        downloadState = DownloadState.Converting(quality.label)
-        scope.launch {
-            Toast.makeText(context, context.getString(R.string.download_prep_toast, quality.label), Toast.LENGTH_SHORT).show()
-            val convertResult = PhantomDownloadEngine.convertMedia(video.id, quality, context)
-            convertResult.onSuccess { dlRes ->
-                downloadState = DownloadState.Downloading(quality.label, 0, 0L, 0L)
-                val downloadRes = PhantomDownloader.downloadMedia(
-                    context = context,
-                    downloadUrl = dlRes.url,
-                    suggestedFileName = dlRes.filename,
-                    mimeType = dlRes.mimeType,
-                    videoTitle = video.title.ifBlank { dlRes.filename },
-                    onProgress = { percent, downloaded, total ->
-                        downloadState = DownloadState.Downloading(quality.label, percent, downloaded, total)
-                    }
-                )
-
-                downloadRes.onSuccess { fileInfo ->
-                    downloadState = DownloadState.Success(
-                        fileName = fileInfo.fileName,
-                        filePath = fileInfo.filePath,
-                        fileUri = fileInfo.fileUri
-                    )
-
-                    // Simpan entri riwayat unduhan ke Room Database
-                    val entity = DownloadEntity(
-                        id = "${video.id}_${quality.formatType}_${quality.qualityValue}",
-                        videoId = video.id,
-                        title = video.title.ifBlank { fileInfo.fileName },
-                        channelTitle = video.channelTitle,
-                        thumbnailUrl = video.thumbnailUrl,
-                        format = if (quality.formatType == "audio") "MP3" else "MP4",
-                        qualityLabel = quality.label,
-                        fileName = fileInfo.fileName,
-                        fileUri = fileInfo.fileUri,
-                        filePath = fileInfo.filePath,
-                        fileSize = fileInfo.fileSize
-                    )
-                    repository.saveDownload(entity)
-                    Toast.makeText(context, context.getString(R.string.download_saved_toast, fileInfo.filePath), Toast.LENGTH_LONG).show()
-                }.onFailure { dlErr ->
-                    val msg = dlErr.message ?: context.getString(R.string.download_error_general)
-                    downloadState = DownloadState.Error(msg)
-                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                }
-            }.onFailure { convErr ->
-                val msg = convErr.message ?: context.getString(R.string.download_error_convert)
-                downloadState = DownloadState.Error(msg)
-                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-            }
-        }
+        PhantomDownloader.enqueueDownload(
+            context = context,
+            video = video,
+            quality = quality,
+            repository = repository
+        )
     }
 
     ModalBottomSheet(
@@ -602,7 +555,7 @@ fun DownloadFormatSheet(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(Color(0xFF2C2C2C))
-                                    .iosBounceClick { downloadState = DownloadState.Idle }
+                                    .iosBounceClick { PhantomDownloader.resetDownloadState(video.id) }
                                     .padding(horizontal = 20.dp, vertical = 9.dp)
                             ) {
                                 Text(

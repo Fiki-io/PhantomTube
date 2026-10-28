@@ -11,7 +11,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import java.lang.reflect.Method
 import java.util.concurrent.atomic.AtomicLong
 
 object PhantomMemoryOptimizer {
@@ -20,23 +19,6 @@ object PhantomMemoryOptimizer {
 
     private val optimizerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val lastTrimTimestampMs = AtomicLong(0L)
-
-    private val vmRuntimeInstance: Any? by lazy {
-        runCatching {
-            val clazz = Class.forName("dalvik.system.VMRuntime")
-            val getRuntime = clazz.getDeclaredMethod("getRuntime")
-            getRuntime.isAccessible = true
-            getRuntime.invoke(null)
-        }.getOrNull()
-    }
-
-    private val vmRequestGcMethod: Method? by lazy {
-        runCatching {
-            vmRuntimeInstance?.javaClass?.getDeclaredMethod("requestConcurrentGC")?.apply {
-                isAccessible = true
-            }
-        }.getOrNull()
-    }
 
     fun trimNow(
         context: Context,
@@ -74,9 +56,8 @@ object PhantomMemoryOptimizer {
 
             if (aggressiveGraphicsPurge) {
                 runCatching {
-                    if (vmRequestGcMethod != null) {
-                        vmRequestGcMethod?.invoke(vmRuntimeInstance)
-                    }
+                    System.gc()
+                    System.runFinalization()
                 }
             }
         }
