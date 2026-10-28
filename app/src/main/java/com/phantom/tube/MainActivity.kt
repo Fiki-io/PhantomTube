@@ -52,6 +52,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import android.widget.Toast
 import com.phantom.tube.core.update.UpdateCheckResult
 import com.phantom.tube.ui.components.UpdateDialog
@@ -136,11 +138,15 @@ class MainActivity : ComponentActivity() {
                     pageCount = { navTabs.size }
                 )
 
-                LaunchedEffect(pagerState.settledPage) {
-                    val targetTab = navTabs.getOrNull(pagerState.settledPage) ?: NavTab.HOME
-                    if (currentTab != targetTab) {
-                        currentTab = targetTab
-                    }
+                LaunchedEffect(pagerState) {
+                    snapshotFlow { (pagerState.currentPage + pagerState.currentPageOffsetFraction + 0.5f).toInt().coerceIn(0, navTabs.size - 1) }
+                        .distinctUntilChanged()
+                        .collect { pageIdx ->
+                            val targetTab = navTabs.getOrNull(pageIdx) ?: NavTab.HOME
+                            if (currentTab != targetTab) {
+                                currentTab = targetTab
+                            }
+                        }
                 }
 
                 LaunchedEffect(currentTab) {
@@ -330,7 +336,15 @@ class MainActivity : ComponentActivity() {
                     ) {
                         BubbleBottomNav(
                             currentTab = currentTab,
-                            onTabSelected = { currentTab = it }
+                            pagePositionProvider = {
+                                pagerState.currentPage + pagerState.currentPageOffsetFraction
+                            },
+                            onTabSelected = { selectedTab ->
+                                currentTab = selectedTab
+                                scope.launch {
+                                    pagerState.animateScrollToPage(selectedTab.ordinal)
+                                }
+                            }
                         )
                     }
 

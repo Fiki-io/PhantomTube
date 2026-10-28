@@ -72,7 +72,8 @@ enum class NavTab(val titleRes: Int, val icon: ImageVector) {
 fun BubbleBottomNav(
     currentTab: NavTab,
     onTabSelected: (NavTab) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pagePositionProvider: (() -> Float)? = null
 ) {
     val haptic = LocalHapticFeedback.current
     val tabs = NavTab.values()
@@ -101,13 +102,23 @@ fun BubbleBottomNav(
             val totalWidthPx = constraints.maxWidth.toFloat()
             val tabWidthPx = totalWidthPx / tabs.size
 
+            val effectivePosition = pagePositionProvider?.invoke() ?: activeIndex.toFloat()
+            val effectiveActiveIndex = (effectivePosition + 0.5f).toInt().coerceIn(0, tabs.size - 1)
+
             // Animasi pergeseran pil aktif (Sliding Liquid Glass Pill)
             val animatedPillOffsetPx by animateFloatAsState(
-                targetValue = activeIndex * tabWidthPx,
-                animationSpec = spring(
-                    dampingRatio = 0.74f,
-                    stiffness = 360f
-                ),
+                targetValue = effectivePosition * tabWidthPx,
+                animationSpec = if (pagePositionProvider != null) {
+                    spring(
+                        dampingRatio = 0.88f,
+                        stiffness = 1600f
+                    )
+                } else {
+                    spring(
+                        dampingRatio = 0.74f,
+                        stiffness = 360f
+                    )
+                },
                 label = "dock_sliding_pill_x"
             )
 
@@ -130,7 +141,7 @@ fun BubbleBottomNav(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 tabs.forEachIndexed { index, tab ->
-                    val isSelected = (index == activeIndex)
+                    val isSelected = (index == effectiveActiveIndex)
 
                     val interactionSource = remember { MutableInteractionSource() }
                     val isPressed by interactionSource.collectIsPressedAsState()
