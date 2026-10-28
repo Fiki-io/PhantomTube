@@ -218,6 +218,11 @@ fun PhantomGhostSurface(
                     displayZoomControls = false
                     setGeolocationEnabled(false)
                     setNeedInitialFocus(false)
+                    textZoom = 100
+                    layoutAlgorithm = WebSettings.LayoutAlgorithm.NORMAL
+                    useWideViewPort = false
+                    loadWithOverviewMode = false
+                    setSupportMultipleWindows(false)
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                         safeBrowsingEnabled = false
                     }

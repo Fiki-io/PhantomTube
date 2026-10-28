@@ -926,9 +926,16 @@ fun PlayerScreen(
             showDownloadSheet = false
             dragOffsetY = 0f
             portraitDragPx = 0f
+            if (!isAudioOnly) {
+                controller.setVideoSurfaceActive(false)
+            }
             fullSheetProgress.animateTo(
                 targetValue = 0f,
                 animationSpec = IosSpringSpecs.Gentle
+            )
+            com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                context = context,
+                aggressiveGraphicsPurge = true
             )
         }
     }
