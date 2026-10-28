@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -260,9 +261,10 @@ fun BoxScope.PlayerVideoViewportBox(
             }
         isFloatingState -> Modifier
             .align(Alignment.BottomEnd)
+            .navigationBarsPadding()
             .padding(
-                end = 12.dp,
-                bottom = if (isBottomNavVisible) 84.dp else 16.dp
+                end = 14.dp,
+                bottom = if (isBottomNavVisible) 92.dp else 16.dp
             )
             .width(200.dp)
             .aspectRatio(16f / 9f)

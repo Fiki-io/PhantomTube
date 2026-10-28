@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -126,6 +128,25 @@ class MainActivity : ComponentActivity() {
             ) {
                 PhantomTheme {
                 var currentTab by rememberSaveable { mutableStateOf(NavTab.HOME) }
+                val navTabs = remember { NavTab.values() }
+                val pagerState = rememberPagerState(
+                    initialPage = currentTab.ordinal,
+                    pageCount = { navTabs.size }
+                )
+
+                LaunchedEffect(pagerState.settledPage) {
+                    val targetTab = navTabs.getOrNull(pagerState.settledPage) ?: NavTab.HOME
+                    if (currentTab != targetTab) {
+                        currentTab = targetTab
+                    }
+                }
+
+                LaunchedEffect(currentTab) {
+                    if (pagerState.currentPage != currentTab.ordinal) {
+                        pagerState.animateScrollToPage(currentTab.ordinal)
+                    }
+                }
+
                 var activeChannelId by rememberSaveable { mutableStateOf<String?>(null) }
                 var rememberedChannelId by rememberSaveable { mutableStateOf("") }
                 var activeChannelTitle by rememberSaveable { mutableStateOf("") }
@@ -225,80 +246,64 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                         .background(ObsidianDark)
                 ) {
-                    // 1. BASE SCREEN TABS (Always active in background, edge-to-edge)
-                    Box(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        AnimatedContent(
-                            targetState = currentTab,
-                            transitionSpec = {
-                                val forward = targetState.ordinal > initialState.ordinal
-                                val slideDirection = if (forward) 1 else -1
-                                (slideInHorizontally(
-                                    animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset,
-                                    initialOffsetX = { fullWidth -> (fullWidth * 0.18f * slideDirection).toInt() }
-                                ) + fadeIn(
-                                    animationSpec = tween(durationMillis = 200)
-                                )) togetherWith (slideOutHorizontally(
-                                    animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset,
-                                    targetOffsetX = { fullWidth -> (-fullWidth * 0.18f * slideDirection).toInt() }
-                                ) + fadeOut(
-                                    animationSpec = tween(durationMillis = 160)
-                                ))
-                            },
-                            label = "tab_navigation_transition"
-                        ) { tab ->
-                            when (tab) {
-                                NavTab.HOME -> HomeScreen(
-                                    repository = repository,
-                                    onVideoClick = { video: VideoItem ->
-                                        OfflineAudioPlayerManager.stop(this@MainActivity)
-                                        activeVideo = video
-                                        isPlayerMinimized = false
-                                    },
-                                    onChannelClick = { chId: String, chTitle: String ->
-                                        activeChannelId = chId
-                                        activeChannelTitle = chTitle
-                                    },
-                                    onSearchClick = { currentTab = NavTab.SEARCH },
-                                    onSettingsClick = { isSettingsOpen = true }
-                                )
-                                NavTab.SEARCH -> SearchScreen(
-                                    repository = repository,
-                                    onVideoClick = { video: VideoItem ->
-                                        OfflineAudioPlayerManager.stop(this@MainActivity)
-                                        activeVideo = video
-                                        isPlayerMinimized = false
-                                    },
-                                    onChannelClick = { chId: String, chTitle: String ->
-                                        activeChannelId = chId
-                                        activeChannelTitle = chTitle
-                                    },
-                                    onBackClick = { currentTab = NavTab.HOME }
-                                )
-                                NavTab.HISTORY -> HistoryScreen(
-                                    repository = repository,
-                                    onVideoClick = { video: VideoItem ->
-                                        OfflineAudioPlayerManager.stop(this@MainActivity)
-                                        activeVideo = video
-                                        isPlayerMinimized = false
-                                    }
-                                )
-                                NavTab.SUBSCRIPTION -> SubscriptionScreen(
-                                    repository = repository,
-                                    onVideoClick = { video: VideoItem ->
-                                        OfflineAudioPlayerManager.stop(this@MainActivity)
-                                        activeVideo = video
-                                        isPlayerMinimized = false
-                                    },
-                                    onChannelClick = { chId: String, chTitle: String ->
-                                        activeChannelId = chId
-                                        activeChannelTitle = chTitle
-                                    },
-                                    onExploreClick = { currentTab = NavTab.HOME },
-                                    onDownloadsClick = { isDownloadsOpen = true }
-                                )
-                            }
+                    // 1. BASE SCREEN TABS (Always active in background, edge-to-edge, swipeable)
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        key = { page -> navTabs[page].name },
+                        beyondBoundsPageCount = 0,
+                        userScrollEnabled = activeChannelId == null && !isSettingsOpen && !isDownloadsOpen && (activeVideo == null || isPlayerMinimized)
+                    ) { page ->
+                        when (navTabs[page]) {
+                            NavTab.HOME -> HomeScreen(
+                                repository = repository,
+                                onVideoClick = { video: VideoItem ->
+                                    OfflineAudioPlayerManager.stop(this@MainActivity)
+                                    activeVideo = video
+                                    isPlayerMinimized = false
+                                },
+                                onChannelClick = { chId: String, chTitle: String ->
+                                    activeChannelId = chId
+                                    activeChannelTitle = chTitle
+                                },
+                                onSearchClick = { currentTab = NavTab.SEARCH },
+                                onSettingsClick = { isSettingsOpen = true }
+                            )
+                            NavTab.SEARCH -> SearchScreen(
+                                repository = repository,
+                                onVideoClick = { video: VideoItem ->
+                                    OfflineAudioPlayerManager.stop(this@MainActivity)
+                                    activeVideo = video
+                                    isPlayerMinimized = false
+                                },
+                                onChannelClick = { chId: String, chTitle: String ->
+                                    activeChannelId = chId
+                                    activeChannelTitle = chTitle
+                                },
+                                onBackClick = { currentTab = NavTab.HOME }
+                            )
+                            NavTab.HISTORY -> HistoryScreen(
+                                repository = repository,
+                                onVideoClick = { video: VideoItem ->
+                                    OfflineAudioPlayerManager.stop(this@MainActivity)
+                                    activeVideo = video
+                                    isPlayerMinimized = false
+                                }
+                            )
+                            NavTab.SUBSCRIPTION -> SubscriptionScreen(
+                                repository = repository,
+                                onVideoClick = { video: VideoItem ->
+                                    OfflineAudioPlayerManager.stop(this@MainActivity)
+                                    activeVideo = video
+                                    isPlayerMinimized = false
+                                },
+                                onChannelClick = { chId: String, chTitle: String ->
+                                    activeChannelId = chId
+                                    activeChannelTitle = chTitle
+                                },
+                                onExploreClick = { currentTab = NavTab.HOME },
+                                onDownloadsClick = { isDownloadsOpen = true }
+                            )
                         }
                     }
 
