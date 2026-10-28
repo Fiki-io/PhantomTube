@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.PictureInPicture
 import androidx.compose.material.icons.rounded.PictureInPictureAlt
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Security
@@ -219,7 +220,7 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SettingsValueRow(
-                        icon = Icons.Rounded.FitScreen,
+                        icon = Icons.Rounded.PictureInPicture,
                         title = stringResource(R.string.settings_miniplayer_style),
                         valueText = if (miniPlayerStyle == com.phantom.tube.data.settings.PhantomPreferences.MINIPLAYER_STYLE_FLOATING) {
                             stringResource(R.string.settings_miniplayer_floating)
