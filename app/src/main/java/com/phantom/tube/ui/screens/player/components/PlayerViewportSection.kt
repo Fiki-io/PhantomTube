@@ -65,9 +65,10 @@ fun BoxScope.PlayerAmbientBackdrop(
     thumbnailUrl: String,
     sheetProgressProvider: () -> Float,
     dragOffsetProvider: () -> Float,
-    screenHeightPx: Float
+    screenHeightPx: Float,
+    isInPipMode: Boolean = false
 ) {
-    if (!isSheetRendered || isFullscreen) return
+    if (!isSheetRendered || isFullscreen || isInPipMode) return
     val context = LocalContext.current
 
     // Stationary Status Bar Protection
@@ -210,12 +211,14 @@ fun BoxScope.PlayerVideoViewportBox(
     onSkipNext: () -> Unit,
     onToggleFullscreen: () -> Unit,
     onSeek: (Float) -> Unit,
-    onScrubbing: (Boolean, Float, Float) -> Unit
+    onScrubbing: (Boolean, Float, Float) -> Unit,
+    isInPipMode: Boolean = false
 ) {
     val haptic = LocalHapticFeedback.current
     var isControlsLocked by remember(video.id) { mutableStateOf(false) }
 
     val videoBoxModifier = when {
+        isInPipMode -> Modifier.fillMaxSize()
         isFullscreen && isSheetRendered -> Modifier
             .fillMaxSize()
             .graphicsLayer {
@@ -292,7 +295,7 @@ fun BoxScope.PlayerVideoViewportBox(
             )
         }
 
-        if (isSheetRendered) {
+        if (isSheetRendered && !isInPipMode) {
             AudioOnlyViewportOverlay(
                 isAudioOnly = isAudioOnly,
                 isControlsVisible = isControlsVisible && !isControlsLocked,

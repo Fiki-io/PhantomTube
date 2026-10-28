@@ -619,6 +619,14 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         }
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        if (mediaPlayer?.isPlaying != true) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+    }
+
     override fun onDestroy() {
         stopProgressTracker()
         abandonAudioFocus()

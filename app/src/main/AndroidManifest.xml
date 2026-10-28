@@ -96,11 +96,7 @@
         <service
             android:name=".player.service.PhantomMediaService"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback">
-            <intent-filter>
-                <action android:name="android.media.browse.MediaBrowserService" />
-            </intent-filter>
-        </service>
+            android:foregroundServiceType="mediaPlayback" />
 
         <service
             android:name=".player.offline.PhantomOfflineAudioService"

@@ -337,8 +337,7 @@ fun SettingsScreen(
                     SettingsValueRow(
                         icon = Icons.Rounded.Info,
                         title = stringResource(R.string.settings_app_version),
-                        valueText = "v${BuildConfig.VERSION_NAME}",
-                        onClick = {}
+                        valueText = "v${BuildConfig.VERSION_NAME}"
                     )
                     SettingsDivider()
                     SettingsValueRow(

@@ -96,6 +96,7 @@ fun PlayerScreen(
     video: VideoItem,
     repository: PhantomRepository,
     isMinimized: Boolean = false,
+    isInPipMode: Boolean = false,
     isBottomNavVisible: Boolean = true,
     onMinimize: () -> Unit = {},
     onExpand: () -> Unit = {},
@@ -1094,7 +1095,7 @@ fun PlayerScreen(
     val effectiveDragOffsetProvider = { if (isFullscreen && !isMinimized) animatedDragOffset else 0f }
 
     Box(
-        modifier = if (!isSheetRendered) {
+        modifier = if (!isSheetRendered || isInPipMode) {
             modifier
         } else {
             modifier
@@ -1119,7 +1120,8 @@ fun PlayerScreen(
             thumbnailUrl = video.thumbnailUrl,
             sheetProgressProvider = { fullSheetProgress.value },
             dragOffsetProvider = effectiveDragOffsetProvider,
-            screenHeightPx = screenHeightPx
+            screenHeightPx = screenHeightPx,
+            isInPipMode = isInPipMode
         )
 
         PlayerVideoViewportBox(
@@ -1350,66 +1352,69 @@ fun PlayerScreen(
                     }
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
-            }
+            },
+            isInPipMode = isInPipMode
         )
 
-        PlayerPortraitSheetContent(
-            isSheetRendered = isSheetRendered,
-            isFullscreen = isFullscreen,
-            sheetProgressProvider = { fullSheetProgress.value },
-            dragOffsetProvider = effectiveDragOffsetProvider,
-            screenHeightPx = screenHeightPx,
-            dragModifier = dragModifier,
-            lazyListState = lazyListState,
-            video = video,
-            nextQueueData = nextQueueData,
-            activeAvatarUrl = activeAvatarUrl,
-            commentsList = commentsList,
-            commentsTotalCountText = commentsTotalCountText,
-            repository = repository,
-            isLoadingQueue = isLoadingQueue,
-            recommendedVideos = recommendedVideos,
-            isLoadingMoreRecs = isLoadingMoreRecs,
-            mixPlaylist = mixPlaylist,
-            currentMixIndex = currentMixIndex,
-            mixTitle = mixTitle,
-            showMixSheet = showMixSheet,
-            showCommentsSheet = showCommentsSheet,
-            showDescriptionSheet = showDescriptionSheet,
-            showSettingsSheet = showSettingsSheet,
-            onOpenDescription = {
-                showCommentsSheet = false
-                showMixSheet = false
-                showSettingsSheet = false
-                showDescriptionSheet = true
-            },
-            onOpenComments = {
-                showDescriptionSheet = false
-                showMixSheet = false
-                showSettingsSheet = false
-                showCommentsSheet = true
-            },
-            onOpenDownload = {
-                showDownloadSheet = true
-            },
-            onOpenMixSheet = {
-                showCommentsSheet = false
-                showDescriptionSheet = false
-                showSettingsSheet = false
-                showMixSheet = true
-            },
-            onChannelSelected = { chId, chTitle ->
-                onMinimize()
-                onChannelClick?.invoke(chId, chTitle)
-            },
-            onRecommendationClick = { item ->
-                isInternalNavigation = false
-                currentOnPlayNextVideo(item)
-            }
-        )
+        if (!isInPipMode) {
+            PlayerPortraitSheetContent(
+                isSheetRendered = isSheetRendered,
+                isFullscreen = isFullscreen,
+                sheetProgressProvider = { fullSheetProgress.value },
+                dragOffsetProvider = effectiveDragOffsetProvider,
+                screenHeightPx = screenHeightPx,
+                dragModifier = dragModifier,
+                lazyListState = lazyListState,
+                video = video,
+                nextQueueData = nextQueueData,
+                activeAvatarUrl = activeAvatarUrl,
+                commentsList = commentsList,
+                commentsTotalCountText = commentsTotalCountText,
+                repository = repository,
+                isLoadingQueue = isLoadingQueue,
+                recommendedVideos = recommendedVideos,
+                isLoadingMoreRecs = isLoadingMoreRecs,
+                mixPlaylist = mixPlaylist,
+                currentMixIndex = currentMixIndex,
+                mixTitle = mixTitle,
+                showMixSheet = showMixSheet,
+                showCommentsSheet = showCommentsSheet,
+                showDescriptionSheet = showDescriptionSheet,
+                showSettingsSheet = showSettingsSheet,
+                onOpenDescription = {
+                    showCommentsSheet = false
+                    showMixSheet = false
+                    showSettingsSheet = false
+                    showDescriptionSheet = true
+                },
+                onOpenComments = {
+                    showDescriptionSheet = false
+                    showMixSheet = false
+                    showSettingsSheet = false
+                    showCommentsSheet = true
+                },
+                onOpenDownload = {
+                    showDownloadSheet = true
+                },
+                onOpenMixSheet = {
+                    showCommentsSheet = false
+                    showDescriptionSheet = false
+                    showSettingsSheet = false
+                    showMixSheet = true
+                },
+                onChannelSelected = { chId, chTitle ->
+                    onMinimize()
+                    onChannelClick?.invoke(chId, chTitle)
+                },
+                onRecommendationClick = { item ->
+                    isInternalNavigation = false
+                    currentOnPlayNextVideo(item)
+                }
+            )
+        }
 
         AnimatedVisibility(
-            visible = isMinimized,
+            visible = isMinimized && !isInPipMode,
             enter = slideInVertically(
                 initialOffsetY = { it },
                 animationSpec = IosSpringSpecs.GentleOffset

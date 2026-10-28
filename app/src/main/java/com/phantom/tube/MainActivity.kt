@@ -431,6 +431,7 @@ class MainActivity : ComponentActivity() {
                             video = activeVideo!!,
                             repository = repository,
                             isMinimized = isPlayerMinimized,
+                            isInPipMode = isInPipMode,
                             isBottomNavVisible = (activeChannelId == null && !isSettingsOpen && !isDownloadsOpen),
                             onMinimize = {
                                 isPlayerMinimized = true

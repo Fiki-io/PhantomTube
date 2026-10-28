@@ -216,13 +216,21 @@ fun SettingsValueRow(
     title: String,
     subtitle: String? = null,
     valueText: String,
-    onClick: () -> Unit
+    onClick: (() -> Unit)? = null
 ) {
-    Row(
-        modifier = Modifier
+    val rowModifier = if (onClick != null) {
+        Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 17.dp),
+            .padding(horizontal = 18.dp, vertical = 17.dp)
+    } else {
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 17.dp)
+    }
+
+    Row(
+        modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -261,12 +269,14 @@ fun SettingsValueRow(
                 color = TextSecondary
             )
         }
-        Spacer(modifier = Modifier.width(6.dp))
-        Icon(
-            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-            contentDescription = null,
-            tint = TextMuted,
-            modifier = Modifier.size(18.dp)
-        )
+        if (onClick != null) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = TextMuted,
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
