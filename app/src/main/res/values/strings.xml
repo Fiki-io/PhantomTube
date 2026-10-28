@@ -405,4 +405,5 @@
     <string name="settings_miniplayer_bar_desc">Compact bar at bottom, saves battery &amp; data</string>
     <string name="settings_miniplayer_floating">Floating Window (Live Video)</string>
     <string name="settings_miniplayer_floating_desc">Interactive 16:9 floating player like YouTube</string>
+    <string name="player_expand">Expand</string>
 </resources>

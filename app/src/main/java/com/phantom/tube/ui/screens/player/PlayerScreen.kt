@@ -901,7 +901,13 @@ fun PlayerScreen(
 
     val fullSheetProgress = remember { Animatable(if (isMinimized) 0f else 1f) }
     val isSheetRendered by remember {
-        derivedStateOf { !isMinimized || fullSheetProgress.value > 0.005f }
+        derivedStateOf {
+            if (isMinimized) {
+                if (isFloatingMiniPlayer) false else fullSheetProgress.value > 0.005f
+            } else {
+                true
+            }
+        }
     }
 
     LaunchedEffect(isMinimized, isFloatingMiniPlayer) {
@@ -932,10 +938,14 @@ fun PlayerScreen(
             if (!isAudioOnly && !isFloatingMiniPlayer) {
                 controller.setVideoSurfaceActive(false)
             }
-            fullSheetProgress.animateTo(
-                targetValue = 0f,
-                animationSpec = IosSpringSpecs.Gentle
-            )
+            if (isFloatingMiniPlayer) {
+                fullSheetProgress.snapTo(0f)
+            } else {
+                fullSheetProgress.animateTo(
+                    targetValue = 0f,
+                    animationSpec = IosSpringSpecs.Gentle
+                )
+            }
             if (!isFloatingMiniPlayer) {
                 com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
                     context = context,

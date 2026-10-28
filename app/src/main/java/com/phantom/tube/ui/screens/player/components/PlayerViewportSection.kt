@@ -259,13 +259,13 @@ fun BoxScope.PlayerVideoViewportBox(
                 }
             }
         isFloatingState -> Modifier
-            .width(190.dp)
-            .aspectRatio(16f / 9f)
             .align(Alignment.BottomEnd)
             .padding(
                 end = 12.dp,
                 bottom = if (isBottomNavVisible) 84.dp else 16.dp
             )
+            .width(200.dp)
+            .aspectRatio(16f / 9f)
             .graphicsLayer {
                 translationX = floatingDismissOffsetX.value
                 val absX = kotlin.math.abs(floatingDismissOffsetX.value)
@@ -300,7 +300,7 @@ fun BoxScope.PlayerVideoViewportBox(
 
     Box(
         modifier = videoBoxModifier
-            .then(if (isControlsLocked || !isSheetRendered) Modifier else dragModifier)
+            .then(if (isControlsLocked || !isSheetRendered || isFloatingState) Modifier else dragModifier)
             .background(Color.Black)
             .onGloballyPositioned { coords ->
                 if (isSheetRendered) {
@@ -360,9 +360,7 @@ fun BoxScope.PlayerVideoViewportBox(
                     }
                 }
             )
-        }
-
-        if (isSheetRendered && !isInPipMode) {
+        } else if (isSheetRendered && !isInPipMode) {
             AudioOnlyViewportOverlay(
                 isAudioOnly = isAudioOnly,
                 isControlsVisible = isControlsVisible && !isControlsLocked,

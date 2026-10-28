@@ -405,4 +405,5 @@
     <string name="settings_miniplayer_bar_desc">Bar ringkas di bawah, hemat baterai &amp; kuota</string>
     <string name="settings_miniplayer_floating">Kotak Mengambang (Live Video)</string>
     <string name="settings_miniplayer_floating_desc">Jendela mengambang 16:9 dengan video berputar ala YouTube</string>
+    <string name="player_expand">Perbesar</string>
 </resources>
