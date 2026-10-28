@@ -52,8 +52,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import android.widget.Toast
 import com.phantom.tube.core.update.UpdateCheckResult
 import com.phantom.tube.ui.components.UpdateDialog
@@ -131,27 +129,18 @@ class MainActivity : ComponentActivity() {
                 LocalConfiguration provides localizedConfig
             ) {
                 PhantomTheme {
-                var currentTab by rememberSaveable { mutableStateOf(NavTab.HOME) }
                 val navTabs = remember { NavTab.values() }
                 val pagerState = rememberPagerState(
-                    initialPage = currentTab.ordinal,
+                    initialPage = NavTab.HOME.ordinal,
                     pageCount = { navTabs.size }
                 )
-
-                LaunchedEffect(pagerState) {
-                    snapshotFlow { (pagerState.currentPage + pagerState.currentPageOffsetFraction + 0.5f).toInt().coerceIn(0, navTabs.size - 1) }
-                        .distinctUntilChanged()
-                        .collect { pageIdx ->
-                            val targetTab = navTabs.getOrNull(pageIdx) ?: NavTab.HOME
-                            if (currentTab != targetTab) {
-                                currentTab = targetTab
-                            }
+                val currentTab = navTabs[pagerState.currentPage]
+                val scope = rememberCoroutineScope()
+                val navigateToTab: (NavTab) -> Unit = { targetTab ->
+                    if (pagerState.currentPage != targetTab.ordinal) {
+                        scope.launch {
+                            pagerState.animateScrollToPage(targetTab.ordinal)
                         }
-                }
-
-                LaunchedEffect(currentTab) {
-                    if (pagerState.currentPage != currentTab.ordinal) {
-                        pagerState.animateScrollToPage(currentTab.ordinal)
                     }
                 }
 
@@ -184,7 +173,6 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val updateManager = app.updateManager
-                val scope = rememberCoroutineScope()
                 var updateDialogState by remember { mutableStateOf<UpdateDialogState?>(null) }
 
                 // Check for updates automatically in the background on app start
@@ -245,7 +233,7 @@ class MainActivity : ComponentActivity() {
 
                 if (currentTab != NavTab.HOME && activeChannelId == null && !isSettingsOpen && !isDownloadsOpen && (activeVideo == null || isPlayerMinimized)) {
                     BackHandler {
-                        currentTab = NavTab.HOME
+                        navigateToTab(NavTab.HOME)
                     }
                 }
 
@@ -274,7 +262,7 @@ class MainActivity : ComponentActivity() {
                                     activeChannelId = chId
                                     activeChannelTitle = chTitle
                                 },
-                                onSearchClick = { currentTab = NavTab.SEARCH },
+                                onSearchClick = { navigateToTab(NavTab.SEARCH) },
                                 onSettingsClick = { isSettingsOpen = true }
                             )
                             NavTab.SEARCH -> SearchScreen(
@@ -288,7 +276,7 @@ class MainActivity : ComponentActivity() {
                                     activeChannelId = chId
                                     activeChannelTitle = chTitle
                                 },
-                                onBackClick = { currentTab = NavTab.HOME }
+                                onBackClick = { navigateToTab(NavTab.HOME) }
                             )
                             NavTab.HISTORY -> HistoryScreen(
                                 repository = repository,
@@ -309,7 +297,7 @@ class MainActivity : ComponentActivity() {
                                     activeChannelId = chId
                                     activeChannelTitle = chTitle
                                 },
-                                onExploreClick = { currentTab = NavTab.HOME },
+                                onExploreClick = { navigateToTab(NavTab.HOME) },
                                 onDownloadsClick = { isDownloadsOpen = true }
                             )
                         }
@@ -335,15 +323,12 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.align(Alignment.BottomCenter)
                     ) {
                         BubbleBottomNav(
-                            currentTab = currentTab,
+                            currentTab = navTabs[pagerState.targetPage],
                             pagePositionProvider = {
                                 pagerState.currentPage + pagerState.currentPageOffsetFraction
                             },
                             onTabSelected = { selectedTab ->
-                                currentTab = selectedTab
-                                scope.launch {
-                                    pagerState.animateScrollToPage(selectedTab.ordinal)
-                                }
+                                navigateToTab(selectedTab)
                             }
                         )
                     }
@@ -378,7 +363,7 @@ class MainActivity : ComponentActivity() {
                                 onBackClick = { activeChannelId = null },
                                 onSearchClick = {
                                     activeChannelId = null
-                                    currentTab = NavTab.SEARCH
+                                    navigateToTab(NavTab.SEARCH)
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
