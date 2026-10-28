@@ -896,12 +896,15 @@ fun PlayerScreen(
     val haptic = LocalHapticFeedback.current
     var hasTriggeredHaptic by remember { mutableStateOf(false) }
 
+    val miniPlayerStyle by (repository.preferences?.miniPlayerStyle ?: kotlinx.coroutines.flow.MutableStateFlow(com.phantom.tube.data.settings.PhantomPreferences.MINIPLAYER_STYLE_FLOATING)).collectAsState()
+    val isFloatingMiniPlayer = miniPlayerStyle == com.phantom.tube.data.settings.PhantomPreferences.MINIPLAYER_STYLE_FLOATING
+
     val fullSheetProgress = remember { Animatable(if (isMinimized) 0f else 1f) }
     val isSheetRendered by remember {
         derivedStateOf { !isMinimized || fullSheetProgress.value > 0.005f }
     }
 
-    LaunchedEffect(isMinimized) {
+    LaunchedEffect(isMinimized, isFloatingMiniPlayer) {
         if (!isMinimized) {
             dragOffsetY = 0f
             portraitDragPx = 0f
@@ -926,17 +929,19 @@ fun PlayerScreen(
             showDownloadSheet = false
             dragOffsetY = 0f
             portraitDragPx = 0f
-            if (!isAudioOnly) {
+            if (!isAudioOnly && !isFloatingMiniPlayer) {
                 controller.setVideoSurfaceActive(false)
             }
             fullSheetProgress.animateTo(
                 targetValue = 0f,
                 animationSpec = IosSpringSpecs.Gentle
             )
-            com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
-                context = context,
-                aggressiveGraphicsPurge = true
-            )
+            if (!isFloatingMiniPlayer) {
+                com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                    context = context,
+                    aggressiveGraphicsPurge = true
+                )
+            }
         }
     }
 
@@ -1360,7 +1365,12 @@ fun PlayerScreen(
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
             },
-            isInPipMode = isInPipMode
+            isInPipMode = isInPipMode,
+            isMinimized = isMinimized,
+            isFloatingMiniPlayer = isFloatingMiniPlayer,
+            isBottomNavVisible = isBottomNavVisible,
+            onExpand = onExpand,
+            onClose = onClose
         )
 
         if (!isInPipMode) {
@@ -1421,7 +1431,7 @@ fun PlayerScreen(
         }
 
         AnimatedVisibility(
-            visible = isMinimized && !isInPipMode,
+            visible = isMinimized && !isInPipMode && !isFloatingMiniPlayer,
             enter = slideInVertically(
                 initialOffsetY = { it },
                 animationSpec = IosSpringSpecs.GentleOffset

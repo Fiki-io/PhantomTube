@@ -400,4 +400,9 @@
     <string name="player_unlock_screen">Unlock Screen</string>
     <string name="player_screen_locked_tap_to_unlock">Screen Locked • Tap to Unlock</string>
     <string name="downloads_shuffle_button">Shuffle</string>
+    <string name="settings_miniplayer_style">Miniplayer Style</string>
+    <string name="settings_miniplayer_bar">Bottom Bar</string>
+    <string name="settings_miniplayer_bar_desc">Compact bar at bottom, saves battery &amp; data</string>
+    <string name="settings_miniplayer_floating">Floating Window (Live Video)</string>
+    <string name="settings_miniplayer_floating_desc">Interactive 16:9 floating player like YouTube</string>
 </resources>

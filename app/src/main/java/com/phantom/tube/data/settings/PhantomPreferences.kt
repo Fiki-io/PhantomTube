@@ -71,6 +71,16 @@ class PhantomPreferences(context: Context) {
         prefs.edit().putBoolean(KEY_AUTO_PIP, enabled).apply()
     }
 
+    private val _miniPlayerStyle = MutableStateFlow(
+        prefs.getString(KEY_MINIPLAYER_STYLE, MINIPLAYER_STYLE_FLOATING) ?: MINIPLAYER_STYLE_FLOATING
+    )
+    val miniPlayerStyle: StateFlow<String> = _miniPlayerStyle.asStateFlow()
+
+    fun setMiniPlayerStyle(style: String) {
+        _miniPlayerStyle.value = style
+        prefs.edit().putString(KEY_MINIPLAYER_STYLE, style).apply()
+    }
+
     // ==========================================
     // 2. SPONSORBLOCK (ANTI-IKLAN & SEGMEN)
     // ==========================================
@@ -223,6 +233,10 @@ class PhantomPreferences(context: Context) {
         private const val KEY_DOUBLE_TAP_SEEK_SECONDS = "pref_double_tap_seek_seconds"
         private const val KEY_BG_PLAYBACK = "pref_bg_playback"
         private const val KEY_AUTO_PIP = "pref_auto_pip"
+        private const val KEY_MINIPLAYER_STYLE = "pref_miniplayer_style"
+
+        const val MINIPLAYER_STYLE_BAR = "bar"
+        const val MINIPLAYER_STYLE_FLOATING = "floating"
 
         private const val KEY_SPONSORBLOCK_ENABLED = "pref_sb_enabled"
         private const val KEY_SPONSORBLOCK_AUTO_SKIP = "pref_sb_auto_skip"

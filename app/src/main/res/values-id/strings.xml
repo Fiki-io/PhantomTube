@@ -400,4 +400,9 @@
     <string name="player_unlock_screen">Buka Kunci</string>
     <string name="player_screen_locked_tap_to_unlock">Layar Terkunci • Ketuk untuk Membuka</string>
     <string name="downloads_shuffle_button">Acak</string>
+    <string name="settings_miniplayer_style">Gaya Mini Player</string>
+    <string name="settings_miniplayer_bar">Bar Bawah</string>
+    <string name="settings_miniplayer_bar_desc">Bar ringkas di bawah, hemat baterai &amp; kuota</string>
+    <string name="settings_miniplayer_floating">Kotak Mengambang (Live Video)</string>
+    <string name="settings_miniplayer_floating_desc">Jendela mengambang 16:9 dengan video berputar ala YouTube</string>
 </resources>

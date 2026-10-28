@@ -90,6 +90,7 @@ fun SettingsScreen(
     val doubleTapSeekSeconds by preferences.doubleTapSeekSeconds.collectAsState()
     val bgPlayback by preferences.backgroundPlaybackEnabled.collectAsState()
     val autoPip by preferences.autoPipEnabled.collectAsState()
+    val miniPlayerStyle by preferences.miniPlayerStyle.collectAsState()
 
     val sbEnabled by preferences.sponsorBlockEnabled.collectAsState()
     val sbAutoSkip by preferences.sponsorBlockAutoSkip.collectAsState()
@@ -110,6 +111,7 @@ fun SettingsScreen(
     var showQualityDialog by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showSeekDialog by remember { mutableStateOf(false) }
+    var showMiniPlayerStyleDialog by remember { mutableStateOf(false) }
     var showClearWatchHistoryConfirm by remember { mutableStateOf(false) }
     var showClearSearchHistoryConfirm by remember { mutableStateOf(false) }
     var showClearCacheConfirm by remember { mutableStateOf(false) }
@@ -214,6 +216,17 @@ fun SettingsScreen(
                         subtitle = stringResource(R.string.settings_auto_pip_desc),
                         checked = autoPip,
                         onCheckedChange = { preferences.setAutoPipEnabled(it) }
+                    )
+                    SettingsDivider()
+                    SettingsValueRow(
+                        icon = Icons.Rounded.FitScreen,
+                        title = stringResource(R.string.settings_miniplayer_style),
+                        valueText = if (miniPlayerStyle == com.phantom.tube.data.settings.PhantomPreferences.MINIPLAYER_STYLE_FLOATING) {
+                            stringResource(R.string.settings_miniplayer_floating)
+                        } else {
+                            stringResource(R.string.settings_miniplayer_bar)
+                        },
+                        onClick = { showMiniPlayerStyleDialog = true }
                     )
                 }
             }
@@ -432,6 +445,20 @@ fun SettingsScreen(
             selectedValue = doubleTapSeekSeconds,
             onSelect = { preferences.setDoubleTapSeekSeconds(it) },
             onDismiss = { showSeekDialog = false }
+        )
+    }
+
+    if (showMiniPlayerStyleDialog) {
+        val styleOptions = listOf(
+            com.phantom.tube.data.settings.PhantomPreferences.MINIPLAYER_STYLE_FLOATING to stringResource(R.string.settings_miniplayer_floating),
+            com.phantom.tube.data.settings.PhantomPreferences.MINIPLAYER_STYLE_BAR to stringResource(R.string.settings_miniplayer_bar)
+        )
+        SettingsSingleChoiceDialog(
+            title = stringResource(R.string.settings_miniplayer_style),
+            options = styleOptions,
+            selectedValue = miniPlayerStyle,
+            onSelect = { preferences.setMiniPlayerStyle(it) },
+            onDismiss = { showMiniPlayerStyleDialog = false }
         )
     }
 

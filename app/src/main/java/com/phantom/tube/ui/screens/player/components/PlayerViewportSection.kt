@@ -1,12 +1,14 @@
 package com.phantom.tube.ui.screens.player.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -18,14 +20,19 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
+import com.phantom.tube.ui.components.IosSpringSpecs
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -212,10 +219,26 @@ fun BoxScope.PlayerVideoViewportBox(
     onToggleFullscreen: () -> Unit,
     onSeek: (Float) -> Unit,
     onScrubbing: (Boolean, Float, Float) -> Unit,
-    isInPipMode: Boolean = false
+    isInPipMode: Boolean = false,
+    isMinimized: Boolean = false,
+    isFloatingMiniPlayer: Boolean = false,
+    isBottomNavVisible: Boolean = true,
+    onExpand: () -> Unit = {},
+    onClose: () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
     var isControlsLocked by remember(video.id) { mutableStateOf(false) }
+
+    val floatingDismissOffsetX = remember { Animatable(0f) }
+    val floatingScope = rememberCoroutineScope()
+
+    LaunchedEffect(isMinimized) {
+        if (!isMinimized) {
+            floatingDismissOffsetX.snapTo(0f)
+        }
+    }
+
+    val isFloatingState = isMinimized && isFloatingMiniPlayer && !isInPipMode
 
     val videoBoxModifier = when {
         isInPipMode -> Modifier.fillMaxSize()
@@ -235,6 +258,23 @@ fun BoxScope.PlayerVideoViewportBox(
                     clip = false
                 }
             }
+        isFloatingState -> Modifier
+            .width(190.dp)
+            .aspectRatio(16f / 9f)
+            .align(Alignment.BottomEnd)
+            .padding(
+                end = 12.dp,
+                bottom = if (isBottomNavVisible) 84.dp else 16.dp
+            )
+            .graphicsLayer {
+                translationX = floatingDismissOffsetX.value
+                val absX = kotlin.math.abs(floatingDismissOffsetX.value)
+                alpha = (1f - (absX / 260f)).coerceIn(0.1f, 1f)
+                shadowElevation = 16f
+                shape = RoundedCornerShape(14.dp)
+                clip = true
+            }
+            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(14.dp))
         else -> Modifier
             .fillMaxWidth()
             .statusBarsPadding()
@@ -267,7 +307,7 @@ fun BoxScope.PlayerVideoViewportBox(
                     onViewportMeasured(coords.size.width.toFloat(), coords.size.height.toFloat())
                 }
             }
-            .zIndex(if (isSheetRendered) 10f else 0f)
+            .zIndex(if (isFloatingState) 25f else if (isSheetRendered) 10f else 0f)
     ) {
         val isSurfaceCollapsed = isAudioOnly
         Box(
@@ -292,6 +332,33 @@ fun BoxScope.PlayerVideoViewportBox(
                 modifier = if (isSurfaceCollapsed) Modifier.size(1.dp) else Modifier.matchParentSize(),
                 controller = controller,
                 bridge = bridge
+            )
+        }
+
+        if (isFloatingState) {
+            FloatingMiniPlayerOverlay(
+                isPlaying = playerState.isPlaying,
+                currentTimeSecProvider = currentTimeSecProvider,
+                durationSecProvider = durationSecProvider,
+                onExpand = onExpand,
+                onTogglePlayPause = onTogglePlayPause,
+                onClose = onClose,
+                onDragDismiss = { deltaX ->
+                    floatingScope.launch {
+                        floatingDismissOffsetX.snapTo(floatingDismissOffsetX.value + deltaX)
+                    }
+                },
+                onDragDismissEnd = {
+                    floatingScope.launch {
+                        if (kotlin.math.abs(floatingDismissOffsetX.value) > 90f) {
+                            val target = if (floatingDismissOffsetX.value > 0) 500f else -500f
+                            floatingDismissOffsetX.animateTo(target, tween(180))
+                            onClose()
+                        } else {
+                            floatingDismissOffsetX.animateTo(0f, IosSpringSpecs.Bouncy)
+                        }
+                    }
+                }
             )
         }
 
