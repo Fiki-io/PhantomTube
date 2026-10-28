@@ -1,8 +1,11 @@
 package com.phantom.tube.ui.screens.search
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -58,6 +62,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -70,6 +76,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
+import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.SystemStatusBarColor
 import com.phantom.tube.core.theme.TextMuted
@@ -102,6 +109,18 @@ data class SearchSuggestionItem(
     val isChannel: Boolean get() = !channelAvatarUrl.isNullOrBlank() || !channelId.isNullOrBlank()
 }
 
+enum class SearchFilter(
+    val param: String?,
+    @StringRes val labelRes: Int
+) {
+    ALL(null, R.string.search_filter_all),
+    VIDEO("EgIQAQ%3D%3D", R.string.search_filter_video),
+    CHANNEL("EgIQAg%3D%3D", R.string.search_filter_channel),
+    PLAYLIST("EgIQAz%3D%3D", R.string.search_filter_playlist),
+    UPLOAD_DATE("CAISAhAB", R.string.search_filter_upload_date),
+    VIEW_COUNT("CAMSAhAB", R.string.search_filter_view_count)
+}
+
 @Composable
 fun SearchScreen(
     repository: PhantomRepository,
@@ -110,6 +129,8 @@ fun SearchScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
+    var selectedFilter by remember { mutableStateOf(SearchFilter.ALL) }
     var searchTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     val searchQuery = searchTextFieldValue.text
     var lastSearchQuery by remember { mutableStateOf("") }
@@ -205,7 +226,7 @@ fun SearchScreen(
 
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    fun executeSearch(query: String) {
+    fun executeSearch(query: String, filter: SearchFilter = selectedFilter) {
         val trimmed = query.trim()
         if (trimmed.isBlank()) return
         keyboardController?.hide()
@@ -260,8 +281,9 @@ fun SearchScreen(
             detailedSuggestions = emptyList()
             searchContinuationToken = null
             lastSearchQuery = trimmed
+            selectedFilter = filter
             try {
-                val pageResult = repository.searchPage(query = trimmed)
+                val pageResult = repository.searchPage(query = trimmed, params = filter.param)
                 searchResults = pageResult.videos
                 searchChannels = pageResult.channels
                 searchContinuationToken = pageResult.continuationToken
@@ -339,6 +361,7 @@ fun SearchScreen(
             searchResults = emptyList()
             searchChannels = emptyList()
             detailedSuggestions = emptyList()
+            selectedFilter = SearchFilter.ALL
             keyboardController?.hide()
         } else {
             onBackClick()
@@ -434,6 +457,7 @@ fun SearchScreen(
                                     searchChannels = emptyList()
                                     searchContinuationToken = null
                                     lastSearchQuery = ""
+                                    selectedFilter = SearchFilter.ALL
                                 }
                         )
                     }
@@ -441,7 +465,52 @@ fun SearchScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        if (hasSearched) {
+            val filterScrollState = rememberScrollState()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+                    .horizontalScroll(filterScrollState),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Spacer(modifier = Modifier.width(8.dp))
+                SearchFilter.values().forEach { filter ->
+                    val isSelected = filter == selectedFilter
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (isSelected) Color(0xFF0A78D2) else YouTubeSurface)
+                            .border(
+                                1.dp,
+                                if (isSelected) Color.White.copy(alpha = 0.25f) else CardBorder,
+                                RoundedCornerShape(16.dp)
+                            )
+                            .clickable {
+                                if (selectedFilter != filter) {
+                                    try {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    } catch (_: Exception) {}
+                                    executeSearch(lastSearchQuery, filter)
+                                }
+                            }
+                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(filter.labelRes),
+                            color = if (isSelected) Color.White else TextSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+        } else {
+            Spacer(modifier = Modifier.height(4.dp))
+        }
 
         // Content: Loading, History, Suggestions, or Results
         Box(modifier = Modifier.fillMaxSize()) {

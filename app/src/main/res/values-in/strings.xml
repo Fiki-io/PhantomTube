@@ -406,4 +406,14 @@
     <string name="settings_miniplayer_floating">Kotak Mengambang (Live Video)</string>
     <string name="settings_miniplayer_floating_desc">Jendela mengambang 16:9 dengan video berputar ala YouTube</string>
     <string name="player_expand">Perbesar</string>
+    <string name="player_speed_2x">2x Kecepatan</string>
+    <string name="player_chapters">Bab Video</string>
+    <string name="player_no_chapters">Tidak ada bab video</string>
+    <string name="player_current_chapter">Bab</string>
+    <string name="search_filter_all">Semua</string>
+    <string name="search_filter_video">Video</string>
+    <string name="search_filter_channel">Channel</string>
+    <string name="search_filter_playlist">Playlist</string>
+    <string name="search_filter_upload_date">Tanggal Upload</string>
+    <string name="search_filter_view_count">Populer</string>
 </resources>

@@ -64,6 +64,7 @@ class InnerTubeClient(
 
     suspend fun fetchFeedPage(
         query: String? = null,
+        params: String? = null,
         continuation: String? = null
     ): FeedResult = withContext(Dispatchers.IO) {
         try {
@@ -73,6 +74,9 @@ class InnerTubeClient(
                     put("continuation", continuation)
                 } else {
                     put("query", query ?: "trending indonesia")
+                    if (!params.isNullOrBlank()) {
+                        put("params", params)
+                    }
                 }
             }
             val request = Request.Builder()
@@ -103,9 +107,10 @@ class InnerTubeClient(
 
     suspend fun searchPage(
         query: String? = null,
+        params: String? = null,
         continuation: String? = null
     ): FeedResult = withContext(Dispatchers.IO) {
-        return@withContext fetchFeedPage(query = query, continuation = continuation)
+        return@withContext fetchFeedPage(query = query, params = params, continuation = continuation)
     }
 
     suspend fun fetchWatchNext(videoId: String, playlistId: String? = null): NextQueue? = withContext(Dispatchers.IO) {

@@ -257,8 +257,12 @@ class PhantomRepository(
         return innerTubeClient.search(query)
     }
 
-    suspend fun searchPage(query: String? = null, continuation: String? = null): FeedResult {
-        return innerTubeClient.searchPage(query, continuation)
+    suspend fun searchPage(
+        query: String? = null,
+        params: String? = null,
+        continuation: String? = null
+    ): FeedResult {
+        return innerTubeClient.searchPage(query, params, continuation)
     }
 
     suspend fun getSuggestions(query: String): List<String> {

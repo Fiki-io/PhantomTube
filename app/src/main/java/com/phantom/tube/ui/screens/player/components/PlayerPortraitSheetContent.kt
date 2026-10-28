@@ -79,6 +79,7 @@ fun BoxScope.PlayerPortraitSheetContent(
     showCommentsSheet: Boolean,
     showDescriptionSheet: Boolean,
     showSettingsSheet: Boolean,
+    currentTimeSecProvider: () -> Float = { 0f },
     onOpenDescription: () -> Unit,
     onOpenComments: () -> Unit,
     onOpenDownload: () -> Unit,
@@ -359,6 +360,7 @@ fun BoxScope.PlayerSheetsHost(
         nextQueueData = nextQueueData,
         activeAvatarUrl = descCurrentAvatar,
         isSubscribed = isDescSubscribed,
+        currentTimeSecProvider = currentTimeSecProvider,
         onSubscribeClick = {
             scope.launch {
                 if (isDescSubscribed) {

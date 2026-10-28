@@ -7,11 +7,15 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +27,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.phantom.tube.R
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.phantom.tube.ui.components.IosSpringSpecs
 import androidx.compose.ui.Alignment
@@ -211,6 +227,7 @@ fun BoxScope.PlayerVideoViewportBox(
     onSelectQuality: (VideoQualityOption) -> Unit,
     onToggleZoom: () -> Unit,
     onCycleSpeed: () -> Unit,
+    onSetPlaybackSpeed: (Float) -> Unit = {},
     onOpenSettings: () -> Unit,
     onSkipPrevious: () -> Unit,
     onRewind10s: () -> Unit,
@@ -229,6 +246,11 @@ fun BoxScope.PlayerVideoViewportBox(
 ) {
     val haptic = LocalHapticFeedback.current
     var isControlsLocked by remember(video.id) { mutableStateOf(false) }
+
+    var is2xSpeedActive by remember { mutableStateOf(false) }
+    var savedSpeedBefore2x by remember { mutableFloatStateOf(1.0f) }
+    var last2xReleaseTime by remember { mutableLongStateOf(0L) }
+    val gestureScope = rememberCoroutineScope()
 
     val floatingDismissOffsetX = remember { Animatable(0f) }
     val floatingScope = rememberCoroutineScope()
@@ -373,13 +395,45 @@ fun BoxScope.PlayerVideoViewportBox(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .pointerInput(doubleTapSeekSeconds, isControlsLocked) {
+                    .pointerInput(doubleTapSeekSeconds, isControlsLocked, playerState.isPlaying) {
                         detectTapGestures(
+                            onPress = {
+                                if (isControlsLocked || !playerState.isPlaying) {
+                                    tryAwaitRelease()
+                                    return@detectTapGestures
+                                }
+                                var is2xTriggered = false
+                                val speedJob = gestureScope.launch {
+                                    delay(400)
+                                    savedSpeedBefore2x = playerState.playbackSpeed
+                                    is2xTriggered = true
+                                    is2xSpeedActive = true
+                                    try {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    } catch (_: Exception) {}
+                                    onSetPlaybackSpeed(2.0f)
+                                }
+                                try {
+                                    tryAwaitRelease()
+                                } finally {
+                                    speedJob.cancel()
+                                    if (is2xTriggered) {
+                                        last2xReleaseTime = System.currentTimeMillis()
+                                        is2xSpeedActive = false
+                                        onSetPlaybackSpeed(savedSpeedBefore2x)
+                                        try {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        } catch (_: Exception) {}
+                                    }
+                                }
+                            },
                             onTap = {
-                                onSingleTapViewport()
+                                if (System.currentTimeMillis() - last2xReleaseTime > 300L) {
+                                    onSingleTapViewport()
+                                }
                             },
                             onDoubleTap = { offset ->
-                                if (isControlsLocked) return@detectTapGestures
+                                if (isControlsLocked || is2xSpeedActive) return@detectTapGestures
                                 try {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 } catch (_: Exception) {}
@@ -396,6 +450,39 @@ fun BoxScope.PlayerVideoViewportBox(
                     isControlsLocked = false
                 }
             )
+
+            AnimatedVisibility(
+                visible = is2xSpeedActive,
+                enter = fadeIn(tween(150)) + slideInVertically(tween(150)) { -it / 2 },
+                exit = fadeOut(tween(150)) + slideOutVertically(tween(150)) { -it / 2 },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = if (isFullscreen) 24.dp else 16.dp)
+                    .zIndex(35f)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.Black.copy(alpha = 0.75f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.FastForward,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.player_speed_2x),
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
 
             DoubleTapSeekFeedbackOverlay(
                 seekAnimationSide = seekAnimationSide,

@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -135,6 +136,37 @@ fun PlayerMetadataSection(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+
+        val parsedChapters = remember(nextQueueData?.description) {
+            com.phantom.tube.data.model.VideoChapterParser.parse(nextQueueData?.description.orEmpty())
+        }
+
+        if (parsedChapters.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF242424))
+                    .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                    .clickable(onClick = onOpenDescription)
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = Color(0xFF0A78D2),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "${stringResource(R.string.player_chapters)} • ${parsedChapters.size}",
+                    color = TextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))

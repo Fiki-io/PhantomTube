@@ -406,4 +406,14 @@
     <string name="settings_miniplayer_floating">Floating Window (Live Video)</string>
     <string name="settings_miniplayer_floating_desc">Interactive 16:9 floating player like YouTube</string>
     <string name="player_expand">Expand</string>
+    <string name="player_speed_2x">2x Speed</string>
+    <string name="player_chapters">Chapters</string>
+    <string name="player_no_chapters">No chapters available</string>
+    <string name="player_current_chapter">Chapter</string>
+    <string name="search_filter_all">All</string>
+    <string name="search_filter_video">Videos</string>
+    <string name="search_filter_channel">Channels</string>
+    <string name="search_filter_playlist">Playlists</string>
+    <string name="search_filter_upload_date">Upload Date</string>
+    <string name="search_filter_view_count">View Count</string>
 </resources>

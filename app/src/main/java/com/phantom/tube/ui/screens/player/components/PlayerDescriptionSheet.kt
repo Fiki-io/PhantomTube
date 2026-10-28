@@ -77,6 +77,7 @@ fun PlayerDescriptionSheet(
     nextQueueData: NextQueue?,
     activeAvatarUrl: String,
     isSubscribed: Boolean,
+    currentTimeSecProvider: () -> Float = { 0f },
     onSubscribeClick: () -> Unit,
     onChannelClick: (String, String) -> Unit,
     onTimestampClick: ((Float) -> Unit)? = null,
@@ -371,6 +372,98 @@ fun PlayerDescriptionSheet(
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(text = stringResource(R.string.player_stat_published), color = TextMuted, fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3.5. Video Chapters (if available in description)
+                        val descriptionText = nextQueueData?.description.orEmpty()
+                        val chapters = remember(descriptionText) {
+                            com.phantom.tube.data.model.VideoChapterParser.parse(descriptionText)
+                        }
+
+                        if (chapters.isNotEmpty()) {
+                            item {
+                                val currentTime = currentTimeSecProvider()
+                                val activeChapterIndex = remember(chapters, currentTime) {
+                                    chapters.indexOfLast { it.timeSec <= currentTime }.coerceAtLeast(0)
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(YouTubeSurface)
+                                        .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                        .padding(14.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.player_chapters),
+                                                color = TextPrimary,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "${chapters.size}",
+                                                color = TextMuted,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            chapters.forEachIndexed { index, chapter ->
+                                                val isActive = index == activeChapterIndex
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(if (isActive) Color.White.copy(alpha = 0.08f) else Color.Transparent)
+                                                        .clickable {
+                                                            onTimestampClick?.invoke(chapter.timeSec)
+                                                        }
+                                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(6.dp))
+                                                            .background(if (isActive) Color(0xFF0A78D2) else Color(0xFF2E2E2E))
+                                                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = chapter.timeFormatted,
+                                                            color = if (isActive) Color.White else TextPrimary,
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                    }
+                                                    Spacer(modifier = Modifier.width(10.dp))
+                                                    Text(
+                                                        text = chapter.title,
+                                                        color = if (isActive) Color.White else TextSecondary,
+                                                        fontSize = 13.sp,
+                                                        fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }

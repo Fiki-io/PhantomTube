@@ -1297,6 +1297,10 @@ fun PlayerScreen(
                 playerState = playerState.copy(playbackSpeed = nextSpeed)
                 controller.setPlaybackRate(nextSpeed)
             },
+            onSetPlaybackSpeed = { speed ->
+                playerState = playerState.copy(playbackSpeed = speed)
+                controller.setPlaybackRate(speed)
+            },
             onOpenSettings = {
                 isControlsVisible = false
                 isQualityMenuExpanded = false
@@ -1501,6 +1505,7 @@ fun PlayerScreen(
             showDescriptionSheet = showDescriptionSheet,
             showCommentsSheet = showCommentsSheet,
             showDownloadSheet = showDownloadSheet,
+            currentTimeSecProvider = { currentPositionSec },
             onDismissMixSheet = { showMixSheet = false },
             onSelectMixIndex = { index -> playFromMix(index) },
             onDismissSettingsSheet = { showSettingsSheet = false },
