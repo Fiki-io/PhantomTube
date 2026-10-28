@@ -67,6 +67,7 @@ import com.phantom.tube.ui.screens.player.components.OfflineMiniPlayer
 import com.phantom.tube.player.offline.OfflineAudioPlayerManager
 import android.annotation.SuppressLint
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @SuppressLint("InvalidFragmentVersionForActivityResult")
 class MainActivity : ComponentActivity() {
 
@@ -82,6 +83,7 @@ class MainActivity : ComponentActivity() {
         // Handled notification permission response
     }
 
+    @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
