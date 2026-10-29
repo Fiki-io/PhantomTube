@@ -205,6 +205,11 @@ fun PlayerDescriptionSheet(
                             .background(Color(0xFF2E2E2E))
                     )
 
+                    val descriptionText = nextQueueData?.description.orEmpty()
+                    val chapters = remember(descriptionText) {
+                        com.phantom.tube.data.model.VideoChapterParser.parse(descriptionText)
+                    }
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -378,11 +383,6 @@ fun PlayerDescriptionSheet(
                         }
 
                         // 3.5. Video Chapters (if available in description)
-                        val descriptionText = nextQueueData?.description.orEmpty()
-                        val chapters = remember(descriptionText) {
-                            com.phantom.tube.data.model.VideoChapterParser.parse(descriptionText)
-                        }
-
                         if (chapters.isNotEmpty()) {
                             item {
                                 val currentTime = currentTimeSecProvider()
