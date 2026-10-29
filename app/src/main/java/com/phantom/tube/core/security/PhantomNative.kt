@@ -380,6 +380,12 @@ object PhantomNative {
             if (window.PhantomBridge) {
                 window.PhantomBridge.onReady();
             }
+            try {
+                if (player) {
+                    if (typeof player.unMute === 'function') player.unMute();
+                    if (typeof player.setVolume === 'function') player.setVolume(100);
+                }
+            } catch(e) {}
             startTimeTicker();
             setTimeout(sendStoryboard, 1000);
             if (event.target && typeof event.target.playVideo === 'function') {
@@ -473,6 +479,10 @@ object PhantomNative {
                         'videoId': videoId,
                         'startSeconds': startSec || 0
                     });
+                    try {
+                        if (typeof player.unMute === 'function') player.unMute();
+                        if (typeof player.setVolume === 'function') player.setVolume(100);
+                    } catch(ve) {}
                 }
                 setTimeout(sendStoryboard, 1500);
             } catch(e) {
@@ -486,7 +496,11 @@ object PhantomNative {
 
         window.playVideo = function() {
             try {
-                if (player && typeof player.playVideo === 'function') player.playVideo();
+                if (player) {
+                    if (typeof player.unMute === 'function') player.unMute();
+                    if (typeof player.setVolume === 'function') player.setVolume(100);
+                    if (typeof player.playVideo === 'function') player.playVideo();
+                }
             } catch(e) {}
         };
 
@@ -1210,6 +1224,27 @@ a[href*="youtube.com/watch"] {
             }
         } catch(e) {}
     }
+
+    function enforceAudioHealth() {
+        try {
+            var vid = document.querySelector('video.html5-main-video') || document.querySelector('video');
+            if (vid) {
+                if (vid.muted) vid.muted = false;
+                if (vid.volume < 1.0) vid.volume = 1.0;
+            }
+            var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+            if (p) {
+                if (typeof p.isMuted === 'function' && p.isMuted()) {
+                    if (typeof p.unMute === 'function') p.unMute();
+                }
+                if (typeof p.getVolume === 'function' && p.getVolume() < 100) {
+                    if (typeof p.setVolume === 'function') p.setVolume(100);
+                }
+            }
+        } catch(e) {}
+    }
+    setInterval(enforceAudioHealth, 3000);
+
     setInterval(reportIframeQuality, 4000);
     document.addEventListener('DOMContentLoaded', reportIframeQuality);
     window.addEventListener('load', reportIframeQuality);

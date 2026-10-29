@@ -282,23 +282,14 @@ fun PlayerScreen(
 
     LaunchedEffect(isNetworkConnected) {
         if (!isNetworkConnected) {
-            if (playerState.isPlaying || playerState.isBuffering || isPlaybackStalled) {
-                wasPlayingBeforeOffline = true
-                isOfflineWaiting = true
-                playerState = playerState.copy(isPlaying = false, isBuffering = false)
-                controller.pause()
-                mediaService?.updatePlaybackState(
-                    playing = false,
-                    currentPositionMs = (currentPositionSec * 1000).toLong(),
-                    forceNotify = true
-                )
-            }
+            isOfflineWaiting = true
         } else {
             if (isOfflineWaiting) {
                 isOfflineWaiting = false
                 showNotice(context.getString(R.string.player_online_restored))
-                if (wasPlayingBeforeOffline) {
+                if (wasPlayingBeforeOffline || isPlaybackStalled || playerState.isBuffering) {
                     wasPlayingBeforeOffline = false
+                    isPlaybackStalled = false
                     controller.play()
                     delay(2500)
                     if (!playerState.isPlaying && networkObserver.isConnected()) {
@@ -319,6 +310,9 @@ fun PlayerScreen(
                 if (playerState.isPlaying && (now - lastProgressElapsedRealtime > 2500L)) {
                     if (!isPlaybackStalled) {
                         isPlaybackStalled = true
+                        if (!networkObserver.isConnected()) {
+                            wasPlayingBeforeOffline = true
+                        }
                         playerState = playerState.copy(isBuffering = true)
                         mediaService?.updatePlaybackState(
                             playing = false,
@@ -569,6 +563,9 @@ fun PlayerScreen(
                     }
                     3 -> {
                         playerState = playerState.copy(isBuffering = true)
+                        if (!networkObserver.isConnected()) {
+                            wasPlayingBeforeOffline = true
+                        }
                         mediaService?.updatePlaybackState(
                             playing = false,
                             currentPositionMs = (currentPositionSec * 1000).toLong(),

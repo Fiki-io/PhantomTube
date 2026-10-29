@@ -107,11 +107,6 @@ class PhantomMediaService : Service() {
         serviceScope.launch {
             networkConnectivityObserver.isConnectedFlow.collect { connected ->
                 if (!connected) {
-                    if (isPlaying) {
-                        wasPlayingBeforeDisconnect = true
-                        onPauseAction?.invoke()
-                        updatePlaybackState(playing = false, currentPositionMs = currentPositionMs, forceNotify = true)
-                    }
                     if (offlineTimeoutJob == null || offlineTimeoutJob?.isActive == false) {
                         offlineTimeoutJob = serviceScope.launch {
                             delay(5 * 60 * 1000L) // 5 minutes timeout
@@ -297,6 +292,10 @@ class PhantomMediaService : Service() {
         isBuffering: Boolean = false
     ) {
         val effectivelyPlaying = playing && !isBuffering
+        if (!effectivelyPlaying && isPlaying && !networkConnectivityObserver.isConnected()) {
+            wasPlayingBeforeDisconnect = true
+        }
+
         val stateChanged = (lastNotifiedPlaying != effectivelyPlaying) ||
             (lastNotifiedTitle != currentTitle) ||
             (lastNotifiedChannel != currentChannel) ||
