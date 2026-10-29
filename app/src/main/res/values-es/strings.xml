@@ -400,4 +400,8 @@
     <string name="player_unlock_screen">Desbloquear pantalla</string>
     <string name="player_screen_locked_tap_to_unlock">Pantalla bloqueada • Toca para desbloquear</string>
     <string name="downloads_shuffle_button">Aleatorio</string>
+    <string name="player_offline_waiting">Sin conexión a internet. Esperando red...</string>
+    <string name="player_no_internet_notice">Sin conexión a internet</string>
+    <string name="player_online_restored">Conexión restablecida</string>
+    <string name="player_stopped_offline_timeout">Reproducción detenida tras 5 minutos sin conexión</string>
 </resources>

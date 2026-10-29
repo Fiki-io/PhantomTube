@@ -400,4 +400,8 @@
     <string name="player_unlock_screen">Разблокировать экран</string>
     <string name="player_screen_locked_tap_to_unlock">Экран заблокирован • Нажмите для разблокировки</string>
     <string name="downloads_shuffle_button">Перемешать</string>
+    <string name="player_offline_waiting">Нет подключения к интернету. Ожидание сети...</string>
+    <string name="player_no_internet_notice">Нет подключения к интернету</string>
+    <string name="player_online_restored">Соединение восстановлено</string>
+    <string name="player_stopped_offline_timeout">Воспроизведение остановлено из-за отсутствия сети в течение 5 минут</string>
 </resources>

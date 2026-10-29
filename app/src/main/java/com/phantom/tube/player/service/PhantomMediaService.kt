@@ -24,10 +24,13 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.phantom.tube.MainActivity
 import com.phantom.tube.R
+import com.phantom.tube.core.network.NetworkConnectivityObserver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -50,11 +53,16 @@ class PhantomMediaService : Service() {
     private var lastNotifiedTitle: String = ""
     private var lastNotifiedChannel: String = ""
 
+    private lateinit var networkConnectivityObserver: NetworkConnectivityObserver
+    private var offlineTimeoutJob: Job? = null
+    private var wasPlayingBeforeDisconnect = false
+
     var onPlayAction: (() -> Unit)? = null
     var onPauseAction: (() -> Unit)? = null
     var onNextAction: (() -> Unit)? = null
     var onPreviousAction: (() -> Unit)? = null
     var onSeekAction: ((Long) -> Unit)? = null
+    var onOfflineTimeoutAction: (() -> Unit)? = null
 
     companion object {
         const val CHANNEL_ID = "phantom_media_playback"
@@ -78,9 +86,61 @@ class PhantomMediaService : Service() {
             com.phantom.tube.player.offline.OfflineAudioPlayerManager.stop(this)
         } catch (_: Exception) {}
 
+        networkConnectivityObserver = NetworkConnectivityObserver(this)
         createNotificationChannel()
         setupMediaSession()
+        observeNetworkConnectivity()
         startForegroundCompat(buildNotification())
+    }
+
+    private fun showNoInternetToast() {
+        serviceScope.launch(Dispatchers.Main) {
+            android.widget.Toast.makeText(
+                this@PhantomMediaService,
+                R.string.player_no_internet_notice,
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private fun observeNetworkConnectivity() {
+        serviceScope.launch {
+            networkConnectivityObserver.isConnectedFlow.collect { connected ->
+                if (!connected) {
+                    if (isPlaying) {
+                        wasPlayingBeforeDisconnect = true
+                    }
+                    if (offlineTimeoutJob == null || offlineTimeoutJob?.isActive == false) {
+                        offlineTimeoutJob = serviceScope.launch {
+                            delay(5 * 60 * 1000L) // 5 minutes timeout
+                            handleOfflineTimeout()
+                        }
+                    }
+                } else {
+                    offlineTimeoutJob?.cancel()
+                    offlineTimeoutJob = null
+                    if (wasPlayingBeforeDisconnect) {
+                        wasPlayingBeforeDisconnect = false
+                        onPlayAction?.invoke()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun handleOfflineTimeout() {
+        serviceScope.launch(Dispatchers.Main) {
+            android.widget.Toast.makeText(
+                this@PhantomMediaService,
+                R.string.player_stopped_offline_timeout,
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            onPauseAction?.invoke()
+            onOfflineTimeoutAction?.invoke()
+            releaseWakeLock()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     private fun createNotificationChannel() {
@@ -102,6 +162,10 @@ class PhantomMediaService : Service() {
         mediaSession = MediaSession(this, "PhantomMediaSession").apply {
             setCallback(object : MediaSession.Callback() {
                 override fun onPlay() {
+                    if (!networkConnectivityObserver.isConnected()) {
+                        showNoInternetToast()
+                        return
+                    }
                     onPlayAction?.invoke()
                 }
 
@@ -110,10 +174,18 @@ class PhantomMediaService : Service() {
                 }
 
                 override fun onSkipToNext() {
+                    if (!networkConnectivityObserver.isConnected()) {
+                        showNoInternetToast()
+                        return
+                    }
                     onNextAction?.invoke()
                 }
 
                 override fun onSkipToPrevious() {
+                    if (!networkConnectivityObserver.isConnected()) {
+                        showNoInternetToast()
+                        return
+                    }
                     onPreviousAction?.invoke()
                 }
 
@@ -367,10 +439,28 @@ class PhantomMediaService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_PLAY -> onPlayAction?.invoke()
+            ACTION_PLAY -> {
+                if (!networkConnectivityObserver.isConnected()) {
+                    showNoInternetToast()
+                } else {
+                    onPlayAction?.invoke()
+                }
+            }
             ACTION_PAUSE -> onPauseAction?.invoke()
-            ACTION_NEXT -> onNextAction?.invoke()
-            ACTION_PREVIOUS -> onPreviousAction?.invoke()
+            ACTION_NEXT -> {
+                if (!networkConnectivityObserver.isConnected()) {
+                    showNoInternetToast()
+                } else {
+                    onNextAction?.invoke()
+                }
+            }
+            ACTION_PREVIOUS -> {
+                if (!networkConnectivityObserver.isConnected()) {
+                    showNoInternetToast()
+                } else {
+                    onPreviousAction?.invoke()
+                }
+            }
             ACTION_STOP -> {
                 onPauseAction?.invoke()
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -387,6 +477,8 @@ class PhantomMediaService : Service() {
     }
 
     override fun onDestroy() {
+        offlineTimeoutJob?.cancel()
+        offlineTimeoutJob = null
         serviceScope.cancel()
         currentBitmap = null
         releaseWakeLock()

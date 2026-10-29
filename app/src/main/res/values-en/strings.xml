@@ -400,4 +400,8 @@
     <string name="player_unlock_screen">Unlock Screen</string>
     <string name="player_screen_locked_tap_to_unlock">Screen Locked • Tap to Unlock</string>
     <string name="downloads_shuffle_button">Shuffle</string>
+    <string name="player_offline_waiting">No internet connection. Waiting for network...</string>
+    <string name="player_no_internet_notice">No internet connection</string>
+    <string name="player_online_restored">Connection restored</string>
+    <string name="player_stopped_offline_timeout">Playback stopped after 5 minutes offline</string>
 </resources>

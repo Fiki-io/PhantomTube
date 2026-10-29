@@ -61,6 +61,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.phantom.tube.R
+import com.phantom.tube.core.network.NetworkConnectivityObserver
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.util.findActivity
 import com.phantom.tube.data.model.NextQueue
@@ -243,6 +244,11 @@ fun PlayerScreen(
 
     var mediaService by remember { mutableStateOf<PhantomMediaService?>(null) }
 
+    val networkObserver = remember(context) { NetworkConnectivityObserver(context) }
+    val isNetworkConnected by networkObserver.isConnectedFlow.collectAsState(initial = networkObserver.isConnected())
+    var isOfflineWaiting by remember { mutableStateOf(false) }
+    var wasPlayingBeforeOffline by remember { mutableStateOf(false) }
+
     val currentVideo by rememberUpdatedState(video)
     val currentOnPlayNextVideo by rememberUpdatedState(onPlayNextVideo)
     val currentOnPlayPreviousVideo by rememberUpdatedState(onPlayPreviousVideo)
@@ -253,6 +259,28 @@ fun PlayerScreen(
     LaunchedEffect(isOfflinePlaying) {
         if (isOfflinePlaying) {
             controller.pause()
+        }
+    }
+
+    LaunchedEffect(isNetworkConnected) {
+        if (!isNetworkConnected) {
+            if (playerState.isPlaying || playerState.isBuffering) {
+                wasPlayingBeforeOffline = true
+                isOfflineWaiting = true
+            }
+        } else {
+            if (isOfflineWaiting) {
+                isOfflineWaiting = false
+                showNotice(context.getString(R.string.player_online_restored))
+                if (wasPlayingBeforeOffline) {
+                    wasPlayingBeforeOffline = false
+                    controller.play()
+                    delay(2500)
+                    if (!playerState.isPlaying && networkObserver.isConnected()) {
+                        controller.loadVideo(currentVideo.id, currentPositionSec)
+                    }
+                }
+            }
         }
     }
 
@@ -282,6 +310,11 @@ fun PlayerScreen(
     }
 
     val playNext: () -> Unit = {
+        if (!networkObserver.isConnected()) {
+            showNotice(context.getString(R.string.player_no_internet_notice))
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            return@playNext
+        }
         if (mixPlaylist.isNotEmpty()) {
             if (currentMixIndex < mixPlaylist.lastIndex) {
                 val nextIndex = currentMixIndex + 1
@@ -320,27 +353,36 @@ fun PlayerScreen(
             controller.seekTo(0f)
             currentPositionSec = 0f
             true
-        } else if (mixPlaylist.isNotEmpty() && currentMixIndex > 0) {
-            val prevIndex = currentMixIndex - 1
-            val prevVid = mixPlaylist[prevIndex]
-            currentMixIndex = prevIndex
-            isInternalNavigation = true
-            scope.launch {
-                repository.resetWatchPosition(prevVid.id)
-            }
-            currentOnPlayNextVideo(prevVid)
-            true
         } else {
-            val handled = currentOnPlayPreviousVideo()
-            if (!handled) {
-                controller.seekTo(0f)
+            if (!networkObserver.isConnected()) {
+                showNotice(context.getString(R.string.player_no_internet_notice))
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                false
+            } else if (mixPlaylist.isNotEmpty() && currentMixIndex > 0) {
+                val prevIndex = currentMixIndex - 1
+                val prevVid = mixPlaylist[prevIndex]
+                currentMixIndex = prevIndex
+                isInternalNavigation = true
+                scope.launch {
+                    repository.resetWatchPosition(prevVid.id)
+                }
+                currentOnPlayNextVideo(prevVid)
+                true
+            } else {
+                val handled = currentOnPlayPreviousVideo()
+                if (!handled) {
+                    controller.seekTo(0f)
+                }
+                handled
             }
-            handled
         }
     }
 
     val playFromMix: (Int) -> Unit = { targetIndex ->
-        if (targetIndex in mixPlaylist.indices) {
+        if (!networkObserver.isConnected()) {
+            showNotice(context.getString(R.string.player_no_internet_notice))
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        } else if (targetIndex in mixPlaylist.indices) {
             currentMixIndex = targetIndex
             isInternalNavigation = true
             currentOnPlayNextVideo(mixPlaylist[targetIndex])
@@ -628,10 +670,22 @@ fun PlayerScreen(
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
                 val service = (binder as? PhantomMediaService.LocalBinder)?.getService()
                 service?.apply {
-                    onPlayAction = { controller.play() }
+                    onPlayAction = {
+                        if (!networkObserver.isConnected()) {
+                            showNotice(context.getString(R.string.player_no_internet_notice))
+                        } else {
+                            controller.play()
+                        }
+                    }
                     onPauseAction = { controller.pause() }
                     onNextAction = { playNext() }
                     onPreviousAction = { playPrevious() }
+                    onOfflineTimeoutAction = {
+                        controller.pause()
+                        isOfflineWaiting = false
+                        wasPlayingBeforeOffline = false
+                        showNotice(context.getString(R.string.player_stopped_offline_timeout))
+                    }
                     onSeekAction = { posMs ->
                         val sec = posMs / 1000f
                         controller.seekTo(sec)
@@ -1184,6 +1238,7 @@ fun PlayerScreen(
             currentTimeSecProvider = { currentPositionSec },
             durationSecProvider = { currentDurationSec },
             bufferedFractionProvider = { currentBufferedFraction },
+            isOfflineWaiting = isOfflineWaiting,
             onViewportMeasured = { w, h ->
                 videoBoxWidthPx = w
                 videoBoxHeightPx = h
@@ -1246,8 +1301,13 @@ fun PlayerScreen(
             },
             onDismissEndscreen = { isEndscreenDismissed = true },
             onEndscreenVideoClick = { targetVid ->
-                isInternalNavigation = false
-                currentOnPlayNextVideo(targetVid)
+                if (!networkObserver.isConnected()) {
+                    showNotice(context.getString(R.string.player_no_internet_notice))
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                } else {
+                    isInternalNavigation = false
+                    currentOnPlayNextVideo(targetVid)
+                }
             },
             onMinimizeOrExitFullscreen = {
                 if (isFullscreen) exitFullscreenToPortrait() else onMinimize()
@@ -1324,7 +1384,16 @@ fun PlayerScreen(
                 mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
             },
             onTogglePlayPause = {
-                if (playerState.isPlaying) controller.pause() else controller.play()
+                if (playerState.isPlaying) {
+                    controller.pause()
+                } else {
+                    if (!networkObserver.isConnected()) {
+                        showNotice(context.getString(R.string.player_no_internet_notice))
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    } else {
+                        controller.play()
+                    }
+                }
             },
             onForward10s = {
                 val delta = doubleTapSeekSeconds
@@ -1438,8 +1507,13 @@ fun PlayerScreen(
                     onChannelClick?.invoke(chId, chTitle)
                 },
                 onRecommendationClick = { item ->
-                    isInternalNavigation = false
-                    currentOnPlayNextVideo(item)
+                    if (!networkObserver.isConnected()) {
+                        showNotice(context.getString(R.string.player_no_internet_notice))
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    } else {
+                        isInternalNavigation = false
+                        currentOnPlayNextVideo(item)
+                    }
                 }
             )
         }
@@ -1469,7 +1543,16 @@ fun PlayerScreen(
                 durationSecProvider = { currentDurationSec },
                 onExpand = onExpand,
                 onTogglePlayPause = {
-                    if (playerState.isPlaying) controller.pause() else controller.play()
+                    if (playerState.isPlaying) {
+                        controller.pause()
+                    } else {
+                        if (!networkObserver.isConnected()) {
+                            showNotice(context.getString(R.string.player_no_internet_notice))
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        } else {
+                            controller.play()
+                        }
+                    }
                 },
                 onClose = onClose
             )
@@ -1560,10 +1643,15 @@ fun PlayerScreen(
                 showDescriptionSheet = false
                 showCommentsSheet = false
                 if (targetVideo.id != video.id) {
-                    val matchedRec = (recommendedVideos + mixPlaylist).firstOrNull { it.id == targetVideo.id }
-                    val targetVideoItem = matchedRec ?: targetVideo
-                    isInternalNavigation = false
-                    currentOnPlayNextVideo(targetVideoItem)
+                    if (!networkObserver.isConnected()) {
+                        showNotice(context.getString(R.string.player_no_internet_notice))
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    } else {
+                        val matchedRec = (recommendedVideos + mixPlaylist).firstOrNull { it.id == targetVideo.id }
+                        val targetVideoItem = matchedRec ?: targetVideo
+                        isInternalNavigation = false
+                        currentOnPlayNextVideo(targetVideoItem)
+                    }
                 }
             },
             onLoadMoreComments = {

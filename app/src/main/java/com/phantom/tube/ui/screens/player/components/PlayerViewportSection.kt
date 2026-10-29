@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableFloatStateOf
@@ -213,6 +214,7 @@ fun BoxScope.PlayerVideoViewportBox(
     currentTimeSecProvider: () -> Float,
     durationSecProvider: () -> Float,
     bufferedFractionProvider: () -> Float,
+    isOfflineWaiting: Boolean = false,
     onViewportMeasured: (Float, Float) -> Unit,
     onDisableAudioOnly: () -> Unit,
     onSingleTapViewport: () -> Unit,
@@ -594,6 +596,39 @@ fun BoxScope.PlayerVideoViewportBox(
                     .padding(bottom = if (isFullscreen) 56.dp else 42.dp)
                     .zIndex(30f)
             )
+
+            AnimatedVisibility(
+                visible = isOfflineWaiting,
+                enter = fadeIn(tween(180)) + slideInVertically(initialOffsetY = { -it / 2 }),
+                exit = fadeOut(tween(180)) + slideOutVertically(targetOffsetY = { -it / 2 }),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = if (isFullscreen) 56.dp else 40.dp)
+                    .zIndex(45f)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xEE1E1416))
+                        .border(1.dp, Color(0x66FF5252), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.WifiOff,
+                        contentDescription = null,
+                        tint = Color(0xFFFF5252),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.player_offline_waiting),
+                        color = Color(0xFFF2F2F2),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
 
             PlayerToastNoticeOverlay(
                 noticeText = playerNoticeText,

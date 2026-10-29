@@ -416,4 +416,8 @@
     <string name="search_filter_playlist">Playlist</string>
     <string name="search_filter_upload_date">Tanggal Upload</string>
     <string name="search_filter_view_count">Populer</string>
+    <string name="player_offline_waiting">Koneksi terputus. Menunggu jaringan...</string>
+    <string name="player_no_internet_notice">Tidak ada koneksi internet</string>
+    <string name="player_online_restored">Koneksi terhubung kembali</string>
+    <string name="player_stopped_offline_timeout">Pemutaran dihentikan karena koneksi terputus 5 menit</string>
 </resources>

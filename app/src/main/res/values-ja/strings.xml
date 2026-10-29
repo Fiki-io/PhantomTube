@@ -400,4 +400,8 @@
     <string name="player_unlock_screen">ロックを解除</string>
     <string name="player_screen_locked_tap_to_unlock">画面ロック中 • タップして解除</string>
     <string name="downloads_shuffle_button">シャッフル</string>
+    <string name="player_offline_waiting">インターネット接続がありません。待機中...</string>
+    <string name="player_no_internet_notice">インターネットに接続されていません</string>
+    <string name="player_online_restored">接続が復旧しました</string>
+    <string name="player_stopped_offline_timeout">5分間オフラインのため再生を停止しました</string>
 </resources>
