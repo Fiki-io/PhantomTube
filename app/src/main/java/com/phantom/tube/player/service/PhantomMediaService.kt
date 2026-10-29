@@ -109,6 +109,8 @@ class PhantomMediaService : Service() {
                 if (!connected) {
                     if (isPlaying) {
                         wasPlayingBeforeDisconnect = true
+                        onPauseAction?.invoke()
+                        updatePlaybackState(playing = false, currentPositionMs = currentPositionMs, forceNotify = true)
                     }
                     if (offlineTimeoutJob == null || offlineTimeoutJob?.isActive == false) {
                         offlineTimeoutJob = serviceScope.launch {
@@ -288,24 +290,34 @@ class PhantomMediaService : Service() {
         mediaSession?.setMetadata(metadataBuilder.build())
     }
 
-    fun updatePlaybackState(playing: Boolean, currentPositionMs: Long = -1L, forceNotify: Boolean = false) {
-        val stateChanged = (lastNotifiedPlaying != playing) ||
+    fun updatePlaybackState(
+        playing: Boolean,
+        currentPositionMs: Long = -1L,
+        forceNotify: Boolean = false,
+        isBuffering: Boolean = false
+    ) {
+        val effectivelyPlaying = playing && !isBuffering
+        val stateChanged = (lastNotifiedPlaying != effectivelyPlaying) ||
             (lastNotifiedTitle != currentTitle) ||
             (lastNotifiedChannel != currentChannel) ||
             forceNotify
 
-        isPlaying = playing
+        isPlaying = effectivelyPlaying
         if (currentPositionMs >= 0L) {
             this.currentPositionMs = currentPositionMs
         }
-        if (playing) {
+        if (isPlaying) {
             acquireWakeLock()
         } else {
             releaseWakeLock()
         }
 
-        val state = if (playing) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
-        val playbackSpeed = if (playing) 1.0f else 0.0f
+        val state = when {
+            isBuffering -> PlaybackState.STATE_BUFFERING
+            effectivelyPlaying -> PlaybackState.STATE_PLAYING
+            else -> PlaybackState.STATE_PAUSED
+        }
+        val playbackSpeed = if (effectivelyPlaying) 1.0f else 0.0f
         val playbackState = PlaybackState.Builder()
             .setActions(
                 PlaybackState.ACTION_PLAY or
@@ -320,7 +332,7 @@ class PhantomMediaService : Service() {
         mediaSession?.setPlaybackState(playbackState)
 
         if (stateChanged) {
-            lastNotifiedPlaying = playing
+            lastNotifiedPlaying = effectivelyPlaying
             lastNotifiedTitle = currentTitle
             lastNotifiedChannel = currentChannel
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

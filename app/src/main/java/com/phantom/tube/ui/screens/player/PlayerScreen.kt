@@ -8,6 +8,7 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -262,6 +263,10 @@ fun PlayerScreen(
     var isOfflineWaiting by remember { mutableStateOf(false) }
     var wasPlayingBeforeOffline by remember { mutableStateOf(false) }
 
+    var lastProgressElapsedRealtime by remember { mutableLongStateOf(0L) }
+    var lastObservedPlaybackSec by remember { mutableFloatStateOf(0f) }
+    var isPlaybackStalled by remember { mutableStateOf(false) }
+
     val currentVideo by rememberUpdatedState(video)
     val currentOnPlayNextVideo by rememberUpdatedState(onPlayNextVideo)
     val currentOnPlayPreviousVideo by rememberUpdatedState(onPlayPreviousVideo)
@@ -277,9 +282,16 @@ fun PlayerScreen(
 
     LaunchedEffect(isNetworkConnected) {
         if (!isNetworkConnected) {
-            if (playerState.isPlaying || playerState.isBuffering) {
+            if (playerState.isPlaying || playerState.isBuffering || isPlaybackStalled) {
                 wasPlayingBeforeOffline = true
                 isOfflineWaiting = true
+                playerState = playerState.copy(isPlaying = false, isBuffering = false)
+                controller.pause()
+                mediaService?.updatePlaybackState(
+                    playing = false,
+                    currentPositionMs = (currentPositionSec * 1000).toLong(),
+                    forceNotify = true
+                )
             }
         } else {
             if (isOfflineWaiting) {
@@ -294,6 +306,31 @@ fun PlayerScreen(
                     }
                 }
             }
+        }
+    }
+
+    LaunchedEffect(playerState.isPlaying) {
+        if (playerState.isPlaying) {
+            lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+            lastObservedPlaybackSec = currentPositionSec
+            while (playerState.isPlaying) {
+                delay(1500L)
+                val now = SystemClock.elapsedRealtime()
+                if (playerState.isPlaying && (now - lastProgressElapsedRealtime > 2500L)) {
+                    if (!isPlaybackStalled) {
+                        isPlaybackStalled = true
+                        playerState = playerState.copy(isBuffering = true)
+                        mediaService?.updatePlaybackState(
+                            playing = false,
+                            currentPositionMs = (currentPositionSec * 1000).toLong(),
+                            forceNotify = true,
+                            isBuffering = true
+                        )
+                    }
+                }
+            }
+        } else {
+            isPlaybackStalled = false
         }
     }
 
@@ -473,8 +510,16 @@ fun PlayerScreen(
             onStateChangeCallback = { state ->
                 when (state) {
                     1 -> {
+                        isPlaybackStalled = false
+                        lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+                        lastObservedPlaybackSec = currentPositionSec
                         playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
-                        mediaService?.updatePlaybackState(true, (currentPositionSec * 1000).toLong())
+                        mediaService?.updatePlaybackState(
+                            playing = true,
+                            currentPositionMs = (currentPositionSec * 1000).toLong(),
+                            forceNotify = true,
+                            isBuffering = false
+                        )
                         if (isCaptionsEnabled) {
                             controller.setCaptionsEnabled(true)
                         }
@@ -501,8 +546,14 @@ fun PlayerScreen(
                         }
                     }
                     2 -> {
+                        isPlaybackStalled = false
                         playerState = playerState.copy(isPlaying = false, isBuffering = false)
-                        mediaService?.updatePlaybackState(false, (currentPositionSec * 1000).toLong())
+                        mediaService?.updatePlaybackState(
+                            playing = false,
+                            currentPositionMs = (currentPositionSec * 1000).toLong(),
+                            forceNotify = true,
+                            isBuffering = false
+                        )
                         val activeVid = currentVideo
                         val pos = currentPositionSec
                         val dur = currentDurationSec
@@ -516,10 +567,19 @@ fun PlayerScreen(
                             }
                         }
                     }
-                    3 -> playerState = playerState.copy(isBuffering = true)
+                    3 -> {
+                        playerState = playerState.copy(isBuffering = true)
+                        mediaService?.updatePlaybackState(
+                            playing = false,
+                            currentPositionMs = (currentPositionSec * 1000).toLong(),
+                            forceNotify = true,
+                            isBuffering = true
+                        )
+                    }
                     0 -> {
+                        isPlaybackStalled = false
                         playerState = playerState.copy(isPlaying = false, isEnded = true)
-                        mediaService?.updatePlaybackState(false, 0L)
+                        mediaService?.updatePlaybackState(false, 0L, forceNotify = true, isBuffering = false)
                         scope.launch {
                             repository.resetWatchPosition(video.id)
                         }
@@ -541,6 +601,23 @@ fun PlayerScreen(
                     return@PhantomPlayerBridge
                 }
 
+                if (kotlin.math.abs(current - lastObservedPlaybackSec) >= 0.1f) {
+                    lastObservedPlaybackSec = current
+                    lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+                    if (isPlaybackStalled) {
+                        isPlaybackStalled = false
+                        if (playerState.isPlaying) {
+                            playerState = playerState.copy(isBuffering = false)
+                            mediaService?.updatePlaybackState(
+                                playing = true,
+                                currentPositionMs = (current * 1000).toLong(),
+                                forceNotify = true,
+                                isBuffering = false
+                            )
+                        }
+                    }
+                }
+
                 val wasZeroDuration = currentDurationSec <= 0f && duration > 0f
                 currentPositionSec = current
                 currentDurationSec = duration
@@ -551,13 +628,14 @@ fun PlayerScreen(
                     mediaService?.updateDuration((duration * 1000).toLong(), (current * 1000).toLong())
                 }
 
+                val isEffectivelyPlaying = playerState.isPlaying && !isPlaybackStalled && !playerState.isBuffering
                 if (!hasSyncedMediaSessionInitialPosition && current > 0.5f) {
                     hasSyncedMediaSessionInitialPosition = true
                     lastSyncedMediaSessionSec = current
-                    mediaService?.updatePlaybackState(playerState.isPlaying, (current * 1000).toLong())
+                    mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
                 } else if (kotlin.math.abs(current - lastSyncedMediaSessionSec) >= 5f) {
                     lastSyncedMediaSessionSec = current
-                    mediaService?.updatePlaybackState(playerState.isPlaying, (current * 1000).toLong())
+                    mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
                 }
 
                 if (current > 2f && (current - lastRecordedPositionSec >= 5f || current < lastRecordedPositionSec)) {
@@ -804,6 +882,9 @@ fun PlayerScreen(
         appliedDefaultsVideoId = null
         sponsorSegments = emptyList()
         lastRecordedPositionSec = 0f
+        isPlaybackStalled = false
+        lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+        lastObservedPlaybackSec = 0f
         storyboardData = null
         StoryboardHelper.clearCache()
         repository.clearCommentsCache()
