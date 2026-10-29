@@ -2,6 +2,14 @@ package com.phantom.tube.ui.screens.search
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -59,10 +67,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
@@ -89,6 +101,7 @@ import com.phantom.tube.data.model.SearchChannelItem
 import com.phantom.tube.data.model.SuggestionItem
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
+import com.phantom.tube.ui.components.PhantomChip
 import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.SearchChannelCard
@@ -131,6 +144,7 @@ fun SearchScreen(
 ) {
     val haptic = LocalHapticFeedback.current
     var selectedFilter by remember { mutableStateOf(SearchFilter.ALL) }
+    var isFilterBarVisible by remember { mutableStateOf(true) }
     var searchTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     val searchQuery = searchTextFieldValue.text
     var lastSearchQuery by remember { mutableStateOf("") }
@@ -143,6 +157,38 @@ fun SearchScreen(
     var isFetchingSuggestions by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
     val searchListState = remember(lastSearchQuery) { LazyListState() }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (hasSearched && (searchResults.isNotEmpty() || searchChannels.isNotEmpty())) {
+                    val deltaY = available.y
+                    if (deltaY < -10f) {
+                        if (isFilterBarVisible) {
+                            isFilterBarVisible = false
+                        }
+                    } else if (deltaY > 10f) {
+                        if (!isFilterBarVisible) {
+                            isFilterBarVisible = true
+                        }
+                    }
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(searchListState) {
+        snapshotFlow {
+            searchListState.firstVisibleItemIndex == 0 && searchListState.firstVisibleItemScrollOffset == 0
+        }
+            .distinctUntilChanged()
+            .collect { isAtTop ->
+                if (isAtTop) {
+                    isFilterBarVisible = true
+                }
+            }
+    }
 
     val searchHistory by repository.getSearchHistory().collectAsState(initial = emptyList())
     val historyMap by remember(repository) {
@@ -278,6 +324,7 @@ fun SearchScreen(
             repository.saveSearchQuery(trimmed)
             isSearching = true
             hasSearched = true
+            isFilterBarVisible = true
             detailedSuggestions = emptyList()
             searchContinuationToken = null
             lastSearchQuery = trimmed
@@ -362,6 +409,7 @@ fun SearchScreen(
             searchChannels = emptyList()
             detailedSuggestions = emptyList()
             selectedFilter = SearchFilter.ALL
+            isFilterBarVisible = true
             keyboardController?.hide()
         } else {
             onBackClick()
@@ -372,6 +420,7 @@ fun SearchScreen(
         modifier = modifier
             .fillMaxSize()
             .background(ObsidianDark)
+            .nestedScroll(nestedScrollConnection)
     ) {
         com.phantom.tube.ui.components.PhantomStatusBarStrip()
 
@@ -458,6 +507,7 @@ fun SearchScreen(
                                     searchContinuationToken = null
                                     lastSearchQuery = ""
                                     selectedFilter = SearchFilter.ALL
+                                    isFilterBarVisible = true
                                 }
                         )
                     }
@@ -465,50 +515,39 @@ fun SearchScreen(
             }
         }
 
-        if (hasSearched) {
+        AnimatedVisibility(
+            visible = hasSearched && isFilterBarVisible,
+            enter = expandVertically(
+                animationSpec = tween(durationMillis = 200, easing = LinearOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(durationMillis = 180)),
+            exit = shrinkVertically(
+                animationSpec = tween(durationMillis = 180, easing = FastOutLinearInEasing)
+            ) + fadeOut(animationSpec = tween(durationMillis = 140))
+        ) {
             val filterScrollState = rememberScrollState()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 6.dp)
-                    .horizontalScroll(filterScrollState),
+                    .horizontalScroll(filterScrollState)
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Spacer(modifier = Modifier.width(8.dp))
-                SearchFilter.values().forEach { filter ->
-                    val isSelected = filter == selectedFilter
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (isSelected) Color(0xFF0A78D2) else YouTubeSurface)
-                            .border(
-                                1.dp,
-                                if (isSelected) Color.White.copy(alpha = 0.25f) else CardBorder,
-                                RoundedCornerShape(16.dp)
-                            )
-                            .clickable {
-                                if (selectedFilter != filter) {
-                                    try {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    } catch (_: Exception) {}
-                                    executeSearch(lastSearchQuery, filter)
-                                }
+                SearchFilter.entries.forEach { filter ->
+                    PhantomChip(
+                        text = stringResource(filter.labelRes),
+                        isSelected = filter == selectedFilter,
+                        onClick = {
+                            if (selectedFilter != filter) {
+                                executeSearch(lastSearchQuery, filter)
                             }
-                            .padding(horizontal = 14.dp, vertical = 7.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(filter.labelRes),
-                            color = if (isSelected) Color.White else TextSecondary,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                        )
-                    }
+                        }
+                    )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
             }
-        } else {
+        }
+
+        if (!hasSearched) {
             Spacer(modifier = Modifier.height(4.dp))
         }
 
