@@ -110,6 +110,19 @@ fun PlayerScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+
+    var playerNoticeText by remember { mutableStateOf<String?>(null) }
+    var noticeJob by remember { mutableStateOf<Job?>(null) }
+
+    fun showNotice(text: String) {
+        noticeJob?.cancel()
+        playerNoticeText = text
+        noticeJob = scope.launch {
+            delay(1800)
+            playerNoticeText = null
+        }
+    }
 
     var playerState by remember { mutableStateOf(PlayerState(videoId = video.id)) }
     var currentPositionSec by remember { mutableFloatStateOf(0f) }
@@ -313,9 +326,7 @@ fun PlayerScreen(
         if (!networkObserver.isConnected()) {
             showNotice(context.getString(R.string.player_no_internet_notice))
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            return@playNext
-        }
-        if (mixPlaylist.isNotEmpty()) {
+        } else if (mixPlaylist.isNotEmpty()) {
             if (currentMixIndex < mixPlaylist.lastIndex) {
                 val nextIndex = currentMixIndex + 1
                 val nextVid = mixPlaylist[nextIndex]
@@ -401,17 +412,6 @@ fun PlayerScreen(
     var isCaptionsEnabled by remember { mutableStateOf(false) }
     var hasCaptions by remember { mutableStateOf(false) }
     var isQualityMenuExpanded by remember { mutableStateOf(false) }
-    var playerNoticeText by remember { mutableStateOf<String?>(null) }
-    var noticeJob by remember { mutableStateOf<Job?>(null) }
-
-    fun showNotice(text: String) {
-        noticeJob?.cancel()
-        playerNoticeText = text
-        noticeJob = scope.launch {
-            delay(1800)
-            playerNoticeText = null
-        }
-    }
 
     fun applyAudioOnlyState(enabled: Boolean) {
         if (enabled == isAudioOnly) return
@@ -947,7 +947,6 @@ fun PlayerScreen(
         label = "drag_minimize_offset"
     )
 
-    val haptic = LocalHapticFeedback.current
     var hasTriggeredHaptic by remember { mutableStateOf(false) }
 
     val miniPlayerStyle by (repository.preferences?.miniPlayerStyle ?: kotlinx.coroutines.flow.MutableStateFlow(com.phantom.tube.data.settings.PhantomPreferences.MINIPLAYER_STYLE_FLOATING)).collectAsState()
