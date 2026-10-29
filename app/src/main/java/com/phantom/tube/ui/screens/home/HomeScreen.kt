@@ -26,6 +26,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -80,10 +83,43 @@ fun HomeScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     var isLoadingMore by remember { mutableStateOf(false) }
     var hasError by remember { mutableStateOf(false) }
+    var isTopBarVisible by remember { mutableStateOf(true) }
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val pullRefreshState = rememberPullToRefreshState()
+
+    val homeScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (!isLoading && videos.isNotEmpty()) {
+                    val deltaY = available.y
+                    if (deltaY < -10f) {
+                        if (isTopBarVisible) {
+                            isTopBarVisible = false
+                        }
+                    } else if (deltaY > 10f) {
+                        if (!isTopBarVisible) {
+                            isTopBarVisible = true
+                        }
+                    }
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+        }
+            .distinctUntilChanged()
+            .collect { isAtTop ->
+                if (isAtTop) {
+                    isTopBarVisible = true
+                }
+            }
+    }
     val historyMap by remember(repository) {
         repository.getWatchHistory()
             .map { list ->
@@ -159,6 +195,7 @@ fun HomeScreen(
         scope.launch {
             if (isRefresh) {
                 isRefreshing = true
+                isTopBarVisible = true
             } else {
                 isLoading = true
             }
@@ -270,13 +307,18 @@ fun HomeScreen(
         modifier = modifier
             .fillMaxSize()
             .background(ObsidianDark)
+            .nestedScroll(homeScrollConnection)
     ) {
         PhantomTopBar(
             selectedCategory = selectedCategory,
             categories = categories,
-            onCategorySelected = { selectedCategory = it },
+            onCategorySelected = {
+                selectedCategory = it
+                isTopBarVisible = true
+            },
             onSearchClick = onSearchClick,
-            onSettingsClick = onSettingsClick
+            onSettingsClick = onSettingsClick,
+            isVisible = isTopBarVisible
         )
 
         Box(

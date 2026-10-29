@@ -1,5 +1,13 @@
 package com.phantom.tube.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -144,98 +152,111 @@ fun PhantomTopBar(
     onCategorySelected: (String) -> Unit,
     onSearchClick: () -> Unit,
     onSettingsClick: (() -> Unit)? = null,
+    isVisible: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 6.dp)
+            .padding(bottom = if (isVisible) 6.dp else 0.dp)
     ) {
         PhantomStatusBarStrip()
 
-        // Baris Atas: Logo & Aksi
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = expandVertically(
+                animationSpec = tween(durationMillis = 200, easing = LinearOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(durationMillis = 180)),
+            exit = shrinkVertically(
+                animationSpec = tween(durationMillis = 180, easing = FastOutLinearInEasing)
+            ) + fadeOut(animationSpec = tween(durationMillis = 140))
         ) {
-            // Logo & Judul
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = "Logo Phantom",
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Baris Atas: Logo & Aksi
+                Row(
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                )
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Logo & Judul
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                            contentDescription = "Logo Phantom",
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                        )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
 
-                Text(
-                    text = "PHANTOM",
-                    color = TextPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 0.5.sp
-                )
-            }
+                        Text(
+                            text = "PHANTOM",
+                            color = TextPrimary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
 
-            // Aksi: Settings + Cari
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                if (onSettingsClick != null) {
-                    PhantomIconButton(
-                        icon = Icons.Default.Settings,
-                        contentDescription = stringResource(R.string.nav_settings),
-                        size = 38.dp,
-                        iconSize = 20.dp,
-                        onClick = onSettingsClick
-                    )
+                    // Aksi: Settings + Cari
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (onSettingsClick != null) {
+                            PhantomIconButton(
+                                icon = Icons.Default.Settings,
+                                contentDescription = stringResource(R.string.nav_settings),
+                                size = 38.dp,
+                                iconSize = 20.dp,
+                                onClick = onSettingsClick
+                            )
+                        }
+
+                        PhantomIconButton(
+                            icon = Icons.Default.Search,
+                            contentDescription = stringResource(R.string.nav_search),
+                            size = 38.dp,
+                            iconSize = 22.dp,
+                            onClick = onSearchClick
+                        )
+                    }
                 }
 
-                PhantomIconButton(
-                    icon = Icons.Default.Search,
-                    contentDescription = stringResource(R.string.nav_search),
-                    size = 38.dp,
-                    iconSize = 22.dp,
-                    onClick = onSearchClick
-                )
-            }
-        }
+                Spacer(modifier = Modifier.height(4.dp))
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Baris Kategori
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            categories.forEach { cat ->
-                val localizedCat = when (cat) {
-                    "Semua" -> stringResource(R.string.cat_all)
-                    "Trending" -> stringResource(R.string.cat_trending)
-                    "Musik" -> stringResource(R.string.cat_music)
-                    "Gaming" -> stringResource(R.string.cat_gaming)
-                    "Berita" -> stringResource(R.string.cat_news)
-                    "Podcast" -> stringResource(R.string.cat_podcast)
-                    "Teknologi" -> stringResource(R.string.cat_tech)
-                    "Animasi" -> stringResource(R.string.cat_animation)
-                    else -> cat
+                // Baris Kategori
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 14.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    categories.forEach { cat ->
+                        val localizedCat = when (cat) {
+                            "Semua" -> stringResource(R.string.cat_all)
+                            "Trending" -> stringResource(R.string.cat_trending)
+                            "Musik" -> stringResource(R.string.cat_music)
+                            "Gaming" -> stringResource(R.string.cat_gaming)
+                            "Berita" -> stringResource(R.string.cat_news)
+                            "Podcast" -> stringResource(R.string.cat_podcast)
+                            "Teknologi" -> stringResource(R.string.cat_tech)
+                            "Animasi" -> stringResource(R.string.cat_animation)
+                            else -> cat
+                        }
+                        PhantomChip(
+                            text = localizedCat,
+                            isSelected = cat == selectedCategory,
+                            onClick = { onCategorySelected(cat) }
+                        )
+                    }
                 }
-                PhantomChip(
-                    text = localizedCat,
-                    isSelected = cat == selectedCategory,
-                    onClick = { onCategorySelected(cat) }
-                )
             }
         }
     }
