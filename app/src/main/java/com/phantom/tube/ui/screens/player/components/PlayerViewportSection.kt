@@ -63,7 +63,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -254,12 +256,29 @@ fun BoxScope.PlayerVideoViewportBox(
     var last2xReleaseTime by remember { mutableLongStateOf(0L) }
     val gestureScope = rememberCoroutineScope()
 
-    val floatingDismissOffsetX = remember { Animatable(0f) }
+    val floatingOffsetX = remember { Animatable(0f) }
+    val floatingOffsetY = remember { Animatable(0f) }
     val floatingScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx().coerceAtLeast(1f) }
+    val miniWidthPx = with(density) { 200.dp.toPx() }
+    val miniHeightPx = miniWidthPx * (9f / 16f)
+    val horizontalMarginPx = with(density) { 14.dp.toPx() }
+    val topSafeMarginPx = with(density) { 56.dp.toPx() }
+    val bottomReservedPx = with(density) { (if (isBottomNavVisible) 92.dp else 16.dp).toPx() }
+    val leftSnapX = -(screenWidthPx - miniWidthPx - horizontalMarginPx * 2f).coerceAtLeast(0f)
+    val minOffsetY = -(screenHeightPx - miniHeightPx - topSafeMarginPx - bottomReservedPx).coerceAtLeast(0f)
 
     LaunchedEffect(isMinimized) {
         if (!isMinimized) {
-            floatingDismissOffsetX.snapTo(0f)
+            floatingOffsetX.snapTo(0f)
+        }
+    }
+
+    LaunchedEffect(minOffsetY) {
+        if (floatingOffsetY.value < minOffsetY) {
+            floatingOffsetY.snapTo(minOffsetY)
         }
     }
 
@@ -292,10 +311,18 @@ fun BoxScope.PlayerVideoViewportBox(
             )
             .width(200.dp)
             .aspectRatio(16f / 9f)
+            .offset {
+                IntOffset(
+                    x = floatingOffsetX.value.toInt(),
+                    y = floatingOffsetY.value.toInt()
+                )
+            }
             .graphicsLayer {
-                translationX = floatingDismissOffsetX.value
-                val absX = kotlin.math.abs(floatingDismissOffsetX.value)
-                alpha = (1f - (absX / 260f)).coerceIn(0.1f, 1f)
+                val curX = floatingOffsetX.value
+                val overRight = (curX - 0f).coerceAtLeast(0f)
+                val overLeft = (leftSnapX - curX).coerceAtLeast(0f)
+                val edgeOver = kotlin.math.max(overRight, overLeft)
+                alpha = (1f - (edgeOver / (miniWidthPx * 0.85f))).coerceIn(0.15f, 1f)
                 shadowElevation = 16f
                 shape = RoundedCornerShape(14.dp)
                 clip = true
@@ -369,19 +396,30 @@ fun BoxScope.PlayerVideoViewportBox(
                 onExpand = onExpand,
                 onTogglePlayPause = onTogglePlayPause,
                 onClose = onClose,
-                onDragDismiss = { deltaX ->
+                onDrag = { deltaX, deltaY ->
                     floatingScope.launch {
-                        floatingDismissOffsetX.snapTo(floatingDismissOffsetX.value + deltaX)
+                        floatingOffsetX.snapTo(floatingOffsetX.value + deltaX)
+                        val clampedY = (floatingOffsetY.value + deltaY).coerceIn(minOffsetY, 0f)
+                        floatingOffsetY.snapTo(clampedY)
                     }
                 },
-                onDragDismissEnd = {
+                onDragEnd = {
                     floatingScope.launch {
-                        if (kotlin.math.abs(floatingDismissOffsetX.value) > 90f) {
-                            val target = if (floatingDismissOffsetX.value > 0) 500f else -500f
-                            floatingDismissOffsetX.animateTo(target, tween(180))
+                        val curX = floatingOffsetX.value
+                        val dismissThreshold = miniWidthPx * 0.42f
+                        if (curX > dismissThreshold) {
+                            floatingOffsetX.animateTo(miniWidthPx + 120f, tween(180))
+                            floatingOffsetX.snapTo(0f)
+                            floatingOffsetY.snapTo(0f)
+                            onClose()
+                        } else if (curX < leftSnapX - dismissThreshold) {
+                            floatingOffsetX.animateTo(leftSnapX - miniWidthPx - 120f, tween(180))
+                            floatingOffsetX.snapTo(0f)
+                            floatingOffsetY.snapTo(0f)
                             onClose()
                         } else {
-                            floatingDismissOffsetX.animateTo(0f, IosSpringSpecs.Bouncy)
+                            val targetSnapX = if (curX < leftSnapX / 2f) leftSnapX else 0f
+                            floatingOffsetX.animateTo(targetSnapX, IosSpringSpecs.Gentle)
                         }
                     }
                 }

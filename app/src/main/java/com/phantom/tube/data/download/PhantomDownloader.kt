@@ -12,6 +12,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.content.FileProvider
 import com.phantom.tube.PhantomApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +47,39 @@ object PhantomDownloader {
 
     fun resetDownloadState(videoId: String) {
         _downloadStates.value = _downloadStates.value - videoId
+    }
+
+    fun resolveSafeContentUri(
+        context: Context,
+        rawUriString: String,
+        fallbackFilePath: String = ""
+    ): Uri? {
+        if (rawUriString.isNotBlank()) {
+            val parsed = Uri.parse(rawUriString)
+            if (parsed.scheme.equals("content", ignoreCase = true)) {
+                return parsed
+            }
+            if (parsed.scheme.equals("file", ignoreCase = true)) {
+                val path = parsed.path
+                if (!path.isNullOrBlank()) {
+                    val file = File(path)
+                    if (file.exists()) {
+                        return runCatching {
+                            FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                        }.getOrNull()
+                    }
+                }
+            }
+        }
+        if (fallbackFilePath.isNotBlank()) {
+            val file = File(fallbackFilePath)
+            if (file.exists()) {
+                return runCatching {
+                    FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                }.getOrNull()
+            }
+        }
+        return null
     }
 
     fun enqueueDownload(
@@ -197,8 +231,13 @@ object PhantomDownloader {
         fun showCompletedNotification(fileUri: Uri, displayPath: String) {
             if (notificationManager == null) return
             try {
+                val safeUri = if (fileUri.scheme.equals("file", ignoreCase = true)) {
+                    resolveSafeContentUri(context, fileUri.toString(), displayPath) ?: fileUri
+                } else {
+                    fileUri
+                }
                 val openIntent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(fileUri, mimeType)
+                    setDataAndType(safeUri, mimeType)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 val pendingIntent = PendingIntent.getActivity(
@@ -256,8 +295,15 @@ object PhantomDownloader {
                 return@withContext Result.failure(lastError)
             }
 
+            val contentTypeHeader = response.headers
+                .firstOrNull { it.first.equals("Content-Type", ignoreCase = true) }
+                ?.second
+                .orEmpty()
             val body = response.body
-            if (body == null) {
+            if (body == null || contentTypeHeader.contains("text/html", ignoreCase = true)) {
+                try {
+                    response.close()
+                } catch (_: Exception) {}
                 lastError = Exception(context.getString(R.string.download_error_general))
                 if (attempt < 3) {
                     delay(1000)
@@ -313,6 +359,10 @@ object PhantomDownloader {
                                 }
                                 out.flush()
                             }
+                        }
+
+                        if (totalRead <= 0L || (totalBytes > 0L && totalRead < totalBytes)) {
+                            throw Exception(context.getString(R.string.download_error_general))
                         }
 
                         // Lepaskan pending agar langsung terdeteksi semua aplikasi eksternal
@@ -375,7 +425,14 @@ object PhantomDownloader {
                             }
                         }
 
-                        val fileUri = Uri.fromFile(targetFile)
+                        if (totalRead <= 0L || (totalBytes > 0L && totalRead < totalBytes) || !targetFile.exists() || targetFile.length() <= 0L) {
+                            throw Exception(context.getString(R.string.download_error_general))
+                        }
+
+                        val fileUri = runCatching {
+                            FileProvider.getUriForFile(context, "${context.packageName}.provider", targetFile)
+                        }.getOrElse { Uri.fromFile(targetFile) }
+
                         MediaScannerConnection.scanFile(
                             context,
                             arrayOf(targetFile.absolutePath),
@@ -425,7 +482,7 @@ object PhantomDownloader {
 
     fun openDownloadedFile(context: Context, fileUriString: String, mimeType: String) {
         try {
-            val uri = Uri.parse(fileUriString)
+            val uri = resolveSafeContentUri(context, fileUriString) ?: Uri.parse(fileUriString)
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mimeType)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)

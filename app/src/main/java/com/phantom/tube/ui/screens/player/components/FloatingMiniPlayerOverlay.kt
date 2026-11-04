@@ -2,7 +2,7 @@ package com.phantom.tube.ui.screens.player.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -33,7 +33,7 @@ import com.phantom.tube.ui.components.iosBounceClick
 /**
  * Overlay interaktif di atas floating live miniplayer kotak 16:9 ala YouTube.
  * Menyediakan tombol Expand (Kembali ke Layar Penuh), Close (X), Play/Pause,
- * garis progress tipis, serta gesture drag-to-dismiss dan tap-to-expand.
+ * garis progress tipis, serta gesture drag 2D (pindah posisi & swipe ke tepi untuk tutup) dan tap-to-expand.
  */
 @Composable
 fun BoxScope.FloatingMiniPlayerOverlay(
@@ -43,27 +43,27 @@ fun BoxScope.FloatingMiniPlayerOverlay(
     onExpand: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onClose: () -> Unit,
-    onDragDismiss: (Float) -> Unit,
-    onDragDismissEnd: () -> Unit
+    onDrag: (Float, Float) -> Unit,
+    onDragEnd: () -> Unit
 ) {
     val currentSec = currentTimeSecProvider()
     val durSec = durationSecProvider()
     val progressFrac = if (durSec > 0f) (currentSec / durSec).coerceIn(0f, 1f) else 0f
 
-    // 1. Lapisan Penangkap Sentuh Tap & Drag (Di belakang tombol kontrol)
+    // 1. Lapisan Penangkap Sentuh Tap & Drag 2D (Di belakang tombol kontrol)
     Box(
         modifier = Modifier
             .matchParentSize()
             .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onHorizontalDrag = { change, dragAmount ->
-                        if (kotlin.math.abs(dragAmount) > 0.5f) {
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        if (kotlin.math.abs(dragAmount.x) > 0.2f || kotlin.math.abs(dragAmount.y) > 0.2f) {
                             change.consume()
-                            onDragDismiss(dragAmount)
+                            onDrag(dragAmount.x, dragAmount.y)
                         }
                     },
-                    onDragEnd = { onDragDismissEnd() },
-                    onDragCancel = { onDragDismissEnd() }
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragEnd() }
                 )
             }
             .clickable(

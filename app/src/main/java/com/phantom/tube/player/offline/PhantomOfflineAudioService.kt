@@ -147,10 +147,10 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Pemutar Musik Offline Phantom",
+                getString(R.string.downloads_title),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Kontrol pemutar musik offline latar belakang Phantom"
+                description = getString(R.string.downloads_empty_subtitle)
                 setShowBadge(false)
             }
             val manager = getSystemService(NotificationManager::class.java)
@@ -523,33 +523,34 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
         val prevActionObj = Notification.Action.Builder(
             Icon.createWithResource(this, android.R.drawable.ic_media_previous),
-            "Previous",
+            getString(R.string.player_prev_video),
             prevIntent
         ).build()
 
         val playPauseActionObj = Notification.Action.Builder(
             Icon.createWithResource(this, playPauseIcon),
-            if (isPlaying) "Pause" else "Play",
+            if (isPlaying) getString(R.string.player_pause) else getString(R.string.player_play),
             playPauseIntent
         ).build()
 
         val nextActionObj = Notification.Action.Builder(
             Icon.createWithResource(this, android.R.drawable.ic_media_next),
-            "Next",
+            getString(R.string.player_next_video),
             nextIntent
         ).build()
 
         val stopActionObj = Notification.Action.Builder(
             Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel),
-            "Stop",
+            getString(R.string.action_close),
             stopIntent
         ).build()
 
+        val offlineLabel = getString(R.string.downloads_saved_offline)
         val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(track?.title ?: "Phantom Player")
-            .setContentText(track?.channelTitle?.ifBlank { "Musik Offline" } ?: "Musik Offline")
-            .setSubText("Musik Offline")
+            .setContentTitle(track?.title ?: getString(R.string.app_name))
+            .setContentText(track?.channelTitle?.ifBlank { offlineLabel } ?: offlineLabel)
+            .setSubText(offlineLabel)
             .setContentIntent(contentIntent)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)

@@ -72,7 +72,6 @@ import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.ChannelScreenSkeleton
 import com.phantom.tube.ui.components.PhantomVideoCard
-import com.phantom.tube.ui.components.animateItemEntrance
 import com.phantom.tube.ui.screens.channel.components.ChannelAboutBottomSheet
 import com.phantom.tube.ui.screens.channel.components.ChannelAboutCard
 import com.phantom.tube.ui.screens.channel.components.ChannelCompactVideoRow
@@ -409,13 +408,11 @@ fun ChannelScreen(
                                 itemsIndexed(
                                     items = recentVideos.take(15),
                                     key = { idx: Int, v: VideoItem -> "home_v_${v.id}_$idx" }
-                                ) { idx: Int, video: VideoItem ->
-                                    Box(modifier = Modifier.animateItemEntrance(idx)) {
-                                        ChannelCompactVideoRow(
-                                            video = video,
-                                            onClick = { onVideoClick(video) }
-                                        )
-                                    }
+                                ) { _: Int, video: VideoItem ->
+                                    ChannelCompactVideoRow(
+                                        video = video,
+                                        onClick = { onVideoClick(video) }
+                                    )
                                 }
                             } else if (featured == null) {
                                 item {
@@ -440,12 +437,10 @@ fun ChannelScreen(
                                     items = filteredVideos,
                                     key = { idx: Int, v: VideoItem -> "tab_v_${v.id}_$idx" }
                                 ) { idx: Int, video: VideoItem ->
-                                    Box(modifier = Modifier.animateItemEntrance(idx)) {
-                                        ChannelCompactVideoRow(
-                                            video = video,
-                                            onClick = { onVideoClick(video) }
-                                        )
-                                    }
+                                    ChannelCompactVideoRow(
+                                        video = video,
+                                        onClick = { onVideoClick(video) }
+                                    )
 
                                     if (idx >= filteredVideos.size - 3 &&
                                         !isLoadingMore &&

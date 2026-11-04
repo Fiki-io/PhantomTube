@@ -29,12 +29,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,6 +55,7 @@ import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.PhantomIconButton
+import com.phantom.tube.ui.screens.settings.components.SettingsConfirmDialog
 import kotlinx.coroutines.launch
 
 @Composable
@@ -59,8 +64,10 @@ fun HistoryScreen(
     onVideoClick: (VideoItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val historyList by repository.getWatchHistory().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
+    var showClearConfirm by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -100,7 +107,7 @@ fun HistoryScreen(
                     size = 36.dp,
                     iconSize = 20.dp,
                     onClick = {
-                        scope.launch { repository.clearHistory() }
+                        showClearConfirm = true
                     }
                 )
             }
@@ -153,6 +160,7 @@ fun HistoryScreen(
                                         id = entry.videoId,
                                         title = entry.title,
                                         channelTitle = entry.channelTitle,
+                                        channelId = entry.channelId,
                                         thumbnailUrl = entry.thumbnailUrl,
                                         durationText = entry.durationText
                                     )
@@ -233,6 +241,26 @@ fun HistoryScreen(
                 }
             }
         }
+        }
     }
-}
+
+    if (showClearConfirm) {
+        SettingsConfirmDialog(
+            title = stringResource(R.string.settings_clear_watch_history),
+            message = stringResource(R.string.dialog_confirm_clear_history),
+            confirmLabel = stringResource(R.string.dialog_delete),
+            isDestructive = true,
+            onConfirm = {
+                scope.launch {
+                    repository.clearHistory()
+                    android.widget.Toast.makeText(
+                        context,
+                        context.getString(R.string.toast_history_cleared),
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            },
+            onDismiss = { showClearConfirm = false }
+        )
+    }
 }

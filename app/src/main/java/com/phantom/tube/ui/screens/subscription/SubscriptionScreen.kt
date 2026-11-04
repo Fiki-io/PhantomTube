@@ -92,6 +92,7 @@ fun SubscriptionScreen(
     modifier: Modifier = Modifier
 ) {
     val subscriptions by repository.getSubscriptions().collectAsState(initial = emptyList())
+    val favorites by repository.getFavorites().collectAsState(initial = emptyList())
     val downloadsList by repository.getDownloads().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     var feedVideos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
@@ -99,8 +100,6 @@ fun SubscriptionScreen(
     var isRefreshing by remember { mutableStateOf(false) }
 
     val pullRefreshState = rememberPullToRefreshState()
-
-    BackHandler(onBack = onExploreClick)
 
     fun refreshFeed() {
         if (subscriptions.isNotEmpty()) {
@@ -281,7 +280,7 @@ fun SubscriptionScreen(
         Spacer(modifier = Modifier.height(6.dp))
 
 
-        if (subscriptions.isEmpty()) {
+        if (subscriptions.isEmpty() && favorites.isEmpty()) {
             // EMPTY STATE
             Box(
                 modifier = Modifier
@@ -356,64 +355,102 @@ fun SubscriptionScreen(
                     contentPadding = PaddingValues(bottom = 96.dp)
                 ) {
                     // 1. Horizontal Avatars Row of Subscribed Channels
-                    item(key = "subscribed_channels_row") {
-                        LazyRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(subscriptions, key = { it.channelId }) { sub ->
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier
-                                        .width(64.dp)
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null,
-                                            onClick = { onChannelClick(sub.channelId, sub.channelTitle) }
-                                        )
-                                ) {
-                                    Box(
+                    if (subscriptions.isNotEmpty()) {
+                        item(key = "subscribed_channels_row") {
+                            LazyRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(subscriptions, key = { it.channelId }) { sub ->
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
                                         modifier = Modifier
-                                            .size(54.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF222222))
-                                            .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                                            .width(64.dp)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null,
+                                                onClick = { onChannelClick(sub.channelId, sub.channelTitle) }
+                                            )
                                     ) {
-                                        AsyncImage(
-                                            model = sub.channelAvatarUrl,
-                                            contentDescription = sub.channelTitle,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.matchParentSize()
+                                        Box(
+                                            modifier = Modifier
+                                                .size(54.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF222222))
+                                                .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                                        ) {
+                                            AsyncImage(
+                                                model = sub.channelAvatarUrl,
+                                                contentDescription = sub.channelTitle,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.matchParentSize()
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        Text(
+                                            text = sub.channelTitle,
+                                            color = TextSecondary,
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center
                                         )
                                     }
-
-                                    Spacer(modifier = Modifier.height(6.dp))
-
-                                    Text(
-                                        text = sub.channelTitle,
-                                        color = TextSecondary,
-                                        fontSize = 11.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center
-                                    )
                                 }
                             }
                         }
                     }
 
+                    if (favorites.isNotEmpty()) {
+                        item(key = "favorites_section_header") {
+                            Text(
+                                text = stringResource(R.string.library_favorites),
+                                color = TextPrimary,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            )
+                        }
+
+                        itemsIndexed(favorites, key = { index, fav -> "fav_vid_${fav.videoId}_$index" }) { _, fav ->
+                            val favVideo = VideoItem(
+                                id = fav.videoId,
+                                title = fav.title,
+                                channelTitle = fav.channelTitle,
+                                thumbnailUrl = fav.thumbnailUrl,
+                                durationText = fav.durationText
+                            )
+                            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                PhantomVideoCard(
+                                    video = favVideo,
+                                    onChannelClick = { chId ->
+                                        val target = chId.ifBlank { fav.channelTitle }
+                                        if (target.isNotBlank()) {
+                                            onChannelClick(target, fav.channelTitle)
+                                        }
+                                    },
+                                    onClick = { onVideoClick(favVideo) }
+                                )
+                            }
+                        }
+                    }
+
                     // 2. Section divider / header
-                    item(key = "feed_section_header") {
-                        Text(
-                            text = stringResource(R.string.channel_recent_videos),
-                            color = TextPrimary,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                        )
+                    if (subscriptions.isNotEmpty()) {
+                        item(key = "feed_section_header") {
+                            Text(
+                                text = stringResource(R.string.channel_recent_videos),
+                                color = TextPrimary,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            )
+                        }
                     }
 
                     // 3. Loading indicator, Empty message, or Feed items
@@ -425,7 +462,7 @@ fun SubscriptionScreen(
                                 }
                             }
                         }
-                    } else if (feedVideos.isEmpty()) {
+                    } else if (subscriptions.isNotEmpty() && feedVideos.isEmpty()) {
                         item(key = "sub_empty_videos") {
                             Box(
                                 modifier = Modifier
@@ -456,7 +493,7 @@ fun SubscriptionScreen(
                                 }
                             }
                         }
-                    } else {
+                    } else if (feedVideos.isNotEmpty()) {
                         itemsIndexed(feedVideos, key = { index, v -> "sub_vid_${v.id}_$index" }) { _, video ->
                             Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                                 PhantomVideoCard(

@@ -75,6 +75,21 @@ class MainActivity : ComponentActivity() {
     private var activeVideo by mutableStateOf<VideoItem?>(null)
     private var isPlayerMinimized by mutableStateOf(false)
     private var pendingDeepLinkChannelId by mutableStateOf<String?>(null)
+    private val playbackBackStack = mutableListOf<VideoItem>()
+
+    private fun openVideo(nextVideo: VideoItem, pushCurrentToBackStack: Boolean = true) {
+        OfflineAudioPlayerManager.stop(this)
+        val current = activeVideo
+        if (pushCurrentToBackStack && current != null && current.id != nextVideo.id) {
+            if (playbackBackStack.lastOrNull()?.id != current.id) {
+                playbackBackStack.add(current)
+                if (playbackBackStack.size > 30) {
+                    playbackBackStack.removeAt(0)
+                }
+            }
+        }
+        activeVideo = nextVideo
+    }
 
     @SuppressLint("InvalidFragmentVersionForActivityResult")
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -212,29 +227,32 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Intercept system back press when ChannelScreen, SettingsScreen, or DownloadsScreen is active
-                if (activeChannelId != null) {
-                    BackHandler {
-                        activeChannelId = null
-                    }
+                val isFullPlayerCovering = activeVideo != null && !isPlayerMinimized
+                val isAnyOverlayOpen = activeChannelId != null || isSettingsOpen || isDownloadsOpen || isFullPlayerCovering
+
+                // Mutually exclusive system back press handlers (topmost active layer wins)
+                BackHandler(
+                    enabled = isSettingsOpen && !isFullPlayerCovering
+                ) {
+                    isSettingsOpen = false
                 }
 
-                if (isSettingsOpen) {
-                    BackHandler {
-                        isSettingsOpen = false
-                    }
+                BackHandler(
+                    enabled = isDownloadsOpen && !isSettingsOpen && !isFullPlayerCovering
+                ) {
+                    isDownloadsOpen = false
                 }
 
-                if (isDownloadsOpen) {
-                    BackHandler {
-                        isDownloadsOpen = false
-                    }
+                BackHandler(
+                    enabled = activeChannelId != null && !isDownloadsOpen && !isSettingsOpen && !isFullPlayerCovering
+                ) {
+                    activeChannelId = null
                 }
 
-                if (currentTab != NavTab.HOME && activeChannelId == null && !isSettingsOpen && !isDownloadsOpen && (activeVideo == null || isPlayerMinimized)) {
-                    BackHandler {
-                        navigateToTab(NavTab.HOME)
-                    }
+                BackHandler(
+                    enabled = currentTab != NavTab.HOME && currentTab != NavTab.SEARCH && !isAnyOverlayOpen
+                ) {
+                    navigateToTab(NavTab.HOME)
                 }
 
                 Box(
@@ -248,14 +266,13 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         key = { page -> navTabs[page].name },
                         beyondBoundsPageCount = 0,
-                        userScrollEnabled = activeChannelId == null && !isSettingsOpen && !isDownloadsOpen && (activeVideo == null || isPlayerMinimized)
+                        userScrollEnabled = !isAnyOverlayOpen
                     ) { page ->
                         when (navTabs[page]) {
                             NavTab.HOME -> HomeScreen(
                                 repository = repository,
                                 onVideoClick = { video: VideoItem ->
-                                    OfflineAudioPlayerManager.stop(this@MainActivity)
-                                    activeVideo = video
+                                    openVideo(video, pushCurrentToBackStack = activeVideo != null)
                                     isPlayerMinimized = false
                                 },
                                 onChannelClick = { chId: String, chTitle: String ->
@@ -268,29 +285,27 @@ class MainActivity : ComponentActivity() {
                             NavTab.SEARCH -> SearchScreen(
                                 repository = repository,
                                 onVideoClick = { video: VideoItem ->
-                                    OfflineAudioPlayerManager.stop(this@MainActivity)
-                                    activeVideo = video
+                                    openVideo(video, pushCurrentToBackStack = activeVideo != null)
                                     isPlayerMinimized = false
                                 },
                                 onChannelClick = { chId: String, chTitle: String ->
                                     activeChannelId = chId
                                     activeChannelTitle = chTitle
                                 },
-                                onBackClick = { navigateToTab(NavTab.HOME) }
+                                onBackClick = { navigateToTab(NavTab.HOME) },
+                                isBackInterceptEnabled = (currentTab == NavTab.SEARCH && !isAnyOverlayOpen)
                             )
                             NavTab.HISTORY -> HistoryScreen(
                                 repository = repository,
                                 onVideoClick = { video: VideoItem ->
-                                    OfflineAudioPlayerManager.stop(this@MainActivity)
-                                    activeVideo = video
+                                    openVideo(video, pushCurrentToBackStack = activeVideo != null)
                                     isPlayerMinimized = false
                                 }
                             )
                             NavTab.SUBSCRIPTION -> SubscriptionScreen(
                                 repository = repository,
                                 onVideoClick = { video: VideoItem ->
-                                    OfflineAudioPlayerManager.stop(this@MainActivity)
-                                    activeVideo = video
+                                    openVideo(video, pushCurrentToBackStack = activeVideo != null)
                                     isPlayerMinimized = false
                                 },
                                 onChannelClick = { chId: String, chTitle: String ->
@@ -352,8 +367,7 @@ class MainActivity : ComponentActivity() {
                                 initialChannelTitle = activeChannelTitle,
                                 repository = repository,
                                 onVideoClick = { video: VideoItem ->
-                                    OfflineAudioPlayerManager.stop(this@MainActivity)
-                                    activeVideo = video
+                                    openVideo(video, pushCurrentToBackStack = activeVideo != null)
                                     isPlayerMinimized = false
                                 },
                                 onChannelClick = { chId: String, chTitle: String ->
@@ -446,11 +460,21 @@ class MainActivity : ComponentActivity() {
                                 isPlayerMinimized = false
                             },
                             onClose = {
+                                playbackBackStack.clear()
                                 activeVideo = null
                                 isPlayerMinimized = false
                             },
                             onPlayNextVideo = { nextVideo: VideoItem ->
-                                activeVideo = nextVideo
+                                openVideo(nextVideo, pushCurrentToBackStack = true)
+                            },
+                            onPlayPreviousVideo = {
+                                if (playbackBackStack.isNotEmpty()) {
+                                    val prevVid = playbackBackStack.removeAt(playbackBackStack.lastIndex)
+                                    activeVideo = prevVid
+                                    true
+                                } else {
+                                    false
+                                }
                             },
                             onChannelClick = { chId: String, chTitle: String ->
                                 activeChannelId = chId
@@ -533,13 +557,15 @@ class MainActivity : ComponentActivity() {
 
         when (parsed) {
             is com.phantom.tube.core.util.ParsedAppLink.YouTubeVideo -> {
-                OfflineAudioPlayerManager.stop(this)
-                activeVideo = VideoItem(
-                    id = parsed.videoId,
-                    title = "",
-                    channelTitle = "",
-                    thumbnailUrl = "https://i.ytimg.com/vi/${parsed.videoId}/hqdefault.jpg",
-                    playlistId = parsed.playlistId
+                openVideo(
+                    nextVideo = VideoItem(
+                        id = parsed.videoId,
+                        title = "",
+                        channelTitle = "",
+                        thumbnailUrl = "https://i.ytimg.com/vi/${parsed.videoId}/hqdefault.jpg",
+                        playlistId = parsed.playlistId
+                    ),
+                    pushCurrentToBackStack = activeVideo != null
                 )
                 isPlayerMinimized = false
             }

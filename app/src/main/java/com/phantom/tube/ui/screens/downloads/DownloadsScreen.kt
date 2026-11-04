@@ -660,7 +660,11 @@ private fun DownloadItemRow(
 
 private fun openInExternalPlayer(context: Context, item: DownloadEntity) {
     try {
-        val uri = if (item.fileUri.isNotBlank()) Uri.parse(item.fileUri) else Uri.fromFile(File(item.filePath))
+        val uri = com.phantom.tube.data.download.PhantomDownloader.resolveSafeContentUri(
+            context = context,
+            rawUriString = item.fileUri,
+            fallbackFilePath = item.filePath
+        ) ?: throw IllegalStateException("File URI unavailable")
         val mimeType = if (item.format.equals("MP3", ignoreCase = true)) "audio/*" else "video/*"
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, mimeType)
@@ -677,7 +681,11 @@ private fun openInExternalPlayer(context: Context, item: DownloadEntity) {
 
 private fun shareMediaFile(context: Context, item: DownloadEntity) {
     try {
-        val uri = if (item.fileUri.isNotBlank()) Uri.parse(item.fileUri) else Uri.fromFile(File(item.filePath))
+        val uri = com.phantom.tube.data.download.PhantomDownloader.resolveSafeContentUri(
+            context = context,
+            rawUriString = item.fileUri,
+            fallbackFilePath = item.filePath
+        ) ?: throw IllegalStateException("File URI unavailable")
         val mimeType = if (item.format.equals("MP3", ignoreCase = true)) "audio/*" else "video/*"
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = mimeType

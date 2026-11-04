@@ -144,10 +144,10 @@ class PhantomMediaService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Phantom Playback",
+                getString(R.string.settings_bg_playback),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Playback controls and notifications for Phantom"
+                description = getString(R.string.settings_bg_playback_desc)
                 setShowBadge(false)
             }
             val manager = getSystemService(NotificationManager::class.java)
@@ -366,27 +366,27 @@ class PhantomMediaService : Service() {
 
         val prevAction = Notification.Action.Builder(
             Icon.createWithResource(this, android.R.drawable.ic_media_previous),
-            "Previous",
+            getString(R.string.player_prev_video),
             getServicePendingIntent(ACTION_PREVIOUS)
         ).build()
 
         val playPauseAction = if (isPlaying) {
             Notification.Action.Builder(
                 Icon.createWithResource(this, android.R.drawable.ic_media_pause),
-                "Pause",
+                getString(R.string.player_pause),
                 getServicePendingIntent(ACTION_PAUSE)
             ).build()
         } else {
             Notification.Action.Builder(
                 Icon.createWithResource(this, android.R.drawable.ic_media_play),
-                "Play",
+                getString(R.string.player_play),
                 getServicePendingIntent(ACTION_PLAY)
             ).build()
         }
 
         val nextAction = Notification.Action.Builder(
             Icon.createWithResource(this, android.R.drawable.ic_media_next),
-            "Next",
+            getString(R.string.player_next_video),
             getServicePendingIntent(ACTION_NEXT)
         ).build()
 

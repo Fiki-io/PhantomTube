@@ -140,6 +140,7 @@ fun SearchScreen(
     onVideoClick: (VideoItem) -> Unit,
     onChannelClick: (channelId: String, channelTitle: String) -> Unit = { _, _ -> },
     onBackClick: () -> Unit,
+    isBackInterceptEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -401,7 +402,7 @@ fun SearchScreen(
         }
     }
 
-    BackHandler {
+    BackHandler(enabled = isBackInterceptEnabled) {
         if (hasSearched || searchQuery.isNotEmpty()) {
             searchTextFieldValue = androidx.compose.ui.text.input.TextFieldValue("")
             hasSearched = false

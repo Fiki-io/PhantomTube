@@ -125,7 +125,14 @@ fun PlayerScreen(
         }
     }
 
-    var playerState by remember { mutableStateOf(PlayerState(videoId = video.id)) }
+    var playerState by remember {
+        mutableStateOf(
+            PlayerState(
+                videoId = video.id,
+                playbackSpeed = repository.preferences?.defaultSpeed?.value ?: 1.0f
+            )
+        )
+    }
     var currentPositionSec by remember { mutableFloatStateOf(0f) }
     var currentDurationSec by remember { mutableFloatStateOf(0f) }
     var currentBufferedFraction by remember { mutableFloatStateOf(0f) }
@@ -244,10 +251,9 @@ fun PlayerScreen(
     }
 
     var showSettingsSheet by remember { mutableStateOf(false) }
-    val prefDoubleTapSeekFlow = remember(repository) { repository.preferences?.doubleTapSeekSeconds }
-    val prefDoubleTapSeek by (prefDoubleTapSeekFlow?.collectAsState() ?: remember { mutableIntStateOf(10) })
-    var fallbackDoubleTapSeek by remember { mutableIntStateOf(10) }
-    val doubleTapSeekSeconds = if (prefDoubleTapSeekFlow != null) prefDoubleTapSeek else fallbackDoubleTapSeek
+    val doubleTapSeekSeconds by remember(repository) {
+        repository.preferences?.doubleTapSeekSeconds ?: kotlinx.coroutines.flow.MutableStateFlow(10)
+    }.collectAsState()
     var isLoopEnabled by remember { mutableStateOf(false) }
     var isAutoplayNext by remember { mutableStateOf(true) }
     var isAudioOnly by remember { mutableStateOf(false) }
@@ -267,7 +273,18 @@ fun PlayerScreen(
     var lastObservedPlaybackSec by remember { mutableFloatStateOf(0f) }
     var isPlaybackStalled by remember { mutableStateOf(false) }
 
-    val currentVideo by rememberUpdatedState(video)
+    val currentVideo by rememberUpdatedState(
+        nextQueueData?.currentVideo?.let { fetched ->
+            video.copy(
+                title = fetched.title.ifBlank { video.title },
+                channelTitle = fetched.channelTitle.ifBlank { video.channelTitle },
+                channelId = fetched.channelId.ifBlank { video.channelId },
+                thumbnailUrl = fetched.thumbnailUrl.ifBlank { video.thumbnailUrl },
+                channelAvatarUrl = fetched.channelAvatarUrl.ifBlank { activeAvatarUrl.ifBlank { video.channelAvatarUrl } },
+                durationText = fetched.durationText.ifBlank { video.durationText }
+            )
+        } ?: video
+    )
     val currentOnPlayNextVideo by rememberUpdatedState(onPlayNextVideo)
     val currentOnPlayPreviousVideo by rememberUpdatedState(onPlayPreviousVideo)
 
@@ -522,10 +539,9 @@ fun PlayerScreen(
                         }
                         if (appliedDefaultsVideoId != currentVideo.id) {
                             appliedDefaultsVideoId = currentVideo.id
-                            val defSpeed = repository.preferences?.defaultSpeed?.value ?: 1.0f
-                            if (defSpeed != 1.0f) {
-                                playerState = playerState.copy(playbackSpeed = defSpeed)
-                                controller.setPlaybackRate(defSpeed)
+                            val targetSpeed = playerState.playbackSpeed
+                            if (targetSpeed != 1.0f) {
+                                controller.setPlaybackRate(targetSpeed)
                             }
                             if (isAudioOnly) {
                                 playerState = playerState.copy(currentQuality = "tiny")
@@ -875,7 +891,10 @@ fun PlayerScreen(
     }
 
     LaunchedEffect(video.id) {
-        playerState = PlayerState(videoId = video.id)
+        playerState = PlayerState(
+            videoId = video.id,
+            playbackSpeed = playerState.playbackSpeed
+        )
         appliedDefaultsVideoId = null
         sponsorSegments = emptyList()
         lastRecordedPositionSec = 0f
@@ -925,12 +944,30 @@ fun PlayerScreen(
                 if (nextData.currentVideo.channelAvatarUrl.isNotBlank()) {
                     activeAvatarUrl = nextData.currentVideo.channelAvatarUrl
                 }
-                mediaService?.updateMediaInfo(
+                val enrichedVideo = video.copy(
                     title = nextData.currentVideo.title.ifBlank { video.title },
-                    channel = nextData.currentVideo.channelTitle.ifBlank { video.channelTitle },
+                    channelTitle = nextData.currentVideo.channelTitle.ifBlank { video.channelTitle },
+                    channelId = nextData.currentVideo.channelId.ifBlank { video.channelId },
+                    thumbnailUrl = nextData.currentVideo.thumbnailUrl.ifBlank { video.thumbnailUrl },
+                    channelAvatarUrl = nextData.currentVideo.channelAvatarUrl.ifBlank { video.channelAvatarUrl },
+                    durationText = nextData.currentVideo.durationText.ifBlank { video.durationText }
+                )
+                if (video.title.isBlank() && enrichedVideo.title.isNotBlank()) {
+                    if (currentPositionSec > 0.5f || lastPos > 0L) {
+                        val posMs = if (currentPositionSec > 0.5f) (currentPositionSec * 1000).toLong() else lastPos
+                        repository.recordWatch(
+                            video = enrichedVideo,
+                            positionMs = posMs,
+                            durationMs = (currentDurationSec * 1000).toLong()
+                        )
+                    }
+                }
+                mediaService?.updateMediaInfo(
+                    title = enrichedVideo.title,
+                    channel = enrichedVideo.channelTitle,
                     durationMs = (currentDurationSec * 1000).toLong(),
                     playing = playerState.isPlaying,
-                    thumbnailUrl = nextData.currentVideo.thumbnailUrl.ifBlank { video.thumbnailUrl },
+                    thumbnailUrl = enrichedVideo.thumbnailUrl,
                     currentPositionMs = (currentPositionSec * 1000).toLong()
                 )
                 recommendedVideos = nextData.recommendations
@@ -1642,7 +1679,7 @@ fun PlayerScreen(
             sheetProgressProvider = { fullSheetProgress.value },
             animatedDragOffsetProvider = effectiveDragOffsetProvider,
             screenHeightPx = screenHeightPx,
-            video = video,
+            video = currentVideo,
             repository = repository,
             nextQueueData = nextQueueData,
             activeAvatarUrl = activeAvatarUrl,
@@ -1683,7 +1720,6 @@ fun PlayerScreen(
                 controller.setPlaybackQuality(quality)
             },
             onDoubleTapSeekSelected = { seconds ->
-                fallbackDoubleTapSeek = seconds
                 repository.preferences?.setDoubleTapSeekSeconds(seconds)
             },
             onSleepTimerSelected = { option ->

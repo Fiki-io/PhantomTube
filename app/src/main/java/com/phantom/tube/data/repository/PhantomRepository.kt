@@ -358,16 +358,26 @@ class PhantomRepository(
         if (preferences?.pauseWatchHistory?.value == true) {
             return
         }
+        val existing = watchHistoryDao.getEntry(video.id)
+        val resolvedTitle = video.title.ifBlank { existing?.title.orEmpty() }
+        val resolvedChannelTitle = video.channelTitle.ifBlank { existing?.channelTitle.orEmpty() }
+        val resolvedChannelId = video.channelId.ifBlank { existing?.channelId.orEmpty() }
+        val resolvedThumb = video.thumbnailUrl.ifBlank { existing?.thumbnailUrl.orEmpty() }
+        val resolvedDurationText = video.durationText.ifBlank { existing?.durationText.orEmpty() }
+        val resolvedDurationMs = if (durationMs > 0L) durationMs else (existing?.durationMs ?: 0L)
+        if (resolvedTitle.isBlank() && positionMs <= 0L) {
+            return
+        }
         watchHistoryDao.insertOrUpdate(
             WatchHistoryEntity(
                 videoId = video.id,
-                title = video.title,
-                channelTitle = video.channelTitle,
-                channelId = video.channelId,
-                thumbnailUrl = video.thumbnailUrl,
-                durationText = video.durationText,
+                title = resolvedTitle,
+                channelTitle = resolvedChannelTitle,
+                channelId = resolvedChannelId,
+                thumbnailUrl = resolvedThumb,
+                durationText = resolvedDurationText,
                 lastPositionMs = positionMs,
-                durationMs = durationMs,
+                durationMs = resolvedDurationMs,
                 watchedAt = System.currentTimeMillis()
             )
         )

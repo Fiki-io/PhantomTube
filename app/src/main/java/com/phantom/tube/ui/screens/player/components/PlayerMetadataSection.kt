@@ -30,8 +30,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -278,6 +281,18 @@ fun PlayerMetadataSection(
 
         Spacer(modifier = Modifier.height(14.dp))
 
+        val isFavorite by repository.isFavorite(video.id).collectAsState(initial = false)
+        var isDisliked by remember(video.id) { mutableStateOf(false) }
+        val resolvedVideoForFav = remember(video, activeTitle, targetChannelTitle, targetChannelId) {
+            video.copy(
+                title = activeTitle,
+                channelTitle = targetChannelTitle,
+                channelId = targetChannelId,
+                thumbnailUrl = nextQueueData?.currentVideo?.thumbnailUrl?.ifBlank { video.thumbnailUrl } ?: video.thumbnailUrl,
+                durationText = nextQueueData?.currentVideo?.durationText?.ifBlank { video.durationText } ?: video.durationText
+            )
+        }
+
         // 4. Action Buttons Row (Like/Dislike, Share, Download)
         Row(
             modifier = Modifier
@@ -289,40 +304,69 @@ fun PlayerMetadataSection(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF272727))
-                    .iosBounceClick(scaleDown = 0.94f) {
-                        onOpenDescription()
-                    }
-                    .padding(horizontal = 12.dp, vertical = 7.dp),
+                    .background(Color(0xFF272727)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.ThumbUp,
-                    contentDescription = stringResource(R.string.player_like),
-                    tint = TextPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = activeLikeCount.ifBlank { stringResource(R.string.player_like) },
-                    color = TextPrimary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.width(10.dp))
+                Row(
+                    modifier = Modifier
+                        .iosBounceClick(scaleDown = 0.94f) {
+                            scope.launch {
+                                val wasFav = isFavorite
+                                if (!wasFav) {
+                                    isDisliked = false
+                                }
+                                repository.toggleFavorite(resolvedVideoForFav, wasFav)
+                                Toast.makeText(
+                                    context,
+                                    context.getString(if (wasFav) R.string.player_removed else R.string.player_saved),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                        .padding(start = 12.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ThumbUp,
+                        contentDescription = stringResource(R.string.player_like),
+                        tint = if (isFavorite) Color(0xFF0A78D2) else TextPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = activeLikeCount.ifBlank { stringResource(R.string.player_like) },
+                        color = if (isFavorite) Color(0xFF0A78D2) else TextPrimary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .width(1.dp)
                         .height(16.dp)
                         .background(Color(0x33FFFFFF))
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Icon(
-                    imageVector = Icons.Default.ThumbDown,
-                    contentDescription = stringResource(R.string.player_dislike),
-                    tint = TextPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .iosBounceClick(scaleDown = 0.92f) {
+                            val nextDislike = !isDisliked
+                            isDisliked = nextDislike
+                            if (nextDislike && isFavorite) {
+                                scope.launch {
+                                    repository.toggleFavorite(resolvedVideoForFav, true)
+                                }
+                            }
+                        }
+                        .padding(start = 10.dp, end = 12.dp, top = 7.dp, bottom = 7.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ThumbDown,
+                        contentDescription = stringResource(R.string.player_dislike),
+                        tint = if (isDisliked) Color(0xFF0A78D2) else TextPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
 
             Row(

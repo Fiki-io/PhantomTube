@@ -53,13 +53,6 @@ object PhantomMemoryOptimizer {
                     appContext.imageLoader.trimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)
                 }
             }
-
-            if (aggressiveGraphicsPurge) {
-                runCatching {
-                    System.gc()
-                    System.runFinalization()
-                }
-            }
         }
     }
 }
