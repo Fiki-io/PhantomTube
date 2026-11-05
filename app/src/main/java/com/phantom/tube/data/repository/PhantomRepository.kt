@@ -189,8 +189,29 @@ class PhantomRepository(
                 .filter { it.isNotBlank() && !it.equals(targetA.channelTitle, ignoreCase = true) }
                 .distinct()
                 .take(2)
+            val lang = preferences?.appLanguage?.value ?: "id"
+            val andMoreText = when (lang) {
+                "en" -> "and more"
+                "es" -> "y más"
+                "ja" -> "ほか"
+                "ru" -> "и др."
+                else -> "dan lainnya"
+            }
+            val playlistBadgeText = when (lang) {
+                "es" -> "Lista"
+                "ja" -> "再生リスト"
+                "ru" -> "Плейлист"
+                else -> "Playlist"
+            }
+            val videosCountText = when (lang) {
+                "en" -> "${nextQueueA.mixPlaylist.size} videos"
+                "es" -> "${nextQueueA.mixPlaylist.size} videos"
+                "ja" -> "${nextQueueA.mixPlaylist.size} 本の動画"
+                "ru" -> "${nextQueueA.mixPlaylist.size} видео"
+                else -> "${nextQueueA.mixPlaylist.size} video"
+            }
             val mixSubtitle = if (otherArtists.isNotEmpty()) {
-                "${targetA.channelTitle}, ${otherArtists.joinToString(", ")}, dan lainnya"
+                "${targetA.channelTitle}, ${otherArtists.joinToString(", ")}, $andMoreText"
             } else {
                 targetA.channelTitle
             }
@@ -204,8 +225,8 @@ class PhantomRepository(
                 channelId = targetA.channelId,
                 thumbnailUrl = targetA.thumbnailUrl,
                 channelAvatarUrl = resolvedAvatar,
-                durationText = "Playlist",
-                viewCountText = "${nextQueueA.mixPlaylist.size} video",
+                durationText = playlistBadgeText,
+                viewCountText = videosCountText,
                 publishedTimeText = "YouTube Mix",
                 playlistId = mixPlaylistId,
                 isPlaylist = true
@@ -409,12 +430,8 @@ class PhantomRepository(
         watchHistoryDao.delete(videoId)
     }
 
-    suspend fun clearHistory() {
-        watchHistoryDao.clearAll()
-    }
-
     suspend fun clearWatchHistory() {
-        clearHistory()
+        watchHistoryDao.clearAll()
     }
 
     // Favorites

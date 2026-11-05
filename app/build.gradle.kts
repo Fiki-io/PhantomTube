@@ -42,12 +42,6 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
         }
         release {
             signingConfig = signingConfigs.getByName("release")
@@ -68,11 +62,7 @@ android {
         freeCompilerArgs += listOf(
             "-Xno-param-assertions",
             "-Xno-call-assertions",
-            "-Xno-receiver-assertions",
-            "-P",
-            "plugin:androidx.compose.compiler.plugins.kotlin:nonSkippingGroupOptimization=true",
-            "-P",
-            "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true"
+            "-Xno-receiver-assertions"
         )
     }
     buildFeatures {

@@ -121,7 +121,7 @@ fun OfflineMiniPlayer(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${track.channelTitle} • Offline",
+                        text = "${track.channelTitle} • ${stringResource(R.string.downloads_saved_offline)}",
                         color = TextSecondary,
                         fontSize = 11.sp,
                         maxLines = 1,
@@ -136,7 +136,7 @@ fun OfflineMiniPlayer(
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
                         tint = TextPrimary,
                         modifier = Modifier.size(24.dp)
                     )
@@ -149,7 +149,7 @@ fun OfflineMiniPlayer(
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next",
+                        contentDescription = stringResource(R.string.player_next_video),
                         tint = TextPrimary,
                         modifier = Modifier.size(24.dp)
                     )

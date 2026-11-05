@@ -426,9 +426,16 @@ class MainActivity : ComponentActivity() {
 
                     // 3.7 OFFLINE MINI PLAYER BAR
                     val offlineTrack by OfflineAudioPlayerManager.currentTrack.collectAsState()
+                    LaunchedEffect(offlineTrack) {
+                        if (offlineTrack != null && activeVideo != null) {
+                            playbackBackStack.clear()
+                            activeVideo = null
+                            isPlayerMinimized = false
+                        }
+                    }
                     val hasBottomNav = activeChannelId == null && !isSettingsOpen && !isDownloadsOpen
                     AnimatedVisibility(
-                        visible = offlineTrack != null && (activeVideo == null || isPlayerMinimized) && !isInPipMode,
+                        visible = offlineTrack != null && activeVideo == null && !isInPipMode,
                         enter = androidx.compose.animation.slideInVertically(
                             initialOffsetY = { it },
                             animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset

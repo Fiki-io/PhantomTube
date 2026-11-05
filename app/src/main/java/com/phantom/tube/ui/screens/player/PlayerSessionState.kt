@@ -1,0 +1,580 @@
+package com.phantom.tube.ui.screens.player
+
+import android.content.Context
+import android.content.pm.ActivityInfo
+import android.os.SystemClock
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import com.phantom.tube.R
+import com.phantom.tube.core.network.NetworkConnectivityObserver
+import com.phantom.tube.core.util.findActivity
+import com.phantom.tube.data.model.NextQueue
+import com.phantom.tube.data.model.SponsorSegment
+import com.phantom.tube.data.model.VideoComment
+import com.phantom.tube.data.model.VideoItem
+import com.phantom.tube.data.repository.PhantomRepository
+import com.phantom.tube.player.PhantomPlayerBridge
+import com.phantom.tube.player.PhantomPlayerController
+import com.phantom.tube.player.PlayerState
+import com.phantom.tube.player.StoryboardData
+import com.phantom.tube.player.StoryboardHelper
+import com.phantom.tube.player.service.PhantomMediaService
+import com.phantom.tube.ui.components.SleepTimerOption
+import com.phantom.tube.ui.screens.player.components.SponsorBlockEvaluator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
+
+@Stable
+class PlayerSessionState(
+    val context: Context,
+    val scope: CoroutineScope,
+    val repository: PhantomRepository,
+    val haptic: HapticFeedback,
+    initialVideo: VideoItem
+) {
+    val controller = PhantomPlayerController(context)
+    val networkObserver = NetworkConnectivityObserver(context)
+    val lazyListState = LazyListState()
+    val fullSheetProgress = Animatable(1f)
+
+    var activeVideo by mutableStateOf(initialVideo)
+    var onPlayNextVideoCallback: (VideoItem) -> Unit = {}
+    var onPlayPreviousVideoCallback: () -> Boolean = { false }
+
+    var playerNoticeText by mutableStateOf<String?>(null)
+    private var noticeJob: Job? = null
+
+    var playerState by mutableStateOf(
+        PlayerState(
+            videoId = initialVideo.id,
+            playbackSpeed = repository.preferences?.defaultSpeed?.value ?: 1.0f
+        )
+    )
+    var currentPositionSec by mutableFloatStateOf(0f)
+    var currentDurationSec by mutableFloatStateOf(0f)
+    var currentBufferedFraction by mutableFloatStateOf(0f)
+    var isControlsVisible by mutableStateOf(true)
+    var isFullscreen by mutableStateOf(false)
+
+    var seekAnimationSide by mutableStateOf<SeekFeedbackDirection?>(null)
+    var seekAccumulatedSeconds by mutableIntStateOf(0)
+
+    var sponsorSegments by mutableStateOf<List<SponsorSegment>>(emptyList())
+    var showSponsorPill by mutableStateOf(false)
+    var lastSkippedSeconds by mutableIntStateOf(0)
+    var lastSkippedFromSec by mutableFloatStateOf(0f)
+    var lastSkippedCategory by mutableStateOf("sponsor")
+    var lastTargetSkipEndSec by mutableFloatStateOf(0f)
+    var skippedSegmentUuids: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    var undoneSegmentUuids: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    var appliedDefaultsVideoId by mutableStateOf<String?>(null)
+    var hasSyncedMediaSessionInitialPosition by mutableStateOf(false)
+    var lastSyncedMediaSessionSec by mutableFloatStateOf(0f)
+
+    var mixPlaylist by mutableStateOf<List<VideoItem>>(emptyList())
+    var activePlaylistId by mutableStateOf(initialVideo.playlistId)
+    var currentMixIndex by mutableIntStateOf(0)
+    var recommendedVideos by mutableStateOf<List<VideoItem>>(emptyList())
+    var recContinuationToken by mutableStateOf<String?>(null)
+    var isLoadingMoreRecs by mutableStateOf(false)
+    var canLoadMoreRecs by mutableStateOf(true)
+    var activeAvatarUrl by mutableStateOf(initialVideo.channelAvatarUrl)
+    var nextQueueData by mutableStateOf<NextQueue?>(null)
+    var commentsList by mutableStateOf<List<VideoComment>>(emptyList())
+    var commentsTotalCountText by mutableStateOf("")
+    var commentsContinuationToken by mutableStateOf<String?>(null)
+    var isLoadingComments by mutableStateOf(false)
+    var showDescriptionSheet by mutableStateOf(false)
+    var showCommentsSheet by mutableStateOf(false)
+    var showDownloadSheet by mutableStateOf(false)
+    var isEndscreenDismissed by mutableStateOf(false)
+    var liveEndscreenVideos by mutableStateOf<List<VideoItem>>(emptyList())
+    var mixTitle by mutableStateOf("")
+    var showMixSheet by mutableStateOf(false)
+    var isInternalNavigation by mutableStateOf(false)
+    var isLoadingQueue by mutableStateOf(false)
+
+    var showSettingsSheet by mutableStateOf(false)
+    var isLoopEnabled by mutableStateOf(false)
+    var isAutoplayNext by mutableStateOf(true)
+    var isAudioOnly by mutableStateOf(false)
+    var previousQualityBeforeAudioOnly by mutableStateOf("auto")
+    var sleepTimerOption by mutableStateOf(SleepTimerOption.OFF)
+    var sleepTimerRemainingSec by mutableStateOf<Int?>(null)
+    var lastRecordedPositionSec by mutableFloatStateOf(0f)
+
+    var mediaService by mutableStateOf<PhantomMediaService?>(null)
+
+    var isOfflineWaiting by mutableStateOf(false)
+    var wasPlayingBeforeOffline by mutableStateOf(false)
+
+    var lastProgressElapsedRealtime by mutableLongStateOf(0L)
+    var lastObservedPlaybackSec by mutableFloatStateOf(0f)
+    var isPlaybackStalled by mutableStateOf(false)
+
+    var storyboardData by mutableStateOf<StoryboardData?>(null)
+    var isScrubbing by mutableStateOf(false)
+    var scrubFraction by mutableFloatStateOf(0f)
+    var scrubTouchX by mutableFloatStateOf(0f)
+    var videoBoxWidthPx by mutableFloatStateOf(0f)
+    var videoBoxHeightPx by mutableFloatStateOf(0f)
+    var wasPlayingBeforeScrub by mutableStateOf(false)
+    var lastScrubSeekTimeMs by mutableLongStateOf(0L)
+    var isZoomToFill by mutableStateOf(false)
+    var isCaptionsEnabled by mutableStateOf(false)
+    var hasCaptions by mutableStateOf(false)
+    var isQualityMenuExpanded by mutableStateOf(false)
+
+    var dragOffsetY by mutableFloatStateOf(0f)
+    var portraitDragPx by mutableFloatStateOf(0f)
+    var hasTriggeredHaptic by mutableStateOf(false)
+
+    val currentVideo: VideoItem by derivedStateOf {
+        val v = activeVideo
+        nextQueueData?.currentVideo?.let { fetched ->
+            v.copy(
+                title = fetched.title.ifBlank { v.title },
+                channelTitle = fetched.channelTitle.ifBlank { v.channelTitle },
+                channelId = fetched.channelId.ifBlank { v.channelId },
+                thumbnailUrl = fetched.thumbnailUrl.ifBlank { v.thumbnailUrl },
+                channelAvatarUrl = fetched.channelAvatarUrl.ifBlank { activeAvatarUrl.ifBlank { v.channelAvatarUrl } },
+                durationText = fetched.durationText.ifBlank { v.durationText }
+            )
+        } ?: v
+    }
+
+    fun showNotice(text: String) {
+        noticeJob?.cancel()
+        playerNoticeText = text
+        noticeJob = scope.launch {
+            delay(1800)
+            playerNoticeText = null
+        }
+    }
+
+    fun applyAudioOnlyState(enabled: Boolean) {
+        if (enabled == isAudioOnly) return
+        if (enabled) {
+            val currentQ = playerState.currentQuality
+            if (currentQ.isNotBlank() && currentQ != "tiny") {
+                previousQualityBeforeAudioOnly = currentQ
+            }
+            isAudioOnly = true
+            playerState = playerState.copy(currentQuality = "tiny")
+            controller.setAudioOnly(true)
+            showNotice(context.getString(R.string.player_audio_only_active_toast))
+        } else {
+            isAudioOnly = false
+            controller.setAudioOnly(false)
+            val restoreQ = previousQualityBeforeAudioOnly.ifBlank {
+                repository.preferences?.defaultQuality?.value ?: "auto"
+            }
+            playerState = playerState.copy(currentQuality = restoreQ)
+            controller.setPlaybackQuality(restoreQ)
+            showNotice(context.getString(R.string.player_audio_only_restored_toast))
+        }
+    }
+
+    fun playNext() {
+        if (!networkObserver.isConnected()) {
+            showNotice(context.getString(R.string.player_no_internet_notice))
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        } else if (mixPlaylist.isNotEmpty()) {
+            if (currentMixIndex < mixPlaylist.lastIndex) {
+                val nextIndex = currentMixIndex + 1
+                val nextVid = mixPlaylist[nextIndex]
+                currentMixIndex = nextIndex
+                isInternalNavigation = true
+                onPlayNextVideoCallback(nextVid)
+            } else {
+                scope.launch {
+                    isLoadingQueue = true
+                    val targetPlId = activePlaylistId?.ifBlank { null } ?: "RD${currentVideo.id}"
+                    val nextData = repository.getWatchNext(currentVideo.id, targetPlId)
+                    if (nextData != null && nextData.mixPlaylist.isNotEmpty()) {
+                        val existingIds = mixPlaylist.map { it.id }.toSet()
+                        val freshItems = nextData.mixPlaylist.filter { it.id !in existingIds }
+                        if (freshItems.isNotEmpty()) {
+                            val nextIndex = mixPlaylist.size
+                            mixPlaylist = mixPlaylist + freshItems
+                            currentMixIndex = nextIndex
+                            isInternalNavigation = true
+                            onPlayNextVideoCallback(mixPlaylist[nextIndex])
+                        }
+                    }
+                    isLoadingQueue = false
+                }
+            }
+        } else if (recommendedVideos.isNotEmpty()) {
+            val nextVid = recommendedVideos.first()
+            isInternalNavigation = false
+            onPlayNextVideoCallback(nextVid)
+        }
+    }
+
+    fun playPrevious(): Boolean {
+        return if (currentPositionSec > 3f) {
+            controller.seekTo(0f)
+            currentPositionSec = 0f
+            true
+        } else {
+            if (!networkObserver.isConnected()) {
+                showNotice(context.getString(R.string.player_no_internet_notice))
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                false
+            } else if (mixPlaylist.isNotEmpty() && currentMixIndex > 0) {
+                val prevIndex = currentMixIndex - 1
+                val prevVid = mixPlaylist[prevIndex]
+                currentMixIndex = prevIndex
+                isInternalNavigation = true
+                scope.launch {
+                    repository.resetWatchPosition(prevVid.id)
+                }
+                onPlayNextVideoCallback(prevVid)
+                true
+            } else {
+                val handled = onPlayPreviousVideoCallback()
+                if (!handled) {
+                    controller.seekTo(0f)
+                }
+                handled
+            }
+        }
+    }
+
+    fun playFromMix(targetIndex: Int) {
+        if (!networkObserver.isConnected()) {
+            showNotice(context.getString(R.string.player_no_internet_notice))
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        } else if (targetIndex in mixPlaylist.indices) {
+            currentMixIndex = targetIndex
+            isInternalNavigation = true
+            onPlayNextVideoCallback(mixPlaylist[targetIndex])
+        }
+    }
+
+    fun exitFullscreenToPortrait() {
+        val activity = context.findActivity()
+        if (activity != null) {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            activity.window.decorView.postDelayed({
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }, 600)
+        }
+        isFullscreen = false
+    }
+
+    fun loadMoreRecommendations() {
+        if (!isLoadingMoreRecs && !isLoadingQueue && canLoadMoreRecs) {
+            scope.launch {
+                isLoadingMoreRecs = true
+                try {
+                    val result = repository.getMoreRecommendations(
+                        video = currentVideo,
+                        continuation = recContinuationToken
+                    )
+                    if (result.videos.isNotEmpty()) {
+                        val existingIds = (recommendedVideos + mixPlaylist).map { it.id }.toSet()
+                        val freshVideos = result.videos.filterNot { it.id in existingIds }
+                        if (freshVideos.isNotEmpty()) {
+                            recommendedVideos = (recommendedVideos + freshVideos).take(40)
+                        }
+                    } else if (result.continuationToken == null) {
+                        canLoadMoreRecs = false
+                    }
+                    recContinuationToken = result.continuationToken
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                } finally {
+                    isLoadingMoreRecs = false
+                }
+            }
+        }
+    }
+
+    val bridge = PhantomPlayerBridge(
+        onReadyCallback = {
+            controller.onReady()
+            if (isCaptionsEnabled) {
+                controller.setCaptionsEnabled(true)
+            }
+        },
+        onStoryboardSpecCallback = { spec ->
+            val parsed = StoryboardHelper.parse(spec)
+            if (parsed != null) {
+                storyboardData = parsed
+            }
+        },
+        onStateChangeCallback = { state ->
+            when (state) {
+                1 -> {
+                    isPlaybackStalled = false
+                    lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+                    lastObservedPlaybackSec = currentPositionSec
+                    playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
+                    mediaService?.updatePlaybackState(
+                        playing = true,
+                        currentPositionMs = (currentPositionSec * 1000).toLong(),
+                        forceNotify = true,
+                        isBuffering = false
+                    )
+                    if (isCaptionsEnabled) {
+                        controller.setCaptionsEnabled(true)
+                    }
+                    if (isAudioOnly) {
+                        controller.setAudioOnly(true)
+                    }
+                    if (appliedDefaultsVideoId != currentVideo.id) {
+                        appliedDefaultsVideoId = currentVideo.id
+                        val targetSpeed = playerState.playbackSpeed
+                        if (targetSpeed != 1.0f) {
+                            controller.setPlaybackRate(targetSpeed)
+                        }
+                        if (isAudioOnly) {
+                            playerState = playerState.copy(currentQuality = "tiny")
+                            controller.setAudioOnly(true)
+                        } else {
+                            val defQuality = repository.preferences?.defaultQuality?.value ?: "auto"
+                            if (defQuality != "auto") {
+                                playerState = playerState.copy(currentQuality = defQuality)
+                                controller.setPlaybackQuality(defQuality)
+                            }
+                        }
+                    }
+                }
+                2 -> {
+                    isPlaybackStalled = false
+                    playerState = playerState.copy(isPlaying = false, isBuffering = false)
+                    mediaService?.updatePlaybackState(
+                        playing = false,
+                        currentPositionMs = (currentPositionSec * 1000).toLong(),
+                        forceNotify = true,
+                        isBuffering = false
+                    )
+                    val activeVid = currentVideo
+                    val pos = currentPositionSec
+                    val dur = currentDurationSec
+                    if (pos > 1f) {
+                        scope.launch {
+                            repository.recordWatch(
+                                video = activeVid,
+                                positionMs = (pos * 1000).toLong(),
+                                durationMs = (dur * 1000).toLong()
+                            )
+                        }
+                    }
+                }
+                3 -> {
+                    playerState = playerState.copy(isBuffering = true)
+                    if (!networkObserver.isConnected()) {
+                        wasPlayingBeforeOffline = true
+                    }
+                    mediaService?.updatePlaybackState(
+                        playing = false,
+                        currentPositionMs = (currentPositionSec * 1000).toLong(),
+                        forceNotify = true,
+                        isBuffering = true
+                    )
+                }
+                0 -> {
+                    isPlaybackStalled = false
+                    playerState = playerState.copy(isPlaying = false, isEnded = true)
+                    mediaService?.updatePlaybackState(false, 0L, forceNotify = true, isBuffering = false)
+                    val endedVidId = activeVideo.id
+                    scope.launch {
+                        repository.resetWatchPosition(endedVidId)
+                    }
+                    if (isLoopEnabled) {
+                        controller.seekTo(0f)
+                        controller.play()
+                    } else if (sleepTimerOption == SleepTimerOption.END_OF_VIDEO) {
+                        controller.pause()
+                        sleepTimerOption = SleepTimerOption.OFF
+                        sleepTimerRemainingSec = null
+                    } else if (isAutoplayNext) {
+                        playNext()
+                    }
+                }
+            }
+        },
+        onTimeUpdateCallback = { reportingVideoId, current, duration, buffered ->
+            if (reportingVideoId.isNotBlank() && reportingVideoId != currentVideo.id) {
+                return@PhantomPlayerBridge
+            }
+
+            if (kotlin.math.abs(current - lastObservedPlaybackSec) >= 0.1f) {
+                lastObservedPlaybackSec = current
+                lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+                if (isPlaybackStalled) {
+                    isPlaybackStalled = false
+                    if (playerState.isPlaying) {
+                        playerState = playerState.copy(isBuffering = false)
+                        mediaService?.updatePlaybackState(
+                            playing = true,
+                            currentPositionMs = (current * 1000).toLong(),
+                            forceNotify = true,
+                            isBuffering = false
+                        )
+                    }
+                }
+            }
+
+            val wasZeroDuration = currentDurationSec <= 0f && duration > 0f
+            currentPositionSec = current
+            currentDurationSec = duration
+            currentBufferedFraction = buffered
+
+            if (wasZeroDuration) {
+                playerState = playerState.copy(durationSec = duration)
+                mediaService?.updateDuration((duration * 1000).toLong(), (current * 1000).toLong())
+            }
+
+            val isEffectivelyPlaying = playerState.isPlaying && !isPlaybackStalled && !playerState.isBuffering
+            if (!hasSyncedMediaSessionInitialPosition && current > 0.5f) {
+                hasSyncedMediaSessionInitialPosition = true
+                lastSyncedMediaSessionSec = current
+                mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
+            } else if (kotlin.math.abs(current - lastSyncedMediaSessionSec) >= 5f) {
+                lastSyncedMediaSessionSec = current
+                mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
+            }
+
+            if (current > 2f && (current - lastRecordedPositionSec >= 5f || current < lastRecordedPositionSec)) {
+                lastRecordedPositionSec = current
+                val activeVid = currentVideo
+                scope.launch {
+                    repository.recordWatch(
+                        video = activeVid,
+                        positionMs = (current * 1000).toLong(),
+                        durationMs = (duration * 1000).toLong()
+                    )
+                }
+            }
+
+            val match = SponsorBlockEvaluator.findMatchingSegment(
+                currentSec = current,
+                durationSec = duration,
+                segments = sponsorSegments,
+                preferences = repository.preferences,
+                skippedUuids = skippedSegmentUuids,
+                undoneUuids = undoneSegmentUuids
+            )
+            if (match != null) {
+                skippedSegmentUuids.add(match.uuid)
+                lastSkippedFromSec = current
+                lastTargetSkipEndSec = match.endSecond
+                lastSkippedSeconds = match.skippedSeconds
+                lastSkippedCategory = match.category
+                if (match.autoSkip) {
+                    controller.seekTo(match.endSecond)
+                    currentPositionSec = match.endSecond
+                    mediaService?.updatePlaybackState(playerState.isPlaying, (match.endSecond * 1000).toLong())
+                }
+                showSponsorPill = true
+                scope.launch {
+                    delay(4000)
+                    showSponsorPill = false
+                }
+                if (match.category == "outro") {
+                    val activeVid = currentVideo
+                    scope.launch {
+                        repository.resetWatchPosition(activeVid.id)
+                    }
+                }
+            }
+        },
+        onErrorCallback = { errorCode ->
+            val msg = when (errorCode) {
+                100 -> context.getString(R.string.player_err_not_available)
+                101, 150 -> context.getString(R.string.player_err_restricted)
+                152 -> context.getString(R.string.player_err_unsupported)
+                2 -> context.getString(R.string.player_err_invalid)
+                5 -> context.getString(R.string.player_error_load)
+                else -> "${context.getString(R.string.player_error_load)} ($errorCode)"
+            }
+            playerState = playerState.copy(isBuffering = false, errorCode = msg)
+        },
+        onQualityChangeCallback = { currentQuality, availableQualities ->
+            playerState = playerState.copy(
+                currentQuality = currentQuality,
+                availableQualities = availableQualities
+            )
+        },
+        onCaptionsAvailableCallback = { available ->
+            hasCaptions = available
+        },
+        onEndscreenDataCallback = { itemsJson ->
+            try {
+                val arr = org.json.JSONArray(itemsJson)
+                val items = mutableListOf<VideoItem>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    val id = obj.optString("id")
+                    if (id.isNotBlank() && id != currentVideo.id) {
+                        items.add(
+                            VideoItem(
+                                id = id,
+                                title = obj.optString("title"),
+                                channelTitle = obj.optString("channel"),
+                                durationText = obj.optString("duration"),
+                                thumbnailUrl = obj.optString("thumbnail").ifBlank { "https://i.ytimg.com/vi/$id/hqdefault.jpg" }
+                            )
+                        )
+                    }
+                }
+                if (items.isNotEmpty()) {
+                    scope.launch {
+                        liveEndscreenVideos = items
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+    )
+}
+
+@Composable
+fun rememberPlayerSessionState(
+    context: Context,
+    repository: PhantomRepository,
+    haptic: HapticFeedback,
+    video: VideoItem,
+    isMinimized: Boolean,
+    onPlayNextVideo: (VideoItem) -> Unit,
+    onPlayPreviousVideo: () -> Boolean
+): PlayerSessionState {
+    val scope = rememberCoroutineScope()
+    val session = remember {
+        PlayerSessionState(
+            context = context,
+            scope = scope,
+            repository = repository,
+            haptic = haptic,
+            initialVideo = video
+        ).apply {
+            if (isMinimized) {
+                scope.launch { fullSheetProgress.snapTo(0f) }
+            }
+        }
+    }
+    session.activeVideo = video
+    session.onPlayNextVideoCallback = onPlayNextVideo
+    session.onPlayPreviousVideoCallback = onPlayPreviousVideo
+    return session
+}

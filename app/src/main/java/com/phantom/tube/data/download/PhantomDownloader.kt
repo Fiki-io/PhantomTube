@@ -21,6 +21,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -46,7 +47,7 @@ object PhantomDownloader {
     }
 
     fun resetDownloadState(videoId: String) {
-        _downloadStates.value = _downloadStates.value - videoId
+        _downloadStates.update { it - videoId }
     }
 
     fun resolveSafeContentUri(
@@ -91,7 +92,7 @@ object PhantomDownloader {
         val videoId = video.id
         val appContext = context.applicationContext
 
-        _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Converting(quality.label))
+        _downloadStates.update { it + (videoId to DownloadState.Converting(quality.label)) }
 
         downloadScope.launch {
             withContext(Dispatchers.Main) {
@@ -104,7 +105,7 @@ object PhantomDownloader {
 
             val convertResult = PhantomDownloadEngine.convertMedia(videoId, quality, appContext)
             convertResult.onSuccess { dlRes ->
-                _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Downloading(quality.label, 0, 0L, 0L))
+                _downloadStates.update { it + (videoId to DownloadState.Downloading(quality.label, 0, 0L, 0L)) }
 
                 val downloadRes = downloadMedia(
                     context = appContext,
@@ -113,16 +114,24 @@ object PhantomDownloader {
                     mimeType = dlRes.mimeType,
                     videoTitle = video.title.ifBlank { dlRes.filename },
                     onProgress = { percent, downloaded, total ->
-                        _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Downloading(quality.label, percent, downloaded, total))
+                        _downloadStates.update { current ->
+                            if (current[videoId] is DownloadState.Downloading) {
+                                current + (videoId to DownloadState.Downloading(quality.label, percent, downloaded, total))
+                            } else {
+                                current
+                            }
+                        }
                     }
                 )
 
                 downloadRes.onSuccess { fileInfo ->
-                    _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Success(
-                        fileName = fileInfo.fileName,
-                        filePath = fileInfo.filePath,
-                        fileUri = fileInfo.fileUri
-                    ))
+                    _downloadStates.update {
+                        it + (videoId to DownloadState.Success(
+                            fileName = fileInfo.fileName,
+                            filePath = fileInfo.filePath,
+                            fileUri = fileInfo.fileUri
+                        ))
+                    }
 
                     val entity = com.phantom.tube.core.database.DownloadEntity(
                         id = "${videoId}_${quality.formatType}_${quality.qualityValue}",
@@ -148,14 +157,14 @@ object PhantomDownloader {
                     }
                 }.onFailure { dlErr ->
                     val msg = dlErr.message ?: appContext.getString(R.string.download_error_general)
-                    _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Error(msg))
+                    _downloadStates.update { it + (videoId to DownloadState.Error(msg)) }
                     withContext(Dispatchers.Main) {
                         android.widget.Toast.makeText(appContext, msg, android.widget.Toast.LENGTH_LONG).show()
                     }
                 }
             }.onFailure { convErr ->
                 val msg = convErr.message ?: appContext.getString(R.string.download_error_convert)
-                _downloadStates.value = _downloadStates.value + (videoId to DownloadState.Error(msg))
+                _downloadStates.update { it + (videoId to DownloadState.Error(msg)) }
                 withContext(Dispatchers.Main) {
                     android.widget.Toast.makeText(appContext, msg, android.widget.Toast.LENGTH_LONG).show()
                 }

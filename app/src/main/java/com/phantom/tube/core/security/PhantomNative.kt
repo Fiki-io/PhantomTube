@@ -1230,20 +1230,21 @@ a[href*="youtube.com/watch"] {
             var vid = document.querySelector('video.html5-main-video') || document.querySelector('video');
             if (vid) {
                 if (vid.muted) vid.muted = false;
-                if (vid.volume < 1.0) vid.volume = 1.0;
+                if (vid.volume <= 0.01) vid.volume = 1.0;
             }
             var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
             if (p) {
                 if (typeof p.isMuted === 'function' && p.isMuted()) {
                     if (typeof p.unMute === 'function') p.unMute();
                 }
-                if (typeof p.getVolume === 'function' && p.getVolume() < 100) {
+                if (typeof p.getVolume === 'function' && p.getVolume() <= 1) {
                     if (typeof p.setVolume === 'function') p.setVolume(100);
                 }
             }
         } catch(e) {}
     }
-    setInterval(enforceAudioHealth, 3000);
+    document.addEventListener('play', enforceAudioHealth, true);
+    document.addEventListener('loadeddata', enforceAudioHealth, true);
 
     setInterval(reportIframeQuality, 4000);
     document.addEventListener('DOMContentLoaded', reportIframeQuality);

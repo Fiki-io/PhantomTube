@@ -252,7 +252,7 @@ fun HistoryScreen(
             isDestructive = true,
             onConfirm = {
                 scope.launch {
-                    repository.clearHistory()
+                    repository.clearWatchHistory()
                     android.widget.Toast.makeText(
                         context,
                         context.getString(R.string.toast_history_cleared),

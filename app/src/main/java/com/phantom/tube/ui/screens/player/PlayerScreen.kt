@@ -12,7 +12,6 @@ import android.os.SystemClock
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -27,7 +26,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -35,14 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,18 +53,12 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.phantom.tube.R
-import com.phantom.tube.core.network.NetworkConnectivityObserver
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.util.findActivity
-import com.phantom.tube.data.model.NextQueue
-import com.phantom.tube.data.model.SponsorSegment
-import com.phantom.tube.data.model.VideoComment
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
-import com.phantom.tube.player.PhantomPlayerBridge
-import com.phantom.tube.player.PhantomPlayerController
+import com.phantom.tube.data.settings.PhantomPreferences
 import com.phantom.tube.player.PlayerState
-import com.phantom.tube.player.StoryboardData
 import com.phantom.tube.player.StoryboardHelper
 import com.phantom.tube.player.offline.OfflineAudioPlayerManager
 import com.phantom.tube.player.service.PhantomMediaService
@@ -84,11 +69,11 @@ import com.phantom.tube.ui.screens.player.components.PlayerAmbientBackdrop
 import com.phantom.tube.ui.screens.player.components.PlayerPortraitSheetContent
 import com.phantom.tube.ui.screens.player.components.PlayerSheetsHost
 import com.phantom.tube.ui.screens.player.components.PlayerVideoViewportBox
-import com.phantom.tube.ui.screens.player.components.SponsorBlockEvaluator
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 
 enum class SeekFeedbackDirection { FORWARD, REWIND }
 
@@ -110,383 +95,73 @@ fun PlayerScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
-
-    var playerNoticeText by remember { mutableStateOf<String?>(null) }
-    var noticeJob by remember { mutableStateOf<Job?>(null) }
-
-    fun showNotice(text: String) {
-        noticeJob?.cancel()
-        playerNoticeText = text
-        noticeJob = scope.launch {
-            delay(1800)
-            playerNoticeText = null
-        }
-    }
-
-    var playerState by remember {
-        mutableStateOf(
-            PlayerState(
-                videoId = video.id,
-                playbackSpeed = repository.preferences?.defaultSpeed?.value ?: 1.0f
-            )
-        )
-    }
-    var currentPositionSec by remember { mutableFloatStateOf(0f) }
-    var currentDurationSec by remember { mutableFloatStateOf(0f) }
-    var currentBufferedFraction by remember { mutableFloatStateOf(0f) }
-    var isControlsVisible by remember { mutableStateOf(true) }
-    var isFullscreen by remember { mutableStateOf(false) }
-
     val configuration = LocalConfiguration.current
-    val isDeviceLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val density = LocalDensity.current
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx().coerceAtLeast(1f) }
 
-    LaunchedEffect(isDeviceLandscape) {
-        if (isDeviceLandscape && !isFullscreen) {
-            isFullscreen = true
-        } else if (!isDeviceLandscape && isFullscreen) {
-            val activity = context.findActivity()
-            if (activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE ||
-                activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            ) {
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            }
-            isFullscreen = false
-        }
-    }
-
-    DisposableEffect(isFullscreen, isMinimized) {
-        val activity = context.findActivity()
-        val window = activity?.window
-        if (window != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val lp = window.attributes
-                lp.layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-                window.attributes = lp
-            }
-            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-            if (isFullscreen && !isMinimized) {
-                insetsController.systemBarsBehavior =
-                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                insetsController.hide(WindowInsetsCompat.Type.systemBars())
-            } else {
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
-            }
-        }
-        onDispose {
-            if (window != null) {
-                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
-            }
-        }
-    }
-
-    var seekAnimationSide by remember { mutableStateOf<SeekFeedbackDirection?>(null) }
-    var seekAccumulatedSeconds by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(seekAnimationSide, seekAccumulatedSeconds) {
-        if (seekAnimationSide != null) {
-            delay(750L)
-            seekAnimationSide = null
-            seekAccumulatedSeconds = 0
-        }
-    }
-
-    var sponsorSegments by remember { mutableStateOf<List<SponsorSegment>>(emptyList()) }
-    var showSponsorPill by remember { mutableStateOf(false) }
-    var lastSkippedSeconds by remember { mutableIntStateOf(0) }
-    var lastSkippedFromSec by remember { mutableFloatStateOf(0f) }
-    var lastSkippedCategory by remember { mutableStateOf("sponsor") }
-    var lastTargetSkipEndSec by remember { mutableFloatStateOf(0f) }
-    val skippedSegmentUuids = remember(video.id) { java.util.concurrent.ConcurrentHashMap.newKeySet<String>() }
-    val undoneSegmentUuids = remember(video.id) { java.util.concurrent.ConcurrentHashMap.newKeySet<String>() }
-    var appliedDefaultsVideoId by remember { mutableStateOf<String?>(null) }
-    var hasSyncedMediaSessionInitialPosition by remember(video.id) { mutableStateOf(false) }
-    var lastSyncedMediaSessionSec by remember(video.id) { mutableFloatStateOf(0f) }
-
-    var mixPlaylist by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
-    var activePlaylistId by remember(video.id) { mutableStateOf(video.playlistId) }
-    var currentMixIndex by remember { mutableIntStateOf(0) }
-    var recommendedVideos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
-    var recContinuationToken by remember { mutableStateOf<String?>(null) }
-    var isLoadingMoreRecs by remember { mutableStateOf(false) }
-    var canLoadMoreRecs by remember { mutableStateOf(true) }
-    var activeAvatarUrl by remember { mutableStateOf(video.channelAvatarUrl) }
-    var nextQueueData by remember { mutableStateOf<NextQueue?>(null) }
-    var commentsList by remember { mutableStateOf<List<VideoComment>>(emptyList()) }
-    var commentsTotalCountText by remember { mutableStateOf("") }
-    var commentsContinuationToken by remember { mutableStateOf<String?>(null) }
-    var isLoadingComments by remember { mutableStateOf(false) }
-    var showDescriptionSheet by remember { mutableStateOf(false) }
-    var showCommentsSheet by remember { mutableStateOf(false) }
-    var showDownloadSheet by remember { mutableStateOf(false) }
-    var isEndscreenDismissed by remember(video.id) { mutableStateOf(false) }
-    var liveEndscreenVideos by remember(video.id) { mutableStateOf<List<VideoItem>>(emptyList()) }
-    var mixTitle by remember { mutableStateOf("") }
-    var showMixSheet by remember { mutableStateOf(false) }
-    var isInternalNavigation by remember { mutableStateOf(false) }
-    var isLoadingQueue by remember { mutableStateOf(false) }
-
-    LaunchedEffect(video.id, video.playlistId) {
-        if (!video.playlistId.isNullOrBlank()) {
-            activePlaylistId = video.playlistId
-        }
-        if (video.channelAvatarUrl.isNotBlank()) {
-            activeAvatarUrl = video.channelAvatarUrl
-        }
-        recContinuationToken = null
-        canLoadMoreRecs = true
-        nextQueueData = null
-        commentsList = emptyList()
-        commentsTotalCountText = ""
-        commentsContinuationToken = null
-        isLoadingComments = false
-        showDescriptionSheet = false
-        isEndscreenDismissed = false
-        liveEndscreenVideos = emptyList()
-        showCommentsSheet = false
-        showDownloadSheet = false
-    }
-
-    var showSettingsSheet by remember { mutableStateOf(false) }
-    val doubleTapSeekSeconds by remember(repository) {
-        repository.preferences?.doubleTapSeekSeconds ?: kotlinx.coroutines.flow.MutableStateFlow(10)
-    }.collectAsState()
-    var isLoopEnabled by remember { mutableStateOf(false) }
-    var isAutoplayNext by remember { mutableStateOf(true) }
-    var isAudioOnly by remember { mutableStateOf(false) }
-    var previousQualityBeforeAudioOnly by remember { mutableStateOf("auto") }
-    var sleepTimerOption by remember { mutableStateOf(SleepTimerOption.OFF) }
-    var sleepTimerRemainingSec by remember { mutableStateOf<Int?>(null) }
-    var lastRecordedPositionSec by remember { mutableFloatStateOf(0f) }
-
-    var mediaService by remember { mutableStateOf<PhantomMediaService?>(null) }
-
-    val networkObserver = remember(context) { NetworkConnectivityObserver(context) }
-    val isNetworkConnected by networkObserver.isConnectedFlow.collectAsState(initial = networkObserver.isConnected())
-    var isOfflineWaiting by remember { mutableStateOf(false) }
-    var wasPlayingBeforeOffline by remember { mutableStateOf(false) }
-
-    var lastProgressElapsedRealtime by remember { mutableLongStateOf(0L) }
-    var lastObservedPlaybackSec by remember { mutableFloatStateOf(0f) }
-    var isPlaybackStalled by remember { mutableStateOf(false) }
-
-    val currentVideo by rememberUpdatedState(
-        nextQueueData?.currentVideo?.let { fetched ->
-            video.copy(
-                title = fetched.title.ifBlank { video.title },
-                channelTitle = fetched.channelTitle.ifBlank { video.channelTitle },
-                channelId = fetched.channelId.ifBlank { video.channelId },
-                thumbnailUrl = fetched.thumbnailUrl.ifBlank { video.thumbnailUrl },
-                channelAvatarUrl = fetched.channelAvatarUrl.ifBlank { activeAvatarUrl.ifBlank { video.channelAvatarUrl } },
-                durationText = fetched.durationText.ifBlank { video.durationText }
-            )
-        } ?: video
+    val session = rememberPlayerSessionState(
+        context = context,
+        repository = repository,
+        haptic = haptic,
+        video = video,
+        isMinimized = isMinimized,
+        onPlayNextVideo = onPlayNextVideo,
+        onPlayPreviousVideo = onPlayPreviousVideo
     )
-    val currentOnPlayNextVideo by rememberUpdatedState(onPlayNextVideo)
-    val currentOnPlayPreviousVideo by rememberUpdatedState(onPlayPreviousVideo)
 
-    val controller = remember { PhantomPlayerController(context) }
+    val doubleTapSeekSeconds by remember(repository) {
+        repository.preferences?.doubleTapSeekSeconds ?: MutableStateFlow(10)
+    }.collectAsState()
 
-    val isOfflinePlaying by OfflineAudioPlayerManager.isPlaying.collectAsState()
-    LaunchedEffect(isOfflinePlaying) {
-        if (isOfflinePlaying) {
-            controller.pause()
+    val miniPlayerStyle by remember(repository) {
+        repository.preferences?.miniPlayerStyle ?: MutableStateFlow(PhantomPreferences.MINIPLAYER_STYLE_FLOATING)
+    }.collectAsState()
+    val isFloatingMiniPlayer = miniPlayerStyle == PhantomPreferences.MINIPLAYER_STYLE_FLOATING
+
+    PlayerLifecycleEffects(
+        session = session,
+        video = video,
+        isMinimized = isMinimized,
+        isFloatingMiniPlayer = isFloatingMiniPlayer
+    )
+
+    PlayerMediaServiceEffect(session = session)
+
+    BackHandler(enabled = !isMinimized) {
+        when {
+            session.showMixSheet -> session.showMixSheet = false
+            session.showDescriptionSheet -> session.showDescriptionSheet = false
+            session.showCommentsSheet -> session.showCommentsSheet = false
+            session.showDownloadSheet -> session.showDownloadSheet = false
+            session.showSettingsSheet -> session.showSettingsSheet = false
+            session.isFullscreen -> session.exitFullscreenToPortrait()
+            else -> onBackClick()
         }
     }
 
-    LaunchedEffect(isNetworkConnected) {
-        if (!isNetworkConnected) {
-            isOfflineWaiting = true
-        } else {
-            if (isOfflineWaiting) {
-                isOfflineWaiting = false
-                showNotice(context.getString(R.string.player_online_restored))
-                if (wasPlayingBeforeOffline || isPlaybackStalled || playerState.isBuffering) {
-                    wasPlayingBeforeOffline = false
-                    isPlaybackStalled = false
-                    controller.play()
-                    delay(2500)
-                    if (!playerState.isPlaying && networkObserver.isConnected()) {
-                        controller.loadVideo(currentVideo.id, currentPositionSec)
-                    }
-                }
-            }
-        }
-    }
+    val animatedDragOffset by animateFloatAsState(
+        targetValue = session.dragOffsetY,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "drag_minimize_offset"
+    )
 
-    LaunchedEffect(playerState.isPlaying) {
-        if (playerState.isPlaying) {
-            lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
-            lastObservedPlaybackSec = currentPositionSec
-            while (playerState.isPlaying) {
-                delay(1500L)
-                val now = SystemClock.elapsedRealtime()
-                if (playerState.isPlaying && (now - lastProgressElapsedRealtime > 2500L)) {
-                    if (!isPlaybackStalled) {
-                        isPlaybackStalled = true
-                        if (!networkObserver.isConnected()) {
-                            wasPlayingBeforeOffline = true
-                        }
-                        playerState = playerState.copy(isBuffering = true)
-                        mediaService?.updatePlaybackState(
-                            playing = false,
-                            currentPositionMs = (currentPositionSec * 1000).toLong(),
-                            forceNotify = true,
-                            isBuffering = true
-                        )
-                    }
-                }
-            }
-        } else {
-            isPlaybackStalled = false
-        }
-    }
-
-    LaunchedEffect(video.id) {
-        OfflineAudioPlayerManager.stop(context)
-    }
-    LaunchedEffect(playerState.isPlaying) {
-        if (playerState.isPlaying) {
-            OfflineAudioPlayerManager.stop(context)
-        }
-    }
-
-    LaunchedEffect(sleepTimerRemainingSec, playerState.isPlaying) {
-        if (sleepTimerRemainingSec != null && (sleepTimerRemainingSec ?: 0) > 0 && playerState.isPlaying) {
-            delay(1000L)
-            if (playerState.isPlaying) {
-                val current = (sleepTimerRemainingSec ?: 0) - 1
-                if (current <= 0) {
-                    controller.pause()
-                    sleepTimerRemainingSec = null
-                    sleepTimerOption = SleepTimerOption.OFF
-                } else {
-                    sleepTimerRemainingSec = current
-                }
-            }
-        }
-    }
-
-    val playNext: () -> Unit = {
-        if (!networkObserver.isConnected()) {
-            showNotice(context.getString(R.string.player_no_internet_notice))
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        } else if (mixPlaylist.isNotEmpty()) {
-            if (currentMixIndex < mixPlaylist.lastIndex) {
-                val nextIndex = currentMixIndex + 1
-                val nextVid = mixPlaylist[nextIndex]
-                currentMixIndex = nextIndex
-                isInternalNavigation = true
-                currentOnPlayNextVideo(nextVid)
+    val isSheetRendered by remember(isMinimized, isFloatingMiniPlayer) {
+        derivedStateOf {
+            if (isMinimized) {
+                if (isFloatingMiniPlayer) false else session.fullSheetProgress.value > 0.005f
             } else {
-                scope.launch {
-                    isLoadingQueue = true
-                    val targetPlId = activePlaylistId?.ifBlank { null } ?: "RD${currentVideo.id}"
-                    val nextData = repository.getWatchNext(currentVideo.id, targetPlId)
-                    if (nextData != null && nextData.mixPlaylist.isNotEmpty()) {
-                        val existingIds = mixPlaylist.map { it.id }.toSet()
-                        val freshItems = nextData.mixPlaylist.filter { it.id !in existingIds }
-                        if (freshItems.isNotEmpty()) {
-                            val nextIndex = mixPlaylist.size
-                            mixPlaylist = mixPlaylist + freshItems
-                            currentMixIndex = nextIndex
-                            isInternalNavigation = true
-                            currentOnPlayNextVideo(mixPlaylist[nextIndex])
-                        }
-                    }
-                    isLoadingQueue = false
-                }
-            }
-        } else if (recommendedVideos.isNotEmpty()) {
-            val nextVid = recommendedVideos.first()
-            isInternalNavigation = false
-            currentOnPlayNextVideo(nextVid)
-        }
-    }
-
-    val playPrevious: () -> Boolean = {
-        if (currentPositionSec > 3f) {
-            controller.seekTo(0f)
-            currentPositionSec = 0f
-            true
-        } else {
-            if (!networkObserver.isConnected()) {
-                showNotice(context.getString(R.string.player_no_internet_notice))
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                false
-            } else if (mixPlaylist.isNotEmpty() && currentMixIndex > 0) {
-                val prevIndex = currentMixIndex - 1
-                val prevVid = mixPlaylist[prevIndex]
-                currentMixIndex = prevIndex
-                isInternalNavigation = true
-                scope.launch {
-                    repository.resetWatchPosition(prevVid.id)
-                }
-                currentOnPlayNextVideo(prevVid)
                 true
-            } else {
-                val handled = currentOnPlayPreviousVideo()
-                if (!handled) {
-                    controller.seekTo(0f)
-                }
-                handled
             }
         }
     }
 
-    val playFromMix: (Int) -> Unit = { targetIndex ->
-        if (!networkObserver.isConnected()) {
-            showNotice(context.getString(R.string.player_no_internet_notice))
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        } else if (targetIndex in mixPlaylist.indices) {
-            currentMixIndex = targetIndex
-            isInternalNavigation = true
-            currentOnPlayNextVideo(mixPlaylist[targetIndex])
-        }
-    }
-
-    var storyboardData by remember { mutableStateOf<StoryboardData?>(null) }
-    var isScrubbing by remember { mutableStateOf(false) }
-    var scrubFraction by remember { mutableFloatStateOf(0f) }
-    var scrubTouchX by remember { mutableFloatStateOf(0f) }
-    var videoBoxWidthPx by remember { mutableFloatStateOf(0f) }
-    var videoBoxHeightPx by remember { mutableFloatStateOf(0f) }
-    var wasPlayingBeforeScrub by remember { mutableStateOf(false) }
-    var lastScrubSeekTimeMs by remember { mutableLongStateOf(0L) }
-    var isZoomToFill by remember { mutableStateOf(false) }
-    var isCaptionsEnabled by remember { mutableStateOf(false) }
-    var hasCaptions by remember { mutableStateOf(false) }
-    var isQualityMenuExpanded by remember { mutableStateOf(false) }
-
-    fun applyAudioOnlyState(enabled: Boolean) {
-        if (enabled == isAudioOnly) return
-        if (enabled) {
-            val currentQ = playerState.currentQuality
-            if (currentQ.isNotBlank() && currentQ != "tiny") {
-                previousQualityBeforeAudioOnly = currentQ
-            }
-            isAudioOnly = true
-            playerState = playerState.copy(currentQuality = "tiny")
-            controller.setAudioOnly(true)
-            showNotice(context.getString(R.string.player_audio_only_active_toast))
-        } else {
-            isAudioOnly = false
-            controller.setAudioOnly(false)
-            val restoreQ = previousQualityBeforeAudioOnly.ifBlank {
-                repository.preferences?.defaultQuality?.value ?: "auto"
-            }
-            playerState = playerState.copy(currentQuality = restoreQ)
-            controller.setPlaybackQuality(restoreQ)
-            showNotice(context.getString(R.string.player_audio_only_restored_toast))
-        }
-    }
-
-    val fillScale = remember(videoBoxWidthPx, videoBoxHeightPx) {
-        if (videoBoxHeightPx > 0f && videoBoxWidthPx > 0f) {
-            val containerRatio = videoBoxWidthPx / videoBoxHeightPx
+    val fillScale = remember(session.videoBoxWidthPx, session.videoBoxHeightPx) {
+        if (session.videoBoxHeightPx > 0f && session.videoBoxWidthPx > 0f) {
+            val containerRatio = session.videoBoxWidthPx / session.videoBoxHeightPx
             val videoRatio = 16f / 9f
             if (containerRatio > videoRatio) {
                 (containerRatio / videoRatio).coerceIn(1.0f, 2.5f)
@@ -499,790 +174,19 @@ fun PlayerScreen(
     }
 
     val animatedZoomScale by animateFloatAsState(
-        targetValue = if (isZoomToFill) fillScale else 1.0f,
+        targetValue = if (session.isZoomToFill) fillScale else 1.0f,
         animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
         label = "zoomScale"
     )
 
-    val bridge = remember {
-        PhantomPlayerBridge(
-            onReadyCallback = {
-                controller.onReady()
-                if (isCaptionsEnabled) {
-                    controller.setCaptionsEnabled(true)
-                }
-            },
-            onStoryboardSpecCallback = { spec ->
-                val parsed = StoryboardHelper.parse(spec)
-                if (parsed != null) {
-                    storyboardData = parsed
-                }
-            },
-            onStateChangeCallback = { state ->
-                when (state) {
-                    1 -> {
-                        isPlaybackStalled = false
-                        lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
-                        lastObservedPlaybackSec = currentPositionSec
-                        playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
-                        mediaService?.updatePlaybackState(
-                            playing = true,
-                            currentPositionMs = (currentPositionSec * 1000).toLong(),
-                            forceNotify = true,
-                            isBuffering = false
-                        )
-                        if (isCaptionsEnabled) {
-                            controller.setCaptionsEnabled(true)
-                        }
-                        if (isAudioOnly) {
-                            controller.setAudioOnly(true)
-                        }
-                        if (appliedDefaultsVideoId != currentVideo.id) {
-                            appliedDefaultsVideoId = currentVideo.id
-                            val targetSpeed = playerState.playbackSpeed
-                            if (targetSpeed != 1.0f) {
-                                controller.setPlaybackRate(targetSpeed)
-                            }
-                            if (isAudioOnly) {
-                                playerState = playerState.copy(currentQuality = "tiny")
-                                controller.setAudioOnly(true)
-                            } else {
-                                val defQuality = repository.preferences?.defaultQuality?.value ?: "auto"
-                                if (defQuality != "auto") {
-                                    playerState = playerState.copy(currentQuality = defQuality)
-                                    controller.setPlaybackQuality(defQuality)
-                                }
-                            }
-                        }
-                    }
-                    2 -> {
-                        isPlaybackStalled = false
-                        playerState = playerState.copy(isPlaying = false, isBuffering = false)
-                        mediaService?.updatePlaybackState(
-                            playing = false,
-                            currentPositionMs = (currentPositionSec * 1000).toLong(),
-                            forceNotify = true,
-                            isBuffering = false
-                        )
-                        val activeVid = currentVideo
-                        val pos = currentPositionSec
-                        val dur = currentDurationSec
-                        if (pos > 1f) {
-                            scope.launch {
-                                repository.recordWatch(
-                                    video = activeVid,
-                                    positionMs = (pos * 1000).toLong(),
-                                    durationMs = (dur * 1000).toLong()
-                                )
-                            }
-                        }
-                    }
-                    3 -> {
-                        playerState = playerState.copy(isBuffering = true)
-                        if (!networkObserver.isConnected()) {
-                            wasPlayingBeforeOffline = true
-                        }
-                        mediaService?.updatePlaybackState(
-                            playing = false,
-                            currentPositionMs = (currentPositionSec * 1000).toLong(),
-                            forceNotify = true,
-                            isBuffering = true
-                        )
-                    }
-                    0 -> {
-                        isPlaybackStalled = false
-                        playerState = playerState.copy(isPlaying = false, isEnded = true)
-                        mediaService?.updatePlaybackState(false, 0L, forceNotify = true, isBuffering = false)
-                        scope.launch {
-                            repository.resetWatchPosition(video.id)
-                        }
-                        if (isLoopEnabled) {
-                            controller.seekTo(0f)
-                            controller.play()
-                        } else if (sleepTimerOption == SleepTimerOption.END_OF_VIDEO) {
-                            controller.pause()
-                            sleepTimerOption = SleepTimerOption.OFF
-                            sleepTimerRemainingSec = null
-                        } else if (isAutoplayNext) {
-                            playNext()
-                        }
-                    }
-                }
-            },
-            onTimeUpdateCallback = { reportingVideoId, current, duration, buffered ->
-                if (reportingVideoId.isNotBlank() && reportingVideoId != currentVideo.id) {
-                    return@PhantomPlayerBridge
-                }
-
-                if (kotlin.math.abs(current - lastObservedPlaybackSec) >= 0.1f) {
-                    lastObservedPlaybackSec = current
-                    lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
-                    if (isPlaybackStalled) {
-                        isPlaybackStalled = false
-                        if (playerState.isPlaying) {
-                            playerState = playerState.copy(isBuffering = false)
-                            mediaService?.updatePlaybackState(
-                                playing = true,
-                                currentPositionMs = (current * 1000).toLong(),
-                                forceNotify = true,
-                                isBuffering = false
-                            )
-                        }
-                    }
-                }
-
-                val wasZeroDuration = currentDurationSec <= 0f && duration > 0f
-                currentPositionSec = current
-                currentDurationSec = duration
-                currentBufferedFraction = buffered
-
-                if (wasZeroDuration) {
-                    playerState = playerState.copy(durationSec = duration)
-                    mediaService?.updateDuration((duration * 1000).toLong(), (current * 1000).toLong())
-                }
-
-                val isEffectivelyPlaying = playerState.isPlaying && !isPlaybackStalled && !playerState.isBuffering
-                if (!hasSyncedMediaSessionInitialPosition && current > 0.5f) {
-                    hasSyncedMediaSessionInitialPosition = true
-                    lastSyncedMediaSessionSec = current
-                    mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
-                } else if (kotlin.math.abs(current - lastSyncedMediaSessionSec) >= 5f) {
-                    lastSyncedMediaSessionSec = current
-                    mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
-                }
-
-                if (current > 2f && (current - lastRecordedPositionSec >= 5f || current < lastRecordedPositionSec)) {
-                    lastRecordedPositionSec = current
-                    val activeVid = currentVideo
-                    scope.launch {
-                        repository.recordWatch(
-                            video = activeVid,
-                            positionMs = (current * 1000).toLong(),
-                            durationMs = (duration * 1000).toLong()
-                        )
-                    }
-                }
-
-                val match = SponsorBlockEvaluator.findMatchingSegment(
-                    currentSec = current,
-                    durationSec = duration,
-                    segments = sponsorSegments,
-                    preferences = repository.preferences,
-                    skippedUuids = skippedSegmentUuids,
-                    undoneUuids = undoneSegmentUuids
-                )
-                if (match != null) {
-                    skippedSegmentUuids.add(match.uuid)
-                    lastSkippedFromSec = current
-                    lastTargetSkipEndSec = match.endSecond
-                    lastSkippedSeconds = match.skippedSeconds
-                    lastSkippedCategory = match.category
-                    if (match.autoSkip) {
-                        controller.seekTo(match.endSecond)
-                        currentPositionSec = match.endSecond
-                        mediaService?.updatePlaybackState(playerState.isPlaying, (match.endSecond * 1000).toLong())
-                    }
-                    showSponsorPill = true
-                    scope.launch {
-                        delay(4000)
-                        showSponsorPill = false
-                    }
-                    if (match.category == "outro") {
-                        val activeVid = currentVideo
-                        scope.launch {
-                            repository.resetWatchPosition(activeVid.id)
-                        }
-                    }
-                }
-            },
-            onErrorCallback = { errorCode ->
-                val msg = when (errorCode) {
-                    100 -> context.getString(R.string.player_err_not_available)
-                    101, 150 -> context.getString(R.string.player_err_restricted)
-                    152 -> context.getString(R.string.player_err_unsupported)
-                    2 -> context.getString(R.string.player_err_invalid)
-                    5 -> context.getString(R.string.player_error_load)
-                    else -> "${context.getString(R.string.player_error_load)} ($errorCode)"
-                }
-                playerState = playerState.copy(isBuffering = false, errorCode = msg)
-            },
-            onQualityChangeCallback = { currentQuality, availableQualities ->
-                playerState = playerState.copy(
-                    currentQuality = currentQuality,
-                    availableQualities = availableQualities
-                )
-            },
-            onCaptionsAvailableCallback = { available ->
-                hasCaptions = available
-            },
-            onEndscreenDataCallback = { itemsJson ->
-                try {
-                    val arr = org.json.JSONArray(itemsJson)
-                    val items = mutableListOf<VideoItem>()
-                    for (i in 0 until arr.length()) {
-                        val obj = arr.getJSONObject(i)
-                        val id = obj.optString("id")
-                        if (id.isNotBlank() && id != currentVideo.id) {
-                            items.add(
-                                VideoItem(
-                                    id = id,
-                                    title = obj.optString("title"),
-                                    channelTitle = obj.optString("channel"),
-                                    durationText = obj.optString("duration"),
-                                    thumbnailUrl = obj.optString("thumbnail").ifBlank { "https://i.ytimg.com/vi/$id/hqdefault.jpg" }
-                                )
-                            )
-                        }
-                    }
-                    if (items.isNotEmpty()) {
-                        scope.launch {
-                            liveEndscreenVideos = items
-                        }
-                    }
-                } catch (_: Exception) {
-                }
-            }
-        )
-    }
-
-    DisposableEffect(Unit) {
-        val serviceIntent = Intent(context, PhantomMediaService::class.java)
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        val connection = object : ServiceConnection {
-            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-                val service = (binder as? PhantomMediaService.LocalBinder)?.getService()
-                service?.apply {
-                    onPlayAction = {
-                        if (!networkObserver.isConnected()) {
-                            showNotice(context.getString(R.string.player_no_internet_notice))
-                        } else {
-                            controller.play()
-                        }
-                    }
-                    onPauseAction = { controller.pause() }
-                    onNextAction = { playNext() }
-                    onPreviousAction = { playPrevious() }
-                    onOfflineTimeoutAction = {
-                        controller.pause()
-                        isOfflineWaiting = false
-                        wasPlayingBeforeOffline = false
-                        showNotice(context.getString(R.string.player_stopped_offline_timeout))
-                    }
-                    onSeekAction = { posMs ->
-                        val sec = posMs / 1000f
-                        controller.seekTo(sec)
-                        currentPositionSec = sec
-                        updatePlaybackState(playerState.isPlaying, posMs)
-                    }
-                }
-                mediaService = service
-            }
-
-            override fun onServiceDisconnected(name: ComponentName?) {
-                mediaService = null
-            }
-        }
-
-        try {
-            context.bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        val activity = context.findActivity()
-        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-        onDispose {
-            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            if (isFullscreen) {
-                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                val window = activity?.window
-                if (window != null) {
-                    val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-                    insetsController.show(WindowInsetsCompat.Type.systemBars())
-                }
-            }
-            controller.release()
-            StoryboardHelper.clearCache()
-            try {
-                context.unbindService(connection)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            try {
-                context.stopService(Intent(context, PhantomMediaService::class.java))
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    LaunchedEffect(isAudioOnly, isMinimized) {
-        val activity = context.findActivity()
-        if (isAudioOnly || isMinimized) {
-            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        } else {
-            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        }
-    }
-
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_STOP -> {
-                    val isBgAllowed = repository.preferences?.backgroundPlaybackEnabled?.value ?: true
-                    val activity = context.findActivity()
-                    val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        activity?.isInPictureInPictureMode == true
-                    } else false
-                    if (!inPip) {
-                        if (!isBgAllowed) {
-                            controller.pause()
-                        } else {
-                            controller.setVideoSurfaceActive(false)
-                        }
-                    }
-                }
-                Lifecycle.Event.ON_START -> {
-                    if (!isAudioOnly) {
-                        val restoreQ = playerState.currentQuality.ifBlank {
-                            repository.preferences?.defaultQuality?.value ?: "auto"
-                        }
-                        controller.setVideoSurfaceActive(true, restoreQ)
-                    }
-                }
-                else -> {}
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    LaunchedEffect(isControlsVisible, playerState.isPlaying, isQualityMenuExpanded) {
-        if (isControlsVisible && playerState.isPlaying && !isQualityMenuExpanded) {
-            delay(4000)
-            isControlsVisible = false
-        }
-    }
-
-    LaunchedEffect(mediaService) {
-        val service = mediaService ?: return@LaunchedEffect
-        val lastPos = (currentPositionSec * 1000).toLong()
-        service.updateMediaInfo(
-            title = currentVideo.title,
-            channel = currentVideo.channelTitle,
-            durationMs = (currentDurationSec * 1000).toLong(),
-            playing = playerState.isPlaying,
-            thumbnailUrl = currentVideo.thumbnailUrl,
-            currentPositionMs = lastPos
-        )
-    }
-
-    LaunchedEffect(video.id) {
-        playerState = PlayerState(
-            videoId = video.id,
-            playbackSpeed = playerState.playbackSpeed
-        )
-        appliedDefaultsVideoId = null
-        sponsorSegments = emptyList()
-        lastRecordedPositionSec = 0f
-        isPlaybackStalled = false
-        lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
-        lastObservedPlaybackSec = 0f
-        storyboardData = null
-        StoryboardHelper.clearCache()
-        repository.clearCommentsCache()
-        isScrubbing = false
-        isQualityMenuExpanded = false
-        controller.requestStoryboard()
-        val fromInternal = isInternalNavigation
-        if (fromInternal) {
-            isInternalNavigation = false
-        }
-
-        val lastPos = repository.getLastPosition(video.id) ?: 0L
-        currentPositionSec = lastPos / 1000f
-        currentDurationSec = 0f
-        currentBufferedFraction = 0f
-        playerState = playerState.copy(currentTimeSec = lastPos / 1000f)
-        controller.loadVideo(video.id, lastPos / 1000f)
-
-        mediaService?.updateMediaInfo(
-            title = video.title,
-            channel = video.channelTitle,
-            durationMs = 0L,
-            playing = true,
-            thumbnailUrl = video.thumbnailUrl,
-            currentPositionMs = lastPos
-        )
-
-        launch {
-            sponsorSegments = repository.getSponsorSegments(video.id)
-        }
-
-        launch {
-            isLoadingQueue = true
-            val targetPlaylistId = video.playlistId?.ifBlank { null }
-                ?: activePlaylistId?.ifBlank { null }
-                ?: "RD${video.id}"
-            activePlaylistId = targetPlaylistId
-            val nextData = repository.getWatchNext(video.id, targetPlaylistId)
-            if (nextData != null) {
-                nextQueueData = nextData
-                if (nextData.currentVideo.channelAvatarUrl.isNotBlank()) {
-                    activeAvatarUrl = nextData.currentVideo.channelAvatarUrl
-                }
-                val enrichedVideo = video.copy(
-                    title = nextData.currentVideo.title.ifBlank { video.title },
-                    channelTitle = nextData.currentVideo.channelTitle.ifBlank { video.channelTitle },
-                    channelId = nextData.currentVideo.channelId.ifBlank { video.channelId },
-                    thumbnailUrl = nextData.currentVideo.thumbnailUrl.ifBlank { video.thumbnailUrl },
-                    channelAvatarUrl = nextData.currentVideo.channelAvatarUrl.ifBlank { video.channelAvatarUrl },
-                    durationText = nextData.currentVideo.durationText.ifBlank { video.durationText }
-                )
-                if (video.title.isBlank() && enrichedVideo.title.isNotBlank()) {
-                    if (currentPositionSec > 0.5f || lastPos > 0L) {
-                        val posMs = if (currentPositionSec > 0.5f) (currentPositionSec * 1000).toLong() else lastPos
-                        repository.recordWatch(
-                            video = enrichedVideo,
-                            positionMs = posMs,
-                            durationMs = (currentDurationSec * 1000).toLong()
-                        )
-                    }
-                }
-                mediaService?.updateMediaInfo(
-                    title = enrichedVideo.title,
-                    channel = enrichedVideo.channelTitle,
-                    durationMs = (currentDurationSec * 1000).toLong(),
-                    playing = playerState.isPlaying,
-                    thumbnailUrl = enrichedVideo.thumbnailUrl,
-                    currentPositionMs = (currentPositionSec * 1000).toLong()
-                )
-                recommendedVideos = nextData.recommendations
-                recContinuationToken = nextData.recommendationsContinuationToken
-                canLoadMoreRecs = true
-
-                if (!fromInternal) {
-                    showMixSheet = (video.isPlaylist || !video.playlistId.isNullOrBlank()) && nextData.mixPlaylist.isNotEmpty()
-                    mixPlaylist = nextData.mixPlaylist
-                    currentMixIndex = if (nextData.mixPlaylist.isNotEmpty()) {
-                        val match = nextData.mixPlaylist.indexOfFirst { it.id == video.id }
-                        if (match != -1) match else nextData.currentIndex
-                    } else 0
-                    mixTitle = nextData.playlistTitle.ifBlank { if (video.isPlaylist) video.title else "Mix" }
-                } else {
-                    if (currentMixIndex !in mixPlaylist.indices || mixPlaylist[currentMixIndex].id != video.id) {
-                        val idx = mixPlaylist.indexOfFirst { it.id == video.id }
-                        if (idx != -1) {
-                            currentMixIndex = idx
-                        }
-                    }
-                    if (mixPlaylist.isNotEmpty() && currentMixIndex >= mixPlaylist.size - 5) {
-                        val existingIds = mixPlaylist.map { it.id }.toSet()
-                        val freshItems = nextData.mixPlaylist.filter { it.id !in existingIds }
-                        if (freshItems.isNotEmpty()) {
-                            mixPlaylist = mixPlaylist + freshItems
-                        }
-                    }
-                }
-
-                if (!nextData.commentsContinuationToken.isNullOrBlank()) {
-                    launch {
-                        isLoadingComments = true
-                        try {
-                            val cResult = repository.getComments(nextData.commentsContinuationToken)
-                            commentsList = cResult.comments
-                            commentsTotalCountText = cResult.totalCountText.ifBlank { nextData.commentsCountText }
-                            commentsContinuationToken = cResult.continuationToken
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        } finally {
-                            isLoadingComments = false
-                        }
-                    }
-                }
-            } else if (fromInternal) {
-                if (currentMixIndex !in mixPlaylist.indices || mixPlaylist[currentMixIndex].id != video.id) {
-                    val idx = mixPlaylist.indexOfFirst { it.id == video.id }
-                    if (idx != -1) {
-                        currentMixIndex = idx
-                    }
-                }
-            }
-            isLoadingQueue = false
-        }
-    }
-
-    val exitFullscreenToPortrait = {
-        val activity = context.findActivity()
-        if (activity != null) {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-            activity.window.decorView.postDelayed({
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            }, 600)
-        }
-        isFullscreen = false
-    }
-
-    BackHandler(enabled = !isMinimized) {
-        when {
-            showMixSheet -> showMixSheet = false
-            showDescriptionSheet -> showDescriptionSheet = false
-            showCommentsSheet -> showCommentsSheet = false
-            showDownloadSheet -> showDownloadSheet = false
-            showSettingsSheet -> showSettingsSheet = false
-            isFullscreen -> exitFullscreenToPortrait()
-            else -> onBackClick()
-        }
-    }
-
-    val density = LocalDensity.current
-    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx().coerceAtLeast(1f) }
-
-    var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    var portraitDragPx by remember { mutableFloatStateOf(0f) }
-    val animatedDragOffset by animateFloatAsState(
-        targetValue = dragOffsetY,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "drag_minimize_offset"
+    val dragModifier = rememberPlayerDragModifier(
+        session = session,
+        isMinimized = isMinimized,
+        screenHeightPx = screenHeightPx,
+        onMinimize = onMinimize
     )
 
-    var hasTriggeredHaptic by remember { mutableStateOf(false) }
-
-    val miniPlayerStyle by (repository.preferences?.miniPlayerStyle ?: kotlinx.coroutines.flow.MutableStateFlow(com.phantom.tube.data.settings.PhantomPreferences.MINIPLAYER_STYLE_FLOATING)).collectAsState()
-    val isFloatingMiniPlayer = miniPlayerStyle == com.phantom.tube.data.settings.PhantomPreferences.MINIPLAYER_STYLE_FLOATING
-
-    val fullSheetProgress = remember { Animatable(if (isMinimized) 0f else 1f) }
-    val isSheetRendered by remember {
-        derivedStateOf {
-            if (isMinimized) {
-                if (isFloatingMiniPlayer) false else fullSheetProgress.value > 0.005f
-            } else {
-                true
-            }
-        }
-    }
-
-    LaunchedEffect(isMinimized, isFloatingMiniPlayer) {
-        if (!isMinimized) {
-            dragOffsetY = 0f
-            portraitDragPx = 0f
-            if (!isAudioOnly) {
-                val restoreQ = playerState.currentQuality.ifBlank {
-                    repository.preferences?.defaultQuality?.value ?: "auto"
-                }
-                controller.setVideoSurfaceActive(true, restoreQ)
-            }
-            try {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            } catch (_: Exception) {}
-            fullSheetProgress.animateTo(
-                targetValue = 1f,
-                animationSpec = IosSpringSpecs.Gentle
-            )
-        } else {
-            showMixSheet = false
-            showDescriptionSheet = false
-            showCommentsSheet = false
-            showSettingsSheet = false
-            showDownloadSheet = false
-            dragOffsetY = 0f
-            portraitDragPx = 0f
-            if (!isAudioOnly && !isFloatingMiniPlayer) {
-                controller.setVideoSurfaceActive(false)
-            }
-            if (isFloatingMiniPlayer) {
-                fullSheetProgress.snapTo(0f)
-            } else {
-                fullSheetProgress.animateTo(
-                    targetValue = 0f,
-                    animationSpec = IosSpringSpecs.Gentle
-                )
-            }
-            if (!isFloatingMiniPlayer) {
-                com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
-                    context = context,
-                    aggressiveGraphicsPurge = true
-                )
-            }
-        }
-    }
-
-    val lazyListState = rememberLazyListState()
-
-    val dragModifier = if (!isMinimized) {
-        Modifier.pointerInput(isFullscreen, screenHeightPx) {
-            detectVerticalDragGestures(
-                onVerticalDrag = { change, dragAmount ->
-                    if (isFullscreen) {
-                        if (dragAmount > 0f || dragOffsetY > 0f) {
-                            change.consume()
-                            dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
-                            if (dragOffsetY > 80f && !hasTriggeredHaptic) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                hasTriggeredHaptic = true
-                            }
-                        }
-                    } else {
-                        if (dragAmount > 0f || portraitDragPx > 0f) {
-                            change.consume()
-                            portraitDragPx = (portraitDragPx + dragAmount).coerceIn(0f, screenHeightPx)
-                            val targetProgress = (1f - (portraitDragPx / screenHeightPx)).coerceIn(0f, 1f)
-                            scope.launch {
-                                fullSheetProgress.snapTo(targetProgress)
-                            }
-                            if (portraitDragPx > 15f) {
-                                showMixSheet = false
-                                showDescriptionSheet = false
-                                showCommentsSheet = false
-                                showSettingsSheet = false
-                            }
-                            if (portraitDragPx > 180f && !hasTriggeredHaptic) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                hasTriggeredHaptic = true
-                            }
-                        }
-                    }
-                },
-                onDragEnd = {
-                    val triggeredFullscreenDrag = dragOffsetY
-                    val triggeredPortraitDrag = portraitDragPx
-                    dragOffsetY = 0f
-                    portraitDragPx = 0f
-                    hasTriggeredHaptic = false
-                    if (isFullscreen) {
-                        if (triggeredFullscreenDrag > 80f) {
-                            exitFullscreenToPortrait()
-                        }
-                    } else {
-                        if (triggeredPortraitDrag > 180f) {
-                            showMixSheet = false
-                            showDescriptionSheet = false
-                            showCommentsSheet = false
-                            showSettingsSheet = false
-                            onMinimize()
-                        } else {
-                            scope.launch {
-                                fullSheetProgress.animateTo(
-                                    targetValue = 1f,
-                                    animationSpec = IosSpringSpecs.Gentle
-                                )
-                            }
-                        }
-                    }
-                },
-                onDragCancel = {
-                    dragOffsetY = 0f
-                    portraitDragPx = 0f
-                    hasTriggeredHaptic = false
-                    if (!isFullscreen && !isMinimized) {
-                        scope.launch {
-                            fullSheetProgress.animateTo(
-                                targetValue = 1f,
-                                animationSpec = IosSpringSpecs.Gentle
-                            )
-                        }
-                    }
-                }
-            )
-        }
-    } else Modifier
-
-    LaunchedEffect(showCommentsSheet) {
-        if (showCommentsSheet && commentsList.isEmpty() && !isLoadingComments) {
-            val token = commentsContinuationToken ?: nextQueueData?.commentsContinuationToken
-            if (!token.isNullOrBlank()) {
-                scope.launch {
-                    isLoadingComments = true
-                    try {
-                        val cResult = repository.getComments(token)
-                        commentsList = cResult.comments
-                        if (cResult.totalCountText.isNotBlank()) {
-                            commentsTotalCountText = cResult.totalCountText
-                        } else if (commentsTotalCountText.isBlank()) {
-                            commentsTotalCountText = nextQueueData?.commentsCountText ?: ""
-                        }
-                        commentsContinuationToken = cResult.continuationToken
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
-                        isLoadingComments = false
-                    }
-                }
-            }
-        }
-    }
-
-    val loadMoreRecommendations: () -> Unit = {
-        if (!isLoadingMoreRecs && !isLoadingQueue && canLoadMoreRecs) {
-            scope.launch {
-                isLoadingMoreRecs = true
-                try {
-                    val result = repository.getMoreRecommendations(
-                        video = currentVideo,
-                        continuation = recContinuationToken
-                    )
-                    if (result.videos.isNotEmpty()) {
-                        val existingIds = (recommendedVideos + mixPlaylist).map { it.id }.toSet()
-                        val freshVideos = result.videos.filterNot { it.id in existingIds }
-                        if (freshVideos.isNotEmpty()) {
-                            recommendedVideos = (recommendedVideos + freshVideos).take(40)
-                        }
-                    } else if (result.continuationToken == null) {
-                        canLoadMoreRecs = false
-                    }
-                    recContinuationToken = result.continuationToken
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                } finally {
-                    isLoadingMoreRecs = false
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(lazyListState, recContinuationToken, isLoadingMoreRecs, canLoadMoreRecs) {
-        snapshotFlow {
-            val layoutInfo = lazyListState.layoutInfo
-            val total = layoutInfo.totalItemsCount
-            val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            total to last
-        }
-            .filter { (total, last) -> total > 0 && last >= total - 3 }
-            .collect {
-                if (!isLoadingMoreRecs && !isLoadingQueue && canLoadMoreRecs && recommendedVideos.isNotEmpty()) {
-                    loadMoreRecommendations()
-                }
-            }
-    }
-
-    LaunchedEffect(recContinuationToken, isLoadingMoreRecs) {
-        if (!isLoadingMoreRecs && !isLoadingQueue && canLoadMoreRecs && recContinuationToken != null) {
-            val layoutInfo = lazyListState.layoutInfo
-            val total = layoutInfo.totalItemsCount
-            val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            if (total > 0 && last >= total - 3) {
-                loadMoreRecommendations()
-            }
-        }
-    }
-
-    val effectiveDragOffsetProvider = { if (isFullscreen && !isMinimized) animatedDragOffset else 0f }
+    val effectiveDragOffsetProvider = { if (session.isFullscreen && !isMinimized) animatedDragOffset else 0f }
 
     Box(
         modifier = if (!isSheetRendered || isInPipMode) {
@@ -1291,9 +195,9 @@ fun PlayerScreen(
             modifier
                 .fillMaxSize()
                 .drawBehind {
-                    val progress = fullSheetProgress.value
+                    val progress = session.fullSheetProgress.value
                     val drag = effectiveDragOffsetProvider()
-                    val scrimAlpha = if (isFullscreen) {
+                    val scrimAlpha = if (session.isFullscreen) {
                         (1f - (drag / 120f)).coerceIn(0f, 0.95f)
                     } else {
                         (progress * 0.78f).coerceIn(0f, 0.78f)
@@ -1306,266 +210,28 @@ fun PlayerScreen(
     ) {
         PlayerAmbientBackdrop(
             isSheetRendered = isSheetRendered,
-            isFullscreen = isFullscreen,
+            isFullscreen = session.isFullscreen,
             thumbnailUrl = video.thumbnailUrl,
-            sheetProgressProvider = { fullSheetProgress.value },
+            sheetProgressProvider = { session.fullSheetProgress.value },
             dragOffsetProvider = effectiveDragOffsetProvider,
             screenHeightPx = screenHeightPx,
             isInPipMode = isInPipMode
         )
 
-        PlayerVideoViewportBox(
+        PlayerViewportBridgeSection(
+            session = session,
             video = video,
             isSheetRendered = isSheetRendered,
-            isFullscreen = isFullscreen,
-            sheetProgressProvider = { fullSheetProgress.value },
-            dragOffsetProvider = effectiveDragOffsetProvider,
+            effectiveDragOffsetProvider = effectiveDragOffsetProvider,
             screenHeightPx = screenHeightPx,
             dragModifier = dragModifier,
             animatedZoomScale = animatedZoomScale,
-            controller = controller,
-            bridge = bridge,
-            playerState = playerState,
-            isAudioOnly = isAudioOnly,
-            isControlsVisible = isControlsVisible,
-            isCaptionsEnabled = isCaptionsEnabled,
-            hasCaptions = hasCaptions,
-            isQualityMenuExpanded = isQualityMenuExpanded,
-            isZoomToFill = isZoomToFill,
             doubleTapSeekSeconds = doubleTapSeekSeconds,
-            seekAnimationSide = seekAnimationSide,
-            seekAccumulatedSeconds = seekAccumulatedSeconds,
-            showSponsorPill = showSponsorPill,
-            lastSkippedSeconds = lastSkippedSeconds,
-            lastSkippedCategory = lastSkippedCategory,
-            isManualSkipMode = !(repository.preferences?.sponsorBlockAutoSkip?.value ?: true),
-            liveEndscreenVideos = liveEndscreenVideos,
-            nextQueueData = nextQueueData,
-            recommendedVideos = recommendedVideos,
-            isEndscreenDismissed = isEndscreenDismissed,
-            isScrubbing = isScrubbing,
-            scrubFraction = scrubFraction,
-            scrubTouchX = scrubTouchX,
-            videoBoxWidthPx = videoBoxWidthPx,
-            storyboardData = storyboardData,
-            playerNoticeText = playerNoticeText,
-            currentTimeSecProvider = { currentPositionSec },
-            durationSecProvider = { currentDurationSec },
-            bufferedFractionProvider = { currentBufferedFraction },
-            isOfflineWaiting = isOfflineWaiting,
-            onViewportMeasured = { w, h ->
-                videoBoxWidthPx = w
-                videoBoxHeightPx = h
-            },
-            onDisableAudioOnly = { applyAudioOnlyState(false) },
-            onSingleTapViewport = {
-                when {
-                    showMixSheet -> showMixSheet = false
-                    showDescriptionSheet -> showDescriptionSheet = false
-                    showCommentsSheet -> showCommentsSheet = false
-                    showSettingsSheet -> showSettingsSheet = false
-                    isQualityMenuExpanded -> isQualityMenuExpanded = false
-                    else -> isControlsVisible = !isControlsVisible
-                }
-            },
-            onDoubleTapSeek = { isRewind ->
-                val delta = doubleTapSeekSeconds
-                if (isRewind) {
-                    seekAccumulatedSeconds = if (seekAnimationSide == SeekFeedbackDirection.REWIND) {
-                        seekAccumulatedSeconds + delta
-                    } else {
-                        delta
-                    }
-                    seekAnimationSide = SeekFeedbackDirection.REWIND
-                    val newTime = (currentPositionSec - delta.toFloat()).coerceAtLeast(0f)
-                    controller.seekTo(newTime)
-                    currentPositionSec = newTime
-                    mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
-                } else {
-                    seekAccumulatedSeconds = if (seekAnimationSide == SeekFeedbackDirection.FORWARD) {
-                        seekAccumulatedSeconds + delta
-                    } else {
-                        delta
-                    }
-                    seekAnimationSide = SeekFeedbackDirection.FORWARD
-                    val newTime = (currentPositionSec + delta.toFloat()).coerceAtMost(currentDurationSec)
-                    controller.seekTo(newTime)
-                    currentPositionSec = newTime
-                    mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
-                }
-            },
-            onManualSponsorSkip = {
-                controller.seekTo(lastTargetSkipEndSec)
-                currentPositionSec = lastTargetSkipEndSec
-                mediaService?.updatePlaybackState(playerState.isPlaying, (lastTargetSkipEndSec * 1000).toLong())
-                if (lastSkippedCategory == "outro") {
-                    val activeVid = currentVideo
-                    scope.launch {
-                        repository.resetWatchPosition(activeVid.id)
-                    }
-                }
-                showSponsorPill = false
-            },
-            onUndoSponsorSkip = {
-                undoneSegmentUuids.addAll(skippedSegmentUuids)
-                controller.seekTo(lastSkippedFromSec)
-                currentPositionSec = lastSkippedFromSec
-                mediaService?.updatePlaybackState(playerState.isPlaying, (lastSkippedFromSec * 1000).toLong())
-                showSponsorPill = false
-            },
-            onDismissEndscreen = { isEndscreenDismissed = true },
-            onEndscreenVideoClick = { targetVid ->
-                if (!networkObserver.isConnected()) {
-                    showNotice(context.getString(R.string.player_no_internet_notice))
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                } else {
-                    isInternalNavigation = false
-                    currentOnPlayNextVideo(targetVid)
-                }
-            },
-            onMinimizeOrExitFullscreen = {
-                if (isFullscreen) exitFullscreenToPortrait() else onMinimize()
-            },
-            onToggleCaptions = {
-                if (!hasCaptions) {
-                    showNotice(context.getString(R.string.player_no_captions))
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                } else {
-                    isCaptionsEnabled = !isCaptionsEnabled
-                    controller.setCaptionsEnabled(isCaptionsEnabled)
-                    showNotice(
-                        if (isCaptionsEnabled) context.getString(R.string.player_captions_on)
-                        else context.getString(R.string.player_captions_off)
-                    )
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                }
-            },
-            onToggleQualityMenu = { expanded -> isQualityMenuExpanded = expanded },
-            onSelectQuality = { opt ->
-                if (isAudioOnly && opt.code != "tiny") {
-                    isAudioOnly = false
-                    controller.setAudioOnly(false)
-                }
-                previousQualityBeforeAudioOnly = opt.code
-                playerState = playerState.copy(currentQuality = opt.code)
-                controller.setPlaybackQuality(opt.code)
-                isQualityMenuExpanded = false
-                showNotice(context.getString(R.string.player_quality_format, opt.label))
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            },
-            onToggleZoom = {
-                isZoomToFill = !isZoomToFill
-                showNotice(
-                    if (isZoomToFill) context.getString(R.string.player_zoom_fill)
-                    else context.getString(R.string.player_zoom_original)
-                )
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            },
-            onCycleSpeed = {
-                val nextSpeed = when (playerState.playbackSpeed) {
-                    1.0f -> 1.5f
-                    1.5f -> 2.0f
-                    2.0f -> 0.5f
-                    else -> 1.0f
-                }
-                playerState = playerState.copy(playbackSpeed = nextSpeed)
-                controller.setPlaybackRate(nextSpeed)
-            },
-            onSetPlaybackSpeed = { speed ->
-                playerState = playerState.copy(playbackSpeed = speed)
-                controller.setPlaybackRate(speed)
-            },
-            onOpenSettings = {
-                isControlsVisible = false
-                isQualityMenuExpanded = false
-                showCommentsSheet = false
-                showDescriptionSheet = false
-                showMixSheet = false
-                showSettingsSheet = true
-            },
-            onSkipPrevious = { playPrevious() },
-            onRewind10s = {
-                val delta = doubleTapSeekSeconds
-                seekAccumulatedSeconds = if (seekAnimationSide == SeekFeedbackDirection.REWIND) {
-                    seekAccumulatedSeconds + delta
-                } else {
-                    delta
-                }
-                seekAnimationSide = SeekFeedbackDirection.REWIND
-                val newTime = (currentPositionSec - delta.toFloat()).coerceAtLeast(0f)
-                controller.seekTo(newTime)
-                currentPositionSec = newTime
-                mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
-            },
-            onTogglePlayPause = {
-                if (playerState.isPlaying) {
-                    controller.pause()
-                } else {
-                    if (!networkObserver.isConnected()) {
-                        showNotice(context.getString(R.string.player_no_internet_notice))
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    } else {
-                        controller.play()
-                    }
-                }
-            },
-            onForward10s = {
-                val delta = doubleTapSeekSeconds
-                seekAccumulatedSeconds = if (seekAnimationSide == SeekFeedbackDirection.FORWARD) {
-                    seekAccumulatedSeconds + delta
-                } else {
-                    delta
-                }
-                seekAnimationSide = SeekFeedbackDirection.FORWARD
-                val newTime = (currentPositionSec + delta.toFloat()).coerceAtMost(currentDurationSec)
-                controller.seekTo(newTime)
-                currentPositionSec = newTime
-                mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
-            },
-            onSkipNext = { playNext() },
-            onToggleFullscreen = {
-                if (isFullscreen) {
-                    exitFullscreenToPortrait()
-                } else {
-                    val activity = context.findActivity()
-                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                    isFullscreen = true
-                }
-            },
-            onSeek = { fraction ->
-                val targetSec = fraction * currentDurationSec
-                controller.seekTo(targetSec)
-                currentPositionSec = targetSec
-                mediaService?.updatePlaybackState(playerState.isPlaying, (targetSec * 1000).toLong())
-                if (wasPlayingBeforeScrub) {
-                    controller.play()
-                }
-            },
-            onScrubbing = { scrubbing, fraction, touchX ->
-                if (scrubbing && !isScrubbing) {
-                    wasPlayingBeforeScrub = playerState.isPlaying
-                    if (playerState.isPlaying) {
-                        controller.pause()
-                    }
-                }
-                isScrubbing = scrubbing
-                scrubFraction = fraction
-                scrubTouchX = touchX
-                if (scrubbing) {
-                    isControlsVisible = true
-                    val now = System.currentTimeMillis()
-                    if (now - lastScrubSeekTimeMs >= 50L) {
-                        lastScrubSeekTimeMs = now
-                        val targetSec = fraction * currentDurationSec
-                        controller.seekTo(targetSec)
-                    }
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                }
-            },
             isInPipMode = isInPipMode,
             isMinimized = isMinimized,
             isFloatingMiniPlayer = isFloatingMiniPlayer,
             isBottomNavVisible = isBottomNavVisible,
+            onMinimize = onMinimize,
             onExpand = onExpand,
             onClose = onClose
         )
@@ -1573,60 +239,60 @@ fun PlayerScreen(
         if (!isInPipMode) {
             PlayerPortraitSheetContent(
                 isSheetRendered = isSheetRendered,
-                isFullscreen = isFullscreen,
-                sheetProgressProvider = { fullSheetProgress.value },
+                isFullscreen = session.isFullscreen,
+                sheetProgressProvider = { session.fullSheetProgress.value },
                 dragOffsetProvider = effectiveDragOffsetProvider,
                 screenHeightPx = screenHeightPx,
                 dragModifier = dragModifier,
-                lazyListState = lazyListState,
+                lazyListState = session.lazyListState,
                 video = video,
-                nextQueueData = nextQueueData,
-                activeAvatarUrl = activeAvatarUrl,
-                commentsList = commentsList,
-                commentsTotalCountText = commentsTotalCountText,
+                nextQueueData = session.nextQueueData,
+                activeAvatarUrl = session.activeAvatarUrl,
+                commentsList = session.commentsList,
+                commentsTotalCountText = session.commentsTotalCountText,
                 repository = repository,
-                isLoadingQueue = isLoadingQueue,
-                recommendedVideos = recommendedVideos,
-                isLoadingMoreRecs = isLoadingMoreRecs,
-                mixPlaylist = mixPlaylist,
-                currentMixIndex = currentMixIndex,
-                mixTitle = mixTitle,
-                showMixSheet = showMixSheet,
-                showCommentsSheet = showCommentsSheet,
-                showDescriptionSheet = showDescriptionSheet,
-                showSettingsSheet = showSettingsSheet,
+                isLoadingQueue = session.isLoadingQueue,
+                recommendedVideos = session.recommendedVideos,
+                isLoadingMoreRecs = session.isLoadingMoreRecs,
+                mixPlaylist = session.mixPlaylist,
+                currentMixIndex = session.currentMixIndex,
+                mixTitle = session.mixTitle,
+                showMixSheet = session.showMixSheet,
+                showCommentsSheet = session.showCommentsSheet,
+                showDescriptionSheet = session.showDescriptionSheet,
+                showSettingsSheet = session.showSettingsSheet,
                 onOpenDescription = {
-                    showCommentsSheet = false
-                    showMixSheet = false
-                    showSettingsSheet = false
-                    showDescriptionSheet = true
+                    session.showCommentsSheet = false
+                    session.showMixSheet = false
+                    session.showSettingsSheet = false
+                    session.showDescriptionSheet = true
                 },
                 onOpenComments = {
-                    showDescriptionSheet = false
-                    showMixSheet = false
-                    showSettingsSheet = false
-                    showCommentsSheet = true
+                    session.showDescriptionSheet = false
+                    session.showMixSheet = false
+                    session.showSettingsSheet = false
+                    session.showCommentsSheet = true
                 },
                 onOpenDownload = {
-                    showDownloadSheet = true
+                    session.showDownloadSheet = true
                 },
                 onOpenMixSheet = {
-                    showCommentsSheet = false
-                    showDescriptionSheet = false
-                    showSettingsSheet = false
-                    showMixSheet = true
+                    session.showCommentsSheet = false
+                    session.showDescriptionSheet = false
+                    session.showSettingsSheet = false
+                    session.showMixSheet = true
                 },
                 onChannelSelected = { chId, chTitle ->
                     onMinimize()
                     onChannelClick?.invoke(chId, chTitle)
                 },
                 onRecommendationClick = { item ->
-                    if (!networkObserver.isConnected()) {
-                        showNotice(context.getString(R.string.player_no_internet_notice))
+                    if (!session.networkObserver.isConnected()) {
+                        session.showNotice(context.getString(R.string.player_no_internet_notice))
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     } else {
-                        isInternalNavigation = false
-                        currentOnPlayNextVideo(item)
+                        session.isInternalNavigation = false
+                        session.onPlayNextVideoCallback(item)
                     }
                 }
             )
@@ -1651,20 +317,20 @@ fun PlayerScreen(
         ) {
             PhantomMiniPlayer(
                 video = video,
-                isPlaying = playerState.isPlaying,
-                isBuffering = playerState.isBuffering,
-                currentTimeSecProvider = { currentPositionSec },
-                durationSecProvider = { currentDurationSec },
+                isPlaying = session.playerState.isPlaying,
+                isBuffering = session.playerState.isBuffering,
+                currentTimeSecProvider = { session.currentPositionSec },
+                durationSecProvider = { session.currentDurationSec },
                 onExpand = onExpand,
                 onTogglePlayPause = {
-                    if (playerState.isPlaying) {
-                        controller.pause()
+                    if (session.playerState.isPlaying) {
+                        session.controller.pause()
                     } else {
-                        if (!networkObserver.isConnected()) {
-                            showNotice(context.getString(R.string.player_no_internet_notice))
+                        if (!session.networkObserver.isConnected()) {
+                            session.showNotice(context.getString(R.string.player_no_internet_notice))
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         } else {
-                            controller.play()
+                            session.controller.play()
                         }
                     }
                 },
@@ -1672,124 +338,1066 @@ fun PlayerScreen(
             )
         }
 
-        PlayerSheetsHost(
+        PlayerSheetsBridgeSection(
+            session = session,
+            video = video,
             isMinimized = isMinimized,
-            isFullscreen = isFullscreen,
-            dragOffsetY = dragOffsetY,
-            sheetProgressProvider = { fullSheetProgress.value },
-            animatedDragOffsetProvider = effectiveDragOffsetProvider,
+            effectiveDragOffsetProvider = effectiveDragOffsetProvider,
             screenHeightPx = screenHeightPx,
-            video = currentVideo,
-            repository = repository,
-            nextQueueData = nextQueueData,
-            activeAvatarUrl = activeAvatarUrl,
-            playerState = playerState,
             doubleTapSeekSeconds = doubleTapSeekSeconds,
-            isLoopEnabled = isLoopEnabled,
-            isAutoplayNext = isAutoplayNext,
-            isAudioOnly = isAudioOnly,
-            sleepTimerRemainingSec = sleepTimerRemainingSec,
-            sleepTimerOption = sleepTimerOption,
-            mixTitle = mixTitle,
-            mixPlaylist = mixPlaylist,
-            currentMixIndex = currentMixIndex,
-            commentsList = commentsList,
-            commentsTotalCountText = commentsTotalCountText,
-            isLoadingComments = isLoadingComments,
-            hasMoreComments = !commentsContinuationToken.isNullOrBlank(),
-            showMixSheet = showMixSheet,
-            showSettingsSheet = showSettingsSheet,
-            showDescriptionSheet = showDescriptionSheet,
-            showCommentsSheet = showCommentsSheet,
-            showDownloadSheet = showDownloadSheet,
-            currentTimeSecProvider = { currentPositionSec },
-            onDismissMixSheet = { showMixSheet = false },
-            onSelectMixIndex = { index -> playFromMix(index) },
-            onDismissSettingsSheet = { showSettingsSheet = false },
-            onSpeedSelected = { speed ->
-                playerState = playerState.copy(playbackSpeed = speed)
-                controller.setPlaybackRate(speed)
-            },
-            onQualitySelected = { quality ->
-                if (isAudioOnly && quality != "tiny") {
-                    isAudioOnly = false
-                    controller.setAudioOnly(false)
-                }
-                previousQualityBeforeAudioOnly = quality
-                playerState = playerState.copy(currentQuality = quality)
-                controller.setPlaybackQuality(quality)
-            },
-            onDoubleTapSeekSelected = { seconds ->
-                repository.preferences?.setDoubleTapSeekSeconds(seconds)
-            },
-            onSleepTimerSelected = { option ->
-                sleepTimerOption = option
-                sleepTimerRemainingSec = if (option.seconds != null && option.seconds > 0) option.seconds else null
-            },
-            onLoopToggle = { loop ->
-                isLoopEnabled = loop
-                controller.setLoop(loop)
-            },
-            onAutoplayToggle = { isAutoplayNext = it },
-            onAudioOnlyToggle = { enabled -> applyAudioOnlyState(enabled) },
-            onDismissDescriptionSheet = { showDescriptionSheet = false },
-            onChannelSelected = { chId, chTitle ->
-                showDescriptionSheet = false
-                showCommentsSheet = false
-                onMinimize()
-                onChannelClick?.invoke(chId, chTitle)
-            },
-            onTimestampClick = { targetSec ->
-                val clamped = if (currentDurationSec > 0f) {
-                    targetSec.coerceIn(0f, currentDurationSec)
+            onMinimize = onMinimize,
+            onChannelClick = onChannelClick
+        )
+    }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.PlayerViewportBridgeSection(
+    session: PlayerSessionState,
+    video: VideoItem,
+    isSheetRendered: Boolean,
+    effectiveDragOffsetProvider: () -> Float,
+    screenHeightPx: Float,
+    dragModifier: Modifier,
+    animatedZoomScale: Float,
+    doubleTapSeekSeconds: Int,
+    isInPipMode: Boolean,
+    isMinimized: Boolean,
+    isFloatingMiniPlayer: Boolean,
+    isBottomNavVisible: Boolean,
+    onMinimize: () -> Unit,
+    onExpand: () -> Unit,
+    onClose: () -> Unit
+) {
+    val context = session.context
+    val haptic = session.haptic
+    val scope = session.scope
+    val repository = session.repository
+
+    PlayerVideoViewportBox(
+        video = video,
+        isSheetRendered = isSheetRendered,
+        isFullscreen = session.isFullscreen,
+        sheetProgressProvider = { session.fullSheetProgress.value },
+        dragOffsetProvider = effectiveDragOffsetProvider,
+        screenHeightPx = screenHeightPx,
+        dragModifier = dragModifier,
+        animatedZoomScale = animatedZoomScale,
+        controller = session.controller,
+        bridge = session.bridge,
+        playerState = session.playerState,
+        isAudioOnly = session.isAudioOnly,
+        isControlsVisible = session.isControlsVisible,
+        isCaptionsEnabled = session.isCaptionsEnabled,
+        hasCaptions = session.hasCaptions,
+        isQualityMenuExpanded = session.isQualityMenuExpanded,
+        isZoomToFill = session.isZoomToFill,
+        doubleTapSeekSeconds = doubleTapSeekSeconds,
+        seekAnimationSide = session.seekAnimationSide,
+        seekAccumulatedSeconds = session.seekAccumulatedSeconds,
+        showSponsorPill = session.showSponsorPill,
+        lastSkippedSeconds = session.lastSkippedSeconds,
+        lastSkippedCategory = session.lastSkippedCategory,
+        isManualSkipMode = !(repository.preferences?.sponsorBlockAutoSkip?.value ?: true),
+        liveEndscreenVideos = session.liveEndscreenVideos,
+        nextQueueData = session.nextQueueData,
+        recommendedVideos = session.recommendedVideos,
+        isEndscreenDismissed = session.isEndscreenDismissed,
+        isScrubbing = session.isScrubbing,
+        scrubFraction = session.scrubFraction,
+        scrubTouchX = session.scrubTouchX,
+        videoBoxWidthPx = session.videoBoxWidthPx,
+        storyboardData = session.storyboardData,
+        playerNoticeText = session.playerNoticeText,
+        currentTimeSecProvider = { session.currentPositionSec },
+        durationSecProvider = { session.currentDurationSec },
+        bufferedFractionProvider = { session.currentBufferedFraction },
+        isOfflineWaiting = session.isOfflineWaiting,
+        onViewportMeasured = { w, h ->
+            session.videoBoxWidthPx = w
+            session.videoBoxHeightPx = h
+        },
+        onDisableAudioOnly = { session.applyAudioOnlyState(false) },
+        onSingleTapViewport = {
+            when {
+                session.showMixSheet -> session.showMixSheet = false
+                session.showDescriptionSheet -> session.showDescriptionSheet = false
+                session.showCommentsSheet -> session.showCommentsSheet = false
+                session.showSettingsSheet -> session.showSettingsSheet = false
+                session.isQualityMenuExpanded -> session.isQualityMenuExpanded = false
+                else -> session.isControlsVisible = !session.isControlsVisible
+            }
+        },
+        onDoubleTapSeek = { isRewind ->
+            val delta = doubleTapSeekSeconds
+            if (isRewind) {
+                session.seekAccumulatedSeconds = if (session.seekAnimationSide == SeekFeedbackDirection.REWIND) {
+                    session.seekAccumulatedSeconds + delta
                 } else {
-                    targetSec.coerceAtLeast(0f)
+                    delta
                 }
-                controller.seekTo(clamped)
-                currentPositionSec = clamped
-                mediaService?.updatePlaybackState(playerState.isPlaying, (clamped * 1000).toLong())
-                if (!playerState.isPlaying) {
-                    controller.play()
+                session.seekAnimationSide = SeekFeedbackDirection.REWIND
+                val newTime = (session.currentPositionSec - delta.toFloat()).coerceAtLeast(0f)
+                session.controller.seekTo(newTime)
+                session.currentPositionSec = newTime
+                session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (newTime * 1000).toLong())
+            } else {
+                session.seekAccumulatedSeconds = if (session.seekAnimationSide == SeekFeedbackDirection.FORWARD) {
+                    session.seekAccumulatedSeconds + delta
+                } else {
+                    delta
                 }
-            },
-            onVideoLinkClick = { targetVideo ->
-                showDescriptionSheet = false
-                showCommentsSheet = false
-                if (targetVideo.id != video.id) {
-                    if (!networkObserver.isConnected()) {
-                        showNotice(context.getString(R.string.player_no_internet_notice))
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    } else {
-                        val matchedRec = (recommendedVideos + mixPlaylist).firstOrNull { it.id == targetVideo.id }
-                        val targetVideoItem = matchedRec ?: targetVideo
-                        isInternalNavigation = false
-                        currentOnPlayNextVideo(targetVideoItem)
+                session.seekAnimationSide = SeekFeedbackDirection.FORWARD
+                val newTime = (session.currentPositionSec + delta.toFloat()).coerceAtMost(session.currentDurationSec)
+                session.controller.seekTo(newTime)
+                session.currentPositionSec = newTime
+                session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (newTime * 1000).toLong())
+            }
+        },
+        onManualSponsorSkip = {
+            session.controller.seekTo(session.lastTargetSkipEndSec)
+            session.currentPositionSec = session.lastTargetSkipEndSec
+            session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (session.lastTargetSkipEndSec * 1000).toLong())
+            if (session.lastSkippedCategory == "outro") {
+                val activeVid = session.currentVideo
+                scope.launch {
+                    repository.resetWatchPosition(activeVid.id)
+                }
+            }
+            session.showSponsorPill = false
+        },
+        onUndoSponsorSkip = {
+            session.undoneSegmentUuids.addAll(session.skippedSegmentUuids)
+            session.controller.seekTo(session.lastSkippedFromSec)
+            session.currentPositionSec = session.lastSkippedFromSec
+            session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (session.lastSkippedFromSec * 1000).toLong())
+            session.showSponsorPill = false
+        },
+        onDismissEndscreen = { session.isEndscreenDismissed = true },
+        onEndscreenVideoClick = { targetVid ->
+            if (!session.networkObserver.isConnected()) {
+                session.showNotice(context.getString(R.string.player_no_internet_notice))
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            } else {
+                session.isInternalNavigation = false
+                session.onPlayNextVideoCallback(targetVid)
+            }
+        },
+        onMinimizeOrExitFullscreen = {
+            if (session.isFullscreen) session.exitFullscreenToPortrait() else onMinimize()
+        },
+        onToggleCaptions = {
+            if (!session.hasCaptions) {
+                session.showNotice(context.getString(R.string.player_no_captions))
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            } else {
+                session.isCaptionsEnabled = !session.isCaptionsEnabled
+                session.controller.setCaptionsEnabled(session.isCaptionsEnabled)
+                session.showNotice(
+                    if (session.isCaptionsEnabled) context.getString(R.string.player_captions_on)
+                    else context.getString(R.string.player_captions_off)
+                )
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+        },
+        onToggleQualityMenu = { expanded -> session.isQualityMenuExpanded = expanded },
+        onSelectQuality = { opt ->
+            if (session.isAudioOnly && opt.code != "tiny") {
+                session.isAudioOnly = false
+                session.controller.setAudioOnly(false)
+            }
+            session.previousQualityBeforeAudioOnly = opt.code
+            session.playerState = session.playerState.copy(currentQuality = opt.code)
+            session.controller.setPlaybackQuality(opt.code)
+            session.isQualityMenuExpanded = false
+            session.showNotice(context.getString(R.string.player_quality_format, opt.label))
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        },
+        onToggleZoom = {
+            session.isZoomToFill = !session.isZoomToFill
+            session.showNotice(
+                if (session.isZoomToFill) context.getString(R.string.player_zoom_fill)
+                else context.getString(R.string.player_zoom_original)
+            )
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        },
+        onCycleSpeed = {
+            val nextSpeed = when (session.playerState.playbackSpeed) {
+                1.0f -> 1.5f
+                1.5f -> 2.0f
+                2.0f -> 0.5f
+                else -> 1.0f
+            }
+            session.playerState = session.playerState.copy(playbackSpeed = nextSpeed)
+            session.controller.setPlaybackRate(nextSpeed)
+        },
+        onSetPlaybackSpeed = { speed ->
+            session.playerState = session.playerState.copy(playbackSpeed = speed)
+            session.controller.setPlaybackRate(speed)
+        },
+        onOpenSettings = {
+            session.isControlsVisible = false
+            session.isQualityMenuExpanded = false
+            session.showCommentsSheet = false
+            session.showDescriptionSheet = false
+            session.showMixSheet = false
+            session.showSettingsSheet = true
+        },
+        onSkipPrevious = { session.playPrevious() },
+        onRewind10s = {
+            val delta = doubleTapSeekSeconds
+            session.seekAccumulatedSeconds = if (session.seekAnimationSide == SeekFeedbackDirection.REWIND) {
+                session.seekAccumulatedSeconds + delta
+            } else {
+                delta
+            }
+            session.seekAnimationSide = SeekFeedbackDirection.REWIND
+            val newTime = (session.currentPositionSec - delta.toFloat()).coerceAtLeast(0f)
+            session.controller.seekTo(newTime)
+            session.currentPositionSec = newTime
+            session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (newTime * 1000).toLong())
+        },
+        onTogglePlayPause = {
+            if (session.playerState.isPlaying) {
+                session.controller.pause()
+            } else {
+                if (!session.networkObserver.isConnected()) {
+                    session.showNotice(context.getString(R.string.player_no_internet_notice))
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                } else {
+                    session.controller.play()
+                }
+            }
+        },
+        onForward10s = {
+            val delta = doubleTapSeekSeconds
+            session.seekAccumulatedSeconds = if (session.seekAnimationSide == SeekFeedbackDirection.FORWARD) {
+                session.seekAccumulatedSeconds + delta
+            } else {
+                delta
+            }
+            session.seekAnimationSide = SeekFeedbackDirection.FORWARD
+            val newTime = (session.currentPositionSec + delta.toFloat()).coerceAtMost(session.currentDurationSec)
+            session.controller.seekTo(newTime)
+            session.currentPositionSec = newTime
+            session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (newTime * 1000).toLong())
+        },
+        onSkipNext = { session.playNext() },
+        onToggleFullscreen = {
+            if (session.isFullscreen) {
+                session.exitFullscreenToPortrait()
+            } else {
+                val activity = context.findActivity()
+                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                session.isFullscreen = true
+            }
+        },
+        onSeek = { fraction ->
+            val targetSec = fraction * session.currentDurationSec
+            session.controller.seekTo(targetSec)
+            session.currentPositionSec = targetSec
+            session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (targetSec * 1000).toLong())
+            if (session.wasPlayingBeforeScrub) {
+                session.controller.play()
+            }
+        },
+        onScrubbing = { scrubbing, fraction, touchX ->
+            if (scrubbing && !session.isScrubbing) {
+                session.wasPlayingBeforeScrub = session.playerState.isPlaying
+                if (session.playerState.isPlaying) {
+                    session.controller.pause()
+                }
+            }
+            session.isScrubbing = scrubbing
+            session.scrubFraction = fraction
+            session.scrubTouchX = touchX
+            if (scrubbing) {
+                session.isControlsVisible = true
+                val now = System.currentTimeMillis()
+                if (now - session.lastScrubSeekTimeMs >= 50L) {
+                    session.lastScrubSeekTimeMs = now
+                    val targetSec = fraction * session.currentDurationSec
+                    session.controller.seekTo(targetSec)
+                }
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+        },
+        isInPipMode = isInPipMode,
+        isMinimized = isMinimized,
+        isFloatingMiniPlayer = isFloatingMiniPlayer,
+        isBottomNavVisible = isBottomNavVisible,
+        onExpand = onExpand,
+        onClose = onClose
+    )
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.PlayerSheetsBridgeSection(
+    session: PlayerSessionState,
+    video: VideoItem,
+    isMinimized: Boolean,
+    effectiveDragOffsetProvider: () -> Float,
+    screenHeightPx: Float,
+    doubleTapSeekSeconds: Int,
+    onMinimize: () -> Unit,
+    onChannelClick: ((channelId: String, channelTitle: String) -> Unit)?
+) {
+    val context = session.context
+    val haptic = session.haptic
+    val scope = session.scope
+    val repository = session.repository
+
+    PlayerSheetsHost(
+        isMinimized = isMinimized,
+        isFullscreen = session.isFullscreen,
+        dragOffsetY = session.dragOffsetY,
+        sheetProgressProvider = { session.fullSheetProgress.value },
+        animatedDragOffsetProvider = effectiveDragOffsetProvider,
+        screenHeightPx = screenHeightPx,
+        video = session.currentVideo,
+        repository = repository,
+        nextQueueData = session.nextQueueData,
+        activeAvatarUrl = session.activeAvatarUrl,
+        playerState = session.playerState,
+        doubleTapSeekSeconds = doubleTapSeekSeconds,
+        isLoopEnabled = session.isLoopEnabled,
+        isAutoplayNext = session.isAutoplayNext,
+        isAudioOnly = session.isAudioOnly,
+        sleepTimerRemainingSec = session.sleepTimerRemainingSec,
+        sleepTimerOption = session.sleepTimerOption,
+        mixTitle = session.mixTitle,
+        mixPlaylist = session.mixPlaylist,
+        currentMixIndex = session.currentMixIndex,
+        commentsList = session.commentsList,
+        commentsTotalCountText = session.commentsTotalCountText,
+        isLoadingComments = session.isLoadingComments,
+        hasMoreComments = !session.commentsContinuationToken.isNullOrBlank(),
+        showMixSheet = session.showMixSheet,
+        showSettingsSheet = session.showSettingsSheet,
+        showDescriptionSheet = session.showDescriptionSheet,
+        showCommentsSheet = session.showCommentsSheet,
+        showDownloadSheet = session.showDownloadSheet,
+        currentTimeSecProvider = { session.currentPositionSec },
+        onDismissMixSheet = { session.showMixSheet = false },
+        onSelectMixIndex = { index -> session.playFromMix(index) },
+        onDismissSettingsSheet = { session.showSettingsSheet = false },
+        onSpeedSelected = { speed ->
+            session.playerState = session.playerState.copy(playbackSpeed = speed)
+            session.controller.setPlaybackRate(speed)
+        },
+        onQualitySelected = { quality ->
+            if (session.isAudioOnly && quality != "tiny") {
+                session.isAudioOnly = false
+                session.controller.setAudioOnly(false)
+            }
+            session.previousQualityBeforeAudioOnly = quality
+            session.playerState = session.playerState.copy(currentQuality = quality)
+            session.controller.setPlaybackQuality(quality)
+        },
+        onDoubleTapSeekSelected = { seconds ->
+            repository.preferences?.setDoubleTapSeekSeconds(seconds)
+        },
+        onSleepTimerSelected = { option ->
+            session.sleepTimerOption = option
+            session.sleepTimerRemainingSec = if (option.seconds != null && option.seconds > 0) option.seconds else null
+        },
+        onLoopToggle = { loop ->
+            session.isLoopEnabled = loop
+            session.controller.setLoop(loop)
+        },
+        onAutoplayToggle = { session.isAutoplayNext = it },
+        onAudioOnlyToggle = { enabled -> session.applyAudioOnlyState(enabled) },
+        onDismissDescriptionSheet = { session.showDescriptionSheet = false },
+        onChannelSelected = { chId, chTitle ->
+            session.showDescriptionSheet = false
+            session.showCommentsSheet = false
+            onMinimize()
+            onChannelClick?.invoke(chId, chTitle)
+        },
+        onTimestampClick = { targetSec ->
+            val clamped = if (session.currentDurationSec > 0f) {
+                targetSec.coerceIn(0f, session.currentDurationSec)
+            } else {
+                targetSec.coerceAtLeast(0f)
+            }
+            session.controller.seekTo(clamped)
+            session.currentPositionSec = clamped
+            session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (clamped * 1000).toLong())
+            if (!session.playerState.isPlaying) {
+                session.controller.play()
+            }
+        },
+        onVideoLinkClick = { targetVideo ->
+            session.showDescriptionSheet = false
+            session.showCommentsSheet = false
+            if (targetVideo.id != video.id) {
+                if (!session.networkObserver.isConnected()) {
+                    session.showNotice(context.getString(R.string.player_no_internet_notice))
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                } else {
+                    val matchedRec = (session.recommendedVideos + session.mixPlaylist).firstOrNull { it.id == targetVideo.id }
+                    val targetVideoItem = matchedRec ?: targetVideo
+                    session.isInternalNavigation = false
+                    session.onPlayNextVideoCallback(targetVideoItem)
+                }
+            }
+        },
+        onLoadMoreComments = {
+            val token = session.commentsContinuationToken
+            if (token != null) {
+                session.isLoadingComments = true
+                scope.launch {
+                    try {
+                        val res = repository.getComments(token)
+                        if (res.comments.isNotEmpty()) {
+                            val existingIds = session.commentsList.map { it.id }.toSet()
+                            val fresh = res.comments.filterNot { it.id in existingIds }
+                            session.commentsList = session.commentsList + fresh
+                        }
+                        session.commentsContinuationToken = res.continuationToken
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        session.isLoadingComments = false
                     }
                 }
-            },
-            onLoadMoreComments = {
-                val token = commentsContinuationToken
-                if (token != null) {
-                    isLoadingComments = true
-                    scope.launch {
-                        try {
-                            val res = repository.getComments(token)
-                            if (res.comments.isNotEmpty()) {
-                                val existingIds = commentsList.map { it.id }.toSet()
-                                val fresh = res.comments.filterNot { it.id in existingIds }
-                                commentsList = commentsList + fresh
+            }
+        },
+        onDismissCommentsSheet = { session.showCommentsSheet = false },
+        onDismissDownloadSheet = { session.showDownloadSheet = false }
+    )
+}
+
+@Composable
+private fun rememberPlayerDragModifier(
+    session: PlayerSessionState,
+    isMinimized: Boolean,
+    screenHeightPx: Float,
+    onMinimize: () -> Unit
+): Modifier {
+    val scope = session.scope
+    val haptic = session.haptic
+    return if (!isMinimized) {
+        Modifier.pointerInput(session.isFullscreen, screenHeightPx) {
+            detectVerticalDragGestures(
+                onVerticalDrag = { change, dragAmount ->
+                    if (session.isFullscreen) {
+                        if (dragAmount > 0f || session.dragOffsetY > 0f) {
+                            change.consume()
+                            session.dragOffsetY = (session.dragOffsetY + dragAmount).coerceAtLeast(0f)
+                            if (session.dragOffsetY > 80f && !session.hasTriggeredHaptic) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                session.hasTriggeredHaptic = true
                             }
-                            commentsContinuationToken = res.continuationToken
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        } finally {
-                            isLoadingComments = false
+                        }
+                    } else {
+                        if (dragAmount > 0f || session.portraitDragPx > 0f) {
+                            change.consume()
+                            session.portraitDragPx = (session.portraitDragPx + dragAmount).coerceIn(0f, screenHeightPx)
+                            val targetProgress = (1f - (session.portraitDragPx / screenHeightPx)).coerceIn(0f, 1f)
+                            scope.launch {
+                                session.fullSheetProgress.snapTo(targetProgress)
+                            }
+                            if (session.portraitDragPx > 15f) {
+                                session.showMixSheet = false
+                                session.showDescriptionSheet = false
+                                session.showCommentsSheet = false
+                                session.showSettingsSheet = false
+                            }
+                            if (session.portraitDragPx > 180f && !session.hasTriggeredHaptic) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                session.hasTriggeredHaptic = true
+                            }
+                        }
+                    }
+                },
+                onDragEnd = {
+                    val triggeredFullscreenDrag = session.dragOffsetY
+                    val triggeredPortraitDrag = session.portraitDragPx
+                    session.dragOffsetY = 0f
+                    session.portraitDragPx = 0f
+                    session.hasTriggeredHaptic = false
+                    if (session.isFullscreen) {
+                        if (triggeredFullscreenDrag > 80f) {
+                            session.exitFullscreenToPortrait()
+                        }
+                    } else {
+                        if (triggeredPortraitDrag > 180f) {
+                            session.showMixSheet = false
+                            session.showDescriptionSheet = false
+                            session.showCommentsSheet = false
+                            session.showSettingsSheet = false
+                            onMinimize()
+                        } else {
+                            scope.launch {
+                                session.fullSheetProgress.animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = IosSpringSpecs.Gentle
+                                )
+                            }
+                        }
+                    }
+                },
+                onDragCancel = {
+                    session.dragOffsetY = 0f
+                    session.portraitDragPx = 0f
+                    session.hasTriggeredHaptic = false
+                    if (!session.isFullscreen && !isMinimized) {
+                        scope.launch {
+                            session.fullSheetProgress.animateTo(
+                                targetValue = 1f,
+                                animationSpec = IosSpringSpecs.Gentle
+                            )
                         }
                     }
                 }
-            },
-            onDismissCommentsSheet = { showCommentsSheet = false },
-            onDismissDownloadSheet = { showDownloadSheet = false }
+            )
+        }
+    } else Modifier
+}
+
+@Composable
+private fun PlayerLifecycleEffects(
+    session: PlayerSessionState,
+    video: VideoItem,
+    isMinimized: Boolean,
+    isFloatingMiniPlayer: Boolean
+) {
+    val context = session.context
+    val repository = session.repository
+    val scope = session.scope
+    val haptic = session.haptic
+    val configuration = LocalConfiguration.current
+    val isDeviceLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    LaunchedEffect(isDeviceLandscape) {
+        if (isDeviceLandscape && !session.isFullscreen) {
+            session.isFullscreen = true
+        } else if (!isDeviceLandscape && session.isFullscreen) {
+            val activity = context.findActivity()
+            if (activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE ||
+                activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            ) {
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+            session.isFullscreen = false
+        }
+    }
+
+    DisposableEffect(session.isFullscreen, isMinimized) {
+        val activity = context.findActivity()
+        val window = activity?.window
+        if (window != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val lp = window.attributes
+                lp.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                window.attributes = lp
+            }
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            if (session.isFullscreen && !isMinimized) {
+                insetsController.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            } else {
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+        onDispose {
+            if (window != null) {
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    LaunchedEffect(session.seekAnimationSide, session.seekAccumulatedSeconds) {
+        if (session.seekAnimationSide != null) {
+            delay(750L)
+            session.seekAnimationSide = null
+            session.seekAccumulatedSeconds = 0
+        }
+    }
+
+    LaunchedEffect(video.id, video.playlistId) {
+        if (!video.playlistId.isNullOrBlank()) {
+            session.activePlaylistId = video.playlistId
+        }
+        if (video.channelAvatarUrl.isNotBlank()) {
+            session.activeAvatarUrl = video.channelAvatarUrl
+        }
+        session.skippedSegmentUuids = ConcurrentHashMap.newKeySet()
+        session.undoneSegmentUuids = ConcurrentHashMap.newKeySet()
+        session.hasSyncedMediaSessionInitialPosition = false
+        session.lastSyncedMediaSessionSec = 0f
+        session.recContinuationToken = null
+        session.canLoadMoreRecs = true
+        session.nextQueueData = null
+        session.commentsList = emptyList()
+        session.commentsTotalCountText = ""
+        session.commentsContinuationToken = null
+        session.isLoadingComments = false
+        session.showDescriptionSheet = false
+        session.isEndscreenDismissed = false
+        session.liveEndscreenVideos = emptyList()
+        session.showCommentsSheet = false
+        session.showDownloadSheet = false
+    }
+
+    val isNetworkConnected by session.networkObserver.isConnectedFlow.collectAsState(initial = session.networkObserver.isConnected())
+    val isOfflinePlaying by OfflineAudioPlayerManager.isPlaying.collectAsState()
+
+    LaunchedEffect(isOfflinePlaying) {
+        if (isOfflinePlaying) {
+            session.controller.pause()
+        }
+    }
+
+    LaunchedEffect(isNetworkConnected) {
+        if (!isNetworkConnected) {
+            session.isOfflineWaiting = true
+        } else {
+            if (session.isOfflineWaiting) {
+                session.isOfflineWaiting = false
+                session.showNotice(context.getString(R.string.player_online_restored))
+                if (session.wasPlayingBeforeOffline || session.isPlaybackStalled || session.playerState.isBuffering) {
+                    session.wasPlayingBeforeOffline = false
+                    session.isPlaybackStalled = false
+                    session.controller.play()
+                    delay(2500)
+                    if (!session.playerState.isPlaying && session.networkObserver.isConnected()) {
+                        session.controller.loadVideo(session.currentVideo.id, session.currentPositionSec)
+                    }
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(session.playerState.isPlaying) {
+        if (session.playerState.isPlaying) {
+            OfflineAudioPlayerManager.stop(context)
+            session.lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+            session.lastObservedPlaybackSec = session.currentPositionSec
+            while (session.playerState.isPlaying) {
+                delay(1500L)
+                val now = SystemClock.elapsedRealtime()
+                if (session.playerState.isPlaying && (now - session.lastProgressElapsedRealtime > 2500L)) {
+                    if (!session.isPlaybackStalled) {
+                        session.isPlaybackStalled = true
+                        if (!session.networkObserver.isConnected()) {
+                            session.wasPlayingBeforeOffline = true
+                        }
+                        session.playerState = session.playerState.copy(isBuffering = true)
+                        session.mediaService?.updatePlaybackState(
+                            playing = false,
+                            currentPositionMs = (session.currentPositionSec * 1000).toLong(),
+                            forceNotify = true,
+                            isBuffering = true
+                        )
+                    }
+                }
+            }
+        } else {
+            session.isPlaybackStalled = false
+        }
+    }
+
+    LaunchedEffect(session.sleepTimerRemainingSec, session.playerState.isPlaying) {
+        if (session.sleepTimerRemainingSec != null && (session.sleepTimerRemainingSec ?: 0) > 0 && session.playerState.isPlaying) {
+            delay(1000L)
+            if (session.playerState.isPlaying) {
+                val current = (session.sleepTimerRemainingSec ?: 0) - 1
+                if (current <= 0) {
+                    session.controller.pause()
+                    session.sleepTimerRemainingSec = null
+                    session.sleepTimerOption = SleepTimerOption.OFF
+                } else {
+                    session.sleepTimerRemainingSec = current
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(session.isAudioOnly, isMinimized) {
+        val activity = context.findActivity()
+        if (session.isAudioOnly || isMinimized) {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    LaunchedEffect(session.isControlsVisible, session.playerState.isPlaying, session.isQualityMenuExpanded) {
+        if (session.isControlsVisible && session.playerState.isPlaying && !session.isQualityMenuExpanded) {
+            delay(4000)
+            session.isControlsVisible = false
+        }
+    }
+
+    LaunchedEffect(session.mediaService) {
+        val service = session.mediaService ?: return@LaunchedEffect
+        val lastPos = (session.currentPositionSec * 1000).toLong()
+        service.updateMediaInfo(
+            title = session.currentVideo.title,
+            channel = session.currentVideo.channelTitle,
+            durationMs = (session.currentDurationSec * 1000).toLong(),
+            playing = session.playerState.isPlaying,
+            thumbnailUrl = session.currentVideo.thumbnailUrl,
+            currentPositionMs = lastPos
         )
+    }
+
+    LaunchedEffect(video.id) {
+        OfflineAudioPlayerManager.stop(context)
+        session.playerState = PlayerState(
+            videoId = video.id,
+            playbackSpeed = session.playerState.playbackSpeed
+        )
+        session.appliedDefaultsVideoId = null
+        session.sponsorSegments = emptyList()
+        session.lastRecordedPositionSec = 0f
+        session.isPlaybackStalled = false
+        session.lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+        session.lastObservedPlaybackSec = 0f
+        session.storyboardData = null
+        StoryboardHelper.clearCache()
+        repository.clearCommentsCache()
+        session.isScrubbing = false
+        session.isQualityMenuExpanded = false
+        session.controller.requestStoryboard()
+        val fromInternal = session.isInternalNavigation
+        if (fromInternal) {
+            session.isInternalNavigation = false
+        }
+
+        val lastPos = repository.getLastPosition(video.id)
+        session.currentPositionSec = lastPos / 1000f
+        session.currentDurationSec = 0f
+        session.currentBufferedFraction = 0f
+        session.playerState = session.playerState.copy(currentTimeSec = lastPos / 1000f)
+        session.controller.loadVideo(video.id, lastPos / 1000f)
+
+        session.mediaService?.updateMediaInfo(
+            title = video.title,
+            channel = video.channelTitle,
+            durationMs = 0L,
+            playing = true,
+            thumbnailUrl = video.thumbnailUrl,
+            currentPositionMs = lastPos
+        )
+
+        launch {
+            session.sponsorSegments = repository.getSponsorSegments(video.id)
+        }
+
+        launch {
+            session.isLoadingQueue = true
+            val targetPlaylistId = video.playlistId?.ifBlank { null }
+                ?: session.activePlaylistId?.ifBlank { null }
+                ?: "RD${video.id}"
+            session.activePlaylistId = targetPlaylistId
+            val nextData = repository.getWatchNext(video.id, targetPlaylistId)
+            if (nextData != null) {
+                session.nextQueueData = nextData
+                if (nextData.currentVideo.channelAvatarUrl.isNotBlank()) {
+                    session.activeAvatarUrl = nextData.currentVideo.channelAvatarUrl
+                }
+                val enrichedVideo = video.copy(
+                    title = nextData.currentVideo.title.ifBlank { video.title },
+                    channelTitle = nextData.currentVideo.channelTitle.ifBlank { video.channelTitle },
+                    channelId = nextData.currentVideo.channelId.ifBlank { video.channelId },
+                    thumbnailUrl = nextData.currentVideo.thumbnailUrl.ifBlank { video.thumbnailUrl },
+                    channelAvatarUrl = nextData.currentVideo.channelAvatarUrl.ifBlank { video.channelAvatarUrl },
+                    durationText = nextData.currentVideo.durationText.ifBlank { video.durationText }
+                )
+                if (video.title.isBlank() && enrichedVideo.title.isNotBlank()) {
+                    if (session.currentPositionSec > 0.5f || lastPos > 0L) {
+                        val posMs = if (session.currentPositionSec > 0.5f) (session.currentPositionSec * 1000).toLong() else lastPos
+                        repository.recordWatch(
+                            video = enrichedVideo,
+                            positionMs = posMs,
+                            durationMs = (session.currentDurationSec * 1000).toLong()
+                        )
+                    }
+                }
+                session.mediaService?.updateMediaInfo(
+                    title = enrichedVideo.title,
+                    channel = enrichedVideo.channelTitle,
+                    durationMs = (session.currentDurationSec * 1000).toLong(),
+                    playing = session.playerState.isPlaying,
+                    thumbnailUrl = enrichedVideo.thumbnailUrl,
+                    currentPositionMs = (session.currentPositionSec * 1000).toLong()
+                )
+                session.recommendedVideos = nextData.recommendations
+                session.recContinuationToken = nextData.recommendationsContinuationToken
+                session.canLoadMoreRecs = true
+
+                if (!fromInternal) {
+                    session.showMixSheet = (video.isPlaylist || !video.playlistId.isNullOrBlank()) && nextData.mixPlaylist.isNotEmpty()
+                    session.mixPlaylist = nextData.mixPlaylist
+                    session.currentMixIndex = if (nextData.mixPlaylist.isNotEmpty()) {
+                        val match = nextData.mixPlaylist.indexOfFirst { it.id == video.id }
+                        if (match != -1) match else nextData.currentIndex
+                    } else 0
+                    session.mixTitle = nextData.playlistTitle.ifBlank { if (video.isPlaylist) video.title else "Mix" }
+                } else {
+                    if (session.currentMixIndex !in session.mixPlaylist.indices || session.mixPlaylist[session.currentMixIndex].id != video.id) {
+                        val idx = session.mixPlaylist.indexOfFirst { it.id == video.id }
+                        if (idx != -1) {
+                            session.currentMixIndex = idx
+                        }
+                    }
+                    if (session.mixPlaylist.isNotEmpty() && session.currentMixIndex >= session.mixPlaylist.size - 5) {
+                        val existingIds = session.mixPlaylist.map { it.id }.toSet()
+                        val freshItems = nextData.mixPlaylist.filter { it.id !in existingIds }
+                        if (freshItems.isNotEmpty()) {
+                            session.mixPlaylist = session.mixPlaylist + freshItems
+                        }
+                    }
+                }
+
+                if (!nextData.commentsContinuationToken.isNullOrBlank()) {
+                    launch {
+                        session.isLoadingComments = true
+                        try {
+                            val cResult = repository.getComments(nextData.commentsContinuationToken)
+                            session.commentsList = cResult.comments
+                            session.commentsTotalCountText = cResult.totalCountText.ifBlank { nextData.commentsCountText }
+                            session.commentsContinuationToken = cResult.continuationToken
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        } finally {
+                            session.isLoadingComments = false
+                        }
+                    }
+                }
+            } else if (fromInternal) {
+                if (session.currentMixIndex !in session.mixPlaylist.indices || session.mixPlaylist[session.currentMixIndex].id != video.id) {
+                    val idx = session.mixPlaylist.indexOfFirst { it.id == video.id }
+                    if (idx != -1) {
+                        session.currentMixIndex = idx
+                    }
+                }
+            }
+            session.isLoadingQueue = false
+        }
+    }
+
+    LaunchedEffect(isMinimized, isFloatingMiniPlayer) {
+        if (!isMinimized) {
+            session.dragOffsetY = 0f
+            session.portraitDragPx = 0f
+            if (!session.isAudioOnly) {
+                val restoreQ = session.playerState.currentQuality.ifBlank {
+                    repository.preferences?.defaultQuality?.value ?: "auto"
+                }
+                session.controller.setVideoSurfaceActive(true, restoreQ)
+            }
+            try {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            } catch (_: Exception) {}
+            session.fullSheetProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = IosSpringSpecs.Gentle
+            )
+        } else {
+            session.showMixSheet = false
+            session.showDescriptionSheet = false
+            session.showCommentsSheet = false
+            session.showSettingsSheet = false
+            session.showDownloadSheet = false
+            session.dragOffsetY = 0f
+            session.portraitDragPx = 0f
+            if (!session.isAudioOnly && !isFloatingMiniPlayer) {
+                session.controller.setVideoSurfaceActive(false)
+            }
+            if (isFloatingMiniPlayer) {
+                session.fullSheetProgress.snapTo(0f)
+            } else {
+                session.fullSheetProgress.animateTo(
+                    targetValue = 0f,
+                    animationSpec = IosSpringSpecs.Gentle
+                )
+            }
+            if (!isFloatingMiniPlayer) {
+                com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                    context = context,
+                    aggressiveGraphicsPurge = true
+                )
+            }
+        }
+    }
+
+    LaunchedEffect(session.showCommentsSheet) {
+        if (session.showCommentsSheet && session.commentsList.isEmpty() && !session.isLoadingComments) {
+            val token = session.commentsContinuationToken ?: session.nextQueueData?.commentsContinuationToken
+            if (!token.isNullOrBlank()) {
+                scope.launch {
+                    session.isLoadingComments = true
+                    try {
+                        val cResult = repository.getComments(token)
+                        session.commentsList = cResult.comments
+                        if (cResult.totalCountText.isNotBlank()) {
+                            session.commentsTotalCountText = cResult.totalCountText
+                        } else if (session.commentsTotalCountText.isBlank()) {
+                            session.commentsTotalCountText = session.nextQueueData?.commentsCountText ?: ""
+                        }
+                        session.commentsContinuationToken = cResult.continuationToken
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        session.isLoadingComments = false
+                    }
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(session.lazyListState, session.recContinuationToken, session.isLoadingMoreRecs, session.canLoadMoreRecs) {
+        snapshotFlow {
+            val layoutInfo = session.lazyListState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total to last
+        }
+            .filter { (total, last) -> total > 0 && last >= total - 3 }
+            .collect {
+                if (!session.isLoadingMoreRecs && !session.isLoadingQueue && session.canLoadMoreRecs && session.recommendedVideos.isNotEmpty()) {
+                    session.loadMoreRecommendations()
+                }
+            }
+    }
+
+    LaunchedEffect(session.recContinuationToken, session.isLoadingMoreRecs) {
+        if (!session.isLoadingMoreRecs && !session.isLoadingQueue && session.canLoadMoreRecs && session.recContinuationToken != null) {
+            val layoutInfo = session.lazyListState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            if (total > 0 && last >= total - 3) {
+                session.loadMoreRecommendations()
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
+    val context = session.context
+    val repository = session.repository
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(Unit) {
+        val serviceIntent = Intent(context, PhantomMediaService::class.java)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        val connection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                val service = (binder as? PhantomMediaService.LocalBinder)?.getService()
+                service?.apply {
+                    onPlayAction = {
+                        if (!session.networkObserver.isConnected()) {
+                            session.showNotice(context.getString(R.string.player_no_internet_notice))
+                        } else {
+                            session.controller.play()
+                        }
+                    }
+                    onPauseAction = { session.controller.pause() }
+                    onNextAction = { session.playNext() }
+                    onPreviousAction = { session.playPrevious() }
+                    onOfflineTimeoutAction = {
+                        session.controller.pause()
+                        session.isOfflineWaiting = false
+                        session.wasPlayingBeforeOffline = false
+                        session.showNotice(context.getString(R.string.player_stopped_offline_timeout))
+                    }
+                    onSeekAction = { posMs ->
+                        val sec = posMs / 1000f
+                        session.controller.seekTo(sec)
+                        session.currentPositionSec = sec
+                        updatePlaybackState(session.playerState.isPlaying, posMs)
+                    }
+                }
+                session.mediaService = service
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                session.mediaService = null
+            }
+        }
+
+        try {
+            context.bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        val activity = context.findActivity()
+        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (session.isFullscreen) {
+                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                val window = activity?.window
+                if (window != null) {
+                    val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                    insetsController.show(WindowInsetsCompat.Type.systemBars())
+                }
+            }
+            session.controller.release()
+            StoryboardHelper.clearCache()
+            try {
+                context.unbindService(connection)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            try {
+                context.stopService(Intent(context, PhantomMediaService::class.java))
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    val isBgAllowed = repository.preferences?.backgroundPlaybackEnabled?.value ?: true
+                    val activity = context.findActivity()
+                    val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        activity?.isInPictureInPictureMode == true
+                    } else false
+                    if (!inPip) {
+                        if (!isBgAllowed) {
+                            session.controller.pause()
+                        } else {
+                            session.controller.setVideoSurfaceActive(false)
+                        }
+                    }
+                }
+                Lifecycle.Event.ON_START -> {
+                    if (!session.isAudioOnly) {
+                        val restoreQ = session.playerState.currentQuality.ifBlank {
+                            repository.preferences?.defaultQuality?.value ?: "auto"
+                        }
+                        session.controller.setVideoSurfaceActive(true, restoreQ)
+                    }
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 }

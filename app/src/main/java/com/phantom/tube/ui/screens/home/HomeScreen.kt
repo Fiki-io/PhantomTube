@@ -128,6 +128,7 @@ fun HomeScreen(
             .distinctUntilChanged()
     }.collectAsState(initial = emptyMap())
     val contentCountry by (repository.preferences?.contentCountry ?: kotlinx.coroutines.flow.MutableStateFlow("ID")).collectAsState()
+    val appLanguage by (repository.preferences?.appLanguage ?: kotlinx.coroutines.flow.MutableStateFlow("id")).collectAsState()
 
     fun categoryToQuery(category: String, country: String): String {
         val suffix = when (country) {
@@ -141,7 +142,7 @@ fun HomeScreen(
             "RU" -> "russia"
             else -> country.lowercase()
         }
-        val lang = repository.preferences?.appLanguage?.value ?: "en"
+        val lang = appLanguage
         return when (category) {
             "Semua" -> if (country == "GLOBAL") "trending" else "trending $suffix"
             "Trending" -> when (lang) {
@@ -256,7 +257,7 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(selectedCategory, contentCountry) {
+    LaunchedEffect(selectedCategory, contentCountry, appLanguage) {
         loadFeed(selectedCategory)
     }
 
