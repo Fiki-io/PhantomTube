@@ -68,7 +68,7 @@ data class NextQueue(
     val effectiveEndscreens: List<VideoItem> get() = if (endscreenVideos.isNotEmpty()) {
         endscreenVideos
     } else {
-        recommendations.filter { it.id != currentVideo.id }.take(2)
+        recommendations.filter { it.id != currentVideo.id && !it.isPlaylist && it.playlistId.isNullOrBlank() }.take(2)
     }
 }
 

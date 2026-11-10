@@ -328,7 +328,7 @@ fun PhantomVideoCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Opsi",
+                        contentDescription = stringResource(R.string.settings_player_title),
                         tint = TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
@@ -344,7 +344,7 @@ fun PhantomVideoCard(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = "Download",
+                                text = stringResource(R.string.player_download),
                                 color = TextPrimary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium
@@ -353,7 +353,7 @@ fun PhantomVideoCard(
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Download,
-                                contentDescription = "Download",
+                                contentDescription = stringResource(R.string.player_download),
                                 tint = TextPrimary,
                                 modifier = Modifier.size(18.dp)
                             )

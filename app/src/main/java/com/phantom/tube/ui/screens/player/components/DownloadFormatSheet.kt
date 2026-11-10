@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -109,6 +110,7 @@ fun DownloadFormatSheet(
         containerColor = com.phantom.tube.core.theme.YouTubeSurface,
         contentColor = TextPrimary,
         tonalElevation = 0.dp,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         dragHandle = {
             Box(
@@ -124,9 +126,9 @@ fun DownloadFormatSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
                 .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp)
         ) {
             // HEADER BAR
             Row(

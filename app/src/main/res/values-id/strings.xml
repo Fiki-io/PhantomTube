@@ -154,7 +154,7 @@
     <string name="player_tap_to_view_comments">Ketuk untuk melihat komentar...</string>
     <string name="player_no_comments_sheet">Tidak ada komentar untuk video ini</string>
     <string name="player_more_details">...selengkapnya</string>
-    <string name="player_up_next_short">Berikutnya</string>
+    <string name="player_up_next_short">Lainnya</string>
     <string name="action_close">Tutup</string>
     <string name="action_back">Kembali</string>
     <string name="action_loading">Memuat...</string>

@@ -7,18 +7,26 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -134,25 +142,26 @@ fun <T> SettingsSingleChoiceDialog(
         containerColor = YouTubeSurface,
         contentColor = TextPrimary,
         tonalElevation = 0.dp,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         scrimColor = Color.Black.copy(alpha = 0.62f),
         shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         dragHandle = null
     ) {
+        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(bottom = 16.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             GameHubSheetHeader(
                 title = title,
                 onDismiss = onDismiss
             )
 
+            val maxListHeight = (LocalConfiguration.current.screenHeightDp.dp * 0.65f).coerceAtLeast(240.dp)
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 440.dp)
+                    .heightIn(max = maxListHeight),
+                contentPadding = PaddingValues(bottom = navBarBottom + 28.dp)
             ) {
                 itemsIndexed(options) { index, (optionValue, label) ->
                     val isSelected = optionValue == selectedValue
@@ -215,6 +224,7 @@ fun SettingsConfirmDialog(
         containerColor = YouTubeSurface,
         contentColor = TextPrimary,
         tonalElevation = 0.dp,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         scrimColor = Color.Black.copy(alpha = 0.62f),
         shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         dragHandle = null
@@ -222,8 +232,9 @@ fun SettingsConfirmDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(bottom = 24.dp)
+                .padding(bottom = 28.dp)
         ) {
             GameHubSheetHeader(
                 title = title,
@@ -317,6 +328,7 @@ fun SettingsFeedbackDialog(
         containerColor = YouTubeSurface,
         contentColor = TextPrimary,
         tonalElevation = 0.dp,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         scrimColor = Color.Black.copy(alpha = 0.62f),
         shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         dragHandle = null
@@ -324,8 +336,10 @@ fun SettingsFeedbackDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(bottom = 24.dp)
+                .padding(bottom = 28.dp)
         ) {
             GameHubSheetHeader(
                 title = stringResource(R.string.feedback_dialog_title),

@@ -55,7 +55,10 @@ class PlayerSessionState(
 
     var activeVideo by mutableStateOf(initialVideo)
     var onPlayNextVideoCallback: (VideoItem) -> Unit = {}
+    var onSelectQueueVideoCallback: (VideoItem, Boolean) -> Unit = { vid, _ -> onPlayNextVideoCallback(vid) }
     var onPlayPreviousVideoCallback: () -> Boolean = { false }
+    var onPlayForwardVideoCallback: () -> Boolean = { false }
+    var isVideoInBackStackCallback: (String) -> Boolean = { false }
 
     var playerNoticeText by mutableStateOf<String?>(null)
     private var noticeJob: Job? = null
@@ -89,6 +92,7 @@ class PlayerSessionState(
 
     var mixPlaylist by mutableStateOf<List<VideoItem>>(emptyList())
     var activePlaylistId by mutableStateOf(initialVideo.playlistId)
+    var isExplicitPlaylistSession by mutableStateOf(initialVideo.isPlaylist || !initialVideo.playlistId.isNullOrBlank())
     var currentMixIndex by mutableIntStateOf(0)
     var recommendedVideos by mutableStateOf<List<VideoItem>>(emptyList())
     var recContinuationToken by mutableStateOf<String?>(null)
@@ -195,67 +199,167 @@ class PlayerSessionState(
         if (!networkObserver.isConnected()) {
             showNotice(context.getString(R.string.player_no_internet_notice))
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        } else if (mixPlaylist.isNotEmpty()) {
-            if (currentMixIndex < mixPlaylist.lastIndex) {
-                val nextIndex = currentMixIndex + 1
+            return
+        }
+        if (mixPlaylist.isNotEmpty()) {
+            val activeIdx = if (currentMixIndex in mixPlaylist.indices && mixPlaylist[currentMixIndex].id == currentVideo.id) {
+                currentMixIndex
+            } else {
+                val found = mixPlaylist.indexOfFirst { it.id == currentVideo.id }
+                if (found != -1) found else currentMixIndex.coerceIn(0, mixPlaylist.lastIndex)
+            }
+            if (activeIdx < mixPlaylist.lastIndex) {
+                val nextIndex = activeIdx + 1
                 val nextVid = mixPlaylist[nextIndex]
                 currentMixIndex = nextIndex
                 isInternalNavigation = true
-                onPlayNextVideoCallback(nextVid)
+                scope.launch {
+                    repository.resetWatchPosition(nextVid.id)
+                }
+                onSelectQueueVideoCallback(nextVid, true)
             } else {
                 scope.launch {
                     isLoadingQueue = true
-                    val targetPlId = activePlaylistId?.ifBlank { null } ?: "RD${currentVideo.id}"
-                    val nextData = repository.getWatchNext(currentVideo.id, targetPlId)
-                    if (nextData != null && nextData.mixPlaylist.isNotEmpty()) {
-                        val existingIds = mixPlaylist.map { it.id }.toSet()
-                        val freshItems = nextData.mixPlaylist.filter { it.id !in existingIds }
-                        if (freshItems.isNotEmpty()) {
-                            val nextIndex = mixPlaylist.size
-                            mixPlaylist = mixPlaylist + freshItems
-                            currentMixIndex = nextIndex
-                            isInternalNavigation = true
-                            onPlayNextVideoCallback(mixPlaylist[nextIndex])
+                    val fetchPlId = if (isExplicitPlaylistSession) {
+                        activePlaylistId?.ifBlank { null }
+                    } else {
+                        null
+                    }
+                    val nextData = repository.getWatchNext(currentVideo.id, fetchPlId)
+                    val existingIds = mixPlaylist.map { it.id }.toSet()
+                    val rawFresh = nextData?.mixPlaylist?.filter { it.id !in existingIds }.orEmpty()
+                    val freshItems = if (isExplicitPlaylistSession) {
+                        rawFresh
+                    } else {
+                        rawFresh.shuffled(kotlin.random.Random(System.nanoTime()))
+                    }
+                    if (freshItems.isNotEmpty()) {
+                        val nextIndex = mixPlaylist.size
+                        mixPlaylist = mixPlaylist + freshItems
+                        val nextVid = mixPlaylist[nextIndex]
+                        currentMixIndex = nextIndex
+                        isInternalNavigation = true
+                        repository.resetWatchPosition(nextVid.id)
+                        onSelectQueueVideoCallback(nextVid, true)
+                    } else {
+                        val fallbackRec = recommendedVideos.firstOrNull {
+                            it.id != currentVideo.id && !it.isPlaylist && it.playlistId.isNullOrBlank()
+                        }
+                        if (fallbackRec != null) {
+                            isInternalNavigation = false
+                            onPlayNextVideoCallback(fallbackRec.copy(playlistId = null, isPlaylist = false))
                         }
                     }
                     isLoadingQueue = false
                 }
             }
-        } else if (recommendedVideos.isNotEmpty()) {
-            val nextVid = recommendedVideos.first()
-            isInternalNavigation = false
-            onPlayNextVideoCallback(nextVid)
+        } else {
+            scope.launch {
+                isLoadingQueue = true
+                val fetchPlId = if (isExplicitPlaylistSession) {
+                    activePlaylistId?.ifBlank { null }
+                } else {
+                    null
+                }
+                val nextData = repository.getWatchNext(currentVideo.id, fetchPlId)
+                val queueList = nextData?.mixPlaylist.orEmpty()
+                if (queueList.isNotEmpty()) {
+                    val preparedQueue = if (isExplicitPlaylistSession) {
+                        if (queueList.any { it.id == currentVideo.id }) {
+                            queueList
+                        } else {
+                            listOf(currentVideo.copy(playlistId = null, isPlaylist = false)) + queueList
+                        }
+                    } else {
+                        val rng = kotlin.random.Random(System.nanoTime())
+                        val otherItems = queueList.filter { it.id != currentVideo.id }
+                        val unplayedShuffled = otherItems
+                            .filterNot { isVideoInBackStackCallback(it.id) }
+                            .shuffled(rng)
+                        val playedShuffled = otherItems
+                            .filter { isVideoInBackStackCallback(it.id) }
+                            .shuffled(rng)
+                        val currentEntry = queueList.firstOrNull { it.id == currentVideo.id }
+                            ?: currentVideo.copy(playlistId = null, isPlaylist = false)
+                        listOf(currentEntry) + unplayedShuffled + playedShuffled
+                    }
+                    mixPlaylist = preparedQueue
+                    val curIdx = preparedQueue.indexOfFirst { it.id == currentVideo.id }.coerceAtLeast(0)
+                    val nextIndex = (curIdx + 1).coerceAtMost(preparedQueue.lastIndex)
+                    if (nextIndex > curIdx) {
+                        val nextVid = preparedQueue[nextIndex]
+                        currentMixIndex = nextIndex
+                        isInternalNavigation = true
+                        repository.resetWatchPosition(nextVid.id)
+                        onSelectQueueVideoCallback(nextVid, true)
+                        isLoadingQueue = false
+                        return@launch
+                    }
+                }
+                isLoadingQueue = false
+                if (onPlayForwardVideoCallback()) {
+                    return@launch
+                }
+                val regularRecs = recommendedVideos.filter {
+                    it.id != currentVideo.id && !it.isPlaylist && it.playlistId.isNullOrBlank()
+                }
+                val nextVid = regularRecs.firstOrNull { !isVideoInBackStackCallback(it.id) }
+                    ?: regularRecs.firstOrNull()
+                if (nextVid != null) {
+                    isInternalNavigation = false
+                    onPlayNextVideoCallback(nextVid.copy(playlistId = null, isPlaylist = false))
+                }
+            }
+        }
+    }
+
+    val hasPreviousInQueue: Boolean by derivedStateOf {
+        if (mixPlaylist.isEmpty()) {
+            false
+        } else {
+            val activeIdx = if (currentMixIndex in mixPlaylist.indices && mixPlaylist[currentMixIndex].id == currentVideo.id) {
+                currentMixIndex
+            } else {
+                val found = mixPlaylist.indexOfFirst { it.id == currentVideo.id }
+                if (found != -1) found else currentMixIndex
+            }
+            activeIdx > 0
         }
     }
 
     fun playPrevious(): Boolean {
-        return if (currentPositionSec > 3f) {
+        if (currentPositionSec > 3f) {
             controller.seekTo(0f)
             currentPositionSec = 0f
-            true
-        } else {
-            if (!networkObserver.isConnected()) {
-                showNotice(context.getString(R.string.player_no_internet_notice))
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                false
-            } else if (mixPlaylist.isNotEmpty() && currentMixIndex > 0) {
-                val prevIndex = currentMixIndex - 1
+            return true
+        }
+        if (!networkObserver.isConnected()) {
+            showNotice(context.getString(R.string.player_no_internet_notice))
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            return false
+        }
+        if (mixPlaylist.isNotEmpty()) {
+            val activeIdx = if (currentMixIndex in mixPlaylist.indices && mixPlaylist[currentMixIndex].id == currentVideo.id) {
+                currentMixIndex
+            } else {
+                val found = mixPlaylist.indexOfFirst { it.id == currentVideo.id }
+                if (found != -1) found else currentMixIndex
+            }
+            if (activeIdx > 0) {
+                val prevIndex = activeIdx - 1
                 val prevVid = mixPlaylist[prevIndex]
                 currentMixIndex = prevIndex
                 isInternalNavigation = true
                 scope.launch {
                     repository.resetWatchPosition(prevVid.id)
                 }
-                onPlayNextVideoCallback(prevVid)
-                true
-            } else {
-                val handled = onPlayPreviousVideoCallback()
-                if (!handled) {
-                    controller.seekTo(0f)
-                }
-                handled
+                onSelectQueueVideoCallback(prevVid, false)
+                return true
             }
         }
+        controller.seekTo(0f)
+        currentPositionSec = 0f
+        return false
     }
 
     fun playFromMix(targetIndex: Int) {
@@ -263,9 +367,13 @@ class PlayerSessionState(
             showNotice(context.getString(R.string.player_no_internet_notice))
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         } else if (targetIndex in mixPlaylist.indices) {
+            val targetVid = mixPlaylist[targetIndex]
             currentMixIndex = targetIndex
             isInternalNavigation = true
-            onPlayNextVideoCallback(mixPlaylist[targetIndex])
+            scope.launch {
+                repository.resetWatchPosition(targetVid.id)
+            }
+            onSelectQueueVideoCallback(targetVid, true)
         }
     }
 
@@ -557,7 +665,10 @@ fun rememberPlayerSessionState(
     video: VideoItem,
     isMinimized: Boolean,
     onPlayNextVideo: (VideoItem) -> Unit,
-    onPlayPreviousVideo: () -> Boolean
+    onSelectQueueVideo: (VideoItem, Boolean) -> Unit = { vid, _ -> onPlayNextVideo(vid) },
+    onPlayPreviousVideo: () -> Boolean,
+    onPlayForwardVideo: () -> Boolean = { false },
+    isVideoInBackStack: (String) -> Boolean = { false }
 ): PlayerSessionState {
     val scope = rememberCoroutineScope()
     val session = remember {
@@ -575,6 +686,9 @@ fun rememberPlayerSessionState(
     }
     session.activeVideo = video
     session.onPlayNextVideoCallback = onPlayNextVideo
+    session.onSelectQueueVideoCallback = onSelectQueueVideo
     session.onPlayPreviousVideoCallback = onPlayPreviousVideo
+    session.onPlayForwardVideoCallback = onPlayForwardVideo
+    session.isVideoInBackStackCallback = isVideoInBackStack
     return session
 }

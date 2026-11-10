@@ -475,9 +475,14 @@ object FeedParser {
             val metadata = lvm.optJSONObject("metadata")?.optJSONObject("lockupMetadataViewModel")
             val title = metadata?.optJSONObject("title")?.optString("content") ?: ""
             val contentType = lvm.optString("contentType")
-            val isPlaylist = contentType == "LOCKUP_CONTENT_TYPE_PLAYLIST" ||
+            val isExplicitVideoType = contentType.equals("LOCKUP_CONTENT_TYPE_VIDEO", ignoreCase = true)
+            val isPlaylist = !isExplicitVideoType && (
+                    contentType.equals("LOCKUP_CONTENT_TYPE_PLAYLIST", ignoreCase = true) ||
+                    contentType.equals("LOCKUP_CONTENT_TYPE_ALBUM", ignoreCase = true) ||
                     playlistId.isNotBlank() ||
                     title.startsWith("Mix -", ignoreCase = true)
+            )
+            val resolvedPlaylistId = if (isPlaylist) playlistId.ifBlank { null } else null
 
             if (videoId.isBlank() && isPlaylist) {
                 val thumbSourcesStr = lvm.optJSONObject("contentImage")
@@ -630,7 +635,7 @@ object FeedParser {
                 durationText = duration,
                 viewCountText = InnerTubeHelpers.normalizeViewCount(views),
                 publishedTimeText = InnerTubeHelpers.normalizePublishedTime(published),
-                playlistId = playlistId.ifBlank { null },
+                playlistId = resolvedPlaylistId,
                 isPlaylist = isPlaylist
             )
         }

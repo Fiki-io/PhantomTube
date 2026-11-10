@@ -90,7 +90,10 @@ fun PlayerScreen(
     onClose: () -> Unit = {},
     onBackClick: () -> Unit = onMinimize,
     onPlayNextVideo: (VideoItem) -> Unit,
+    onSelectQueueVideo: (VideoItem, Boolean) -> Unit = { vid, _ -> onPlayNextVideo(vid) },
     onPlayPreviousVideo: () -> Boolean = { false },
+    onPlayForwardVideo: () -> Boolean = { false },
+    isVideoInBackStack: (String) -> Boolean = { false },
     onChannelClick: ((channelId: String, channelTitle: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -107,7 +110,10 @@ fun PlayerScreen(
         video = video,
         isMinimized = isMinimized,
         onPlayNextVideo = onPlayNextVideo,
-        onPlayPreviousVideo = onPlayPreviousVideo
+        onSelectQueueVideo = onSelectQueueVideo,
+        onPlayPreviousVideo = onPlayPreviousVideo,
+        onPlayForwardVideo = onPlayForwardVideo,
+        isVideoInBackStack = isVideoInBackStack
     )
 
     val doubleTapSeekSeconds by remember(repository) {
@@ -198,9 +204,9 @@ fun PlayerScreen(
                     val progress = session.fullSheetProgress.value
                     val drag = effectiveDragOffsetProvider()
                     val scrimAlpha = if (session.isFullscreen) {
-                        (1f - (drag / 120f)).coerceIn(0f, 0.95f)
+                        (1f - (drag / 120f)).coerceIn(0f, 0.96f)
                     } else {
-                        (progress * 0.78f).coerceIn(0f, 0.78f)
+                        (progress * 0.96f).coerceIn(0f, 0.96f)
                     }
                     if (scrimAlpha > 0f) {
                         drawRect(ObsidianDark.copy(alpha = scrimAlpha))
@@ -393,6 +399,7 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerViewportBridgeSect
         isQualityMenuExpanded = session.isQualityMenuExpanded,
         isZoomToFill = session.isZoomToFill,
         doubleTapSeekSeconds = doubleTapSeekSeconds,
+        canSkipPrevious = session.hasPreviousInQueue,
         seekAnimationSide = session.seekAnimationSide,
         seekAccumulatedSeconds = session.seekAccumulatedSeconds,
         showSponsorPill = session.showSponsorPill,
@@ -735,8 +742,10 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerSheetsBridgeSectio
                     session.showNotice(context.getString(R.string.player_no_internet_notice))
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 } else {
-                    val matchedRec = (session.recommendedVideos + session.mixPlaylist).firstOrNull { it.id == targetVideo.id }
-                    val targetVideoItem = matchedRec ?: targetVideo
+                    val matchedRec = (session.recommendedVideos + session.mixPlaylist).firstOrNull {
+                        it.id == targetVideo.id && !it.isPlaylist && it.playlistId.isNullOrBlank()
+                    }
+                    val targetVideoItem = (matchedRec ?: targetVideo).copy(playlistId = null, isPlaylist = false)
                     session.isInternalNavigation = false
                     session.onPlayNextVideoCallback(targetVideoItem)
                 }
@@ -919,31 +928,6 @@ private fun PlayerLifecycleEffects(
         }
     }
 
-    LaunchedEffect(video.id, video.playlistId) {
-        if (!video.playlistId.isNullOrBlank()) {
-            session.activePlaylistId = video.playlistId
-        }
-        if (video.channelAvatarUrl.isNotBlank()) {
-            session.activeAvatarUrl = video.channelAvatarUrl
-        }
-        session.skippedSegmentUuids = ConcurrentHashMap.newKeySet()
-        session.undoneSegmentUuids = ConcurrentHashMap.newKeySet()
-        session.hasSyncedMediaSessionInitialPosition = false
-        session.lastSyncedMediaSessionSec = 0f
-        session.recContinuationToken = null
-        session.canLoadMoreRecs = true
-        session.nextQueueData = null
-        session.commentsList = emptyList()
-        session.commentsTotalCountText = ""
-        session.commentsContinuationToken = null
-        session.isLoadingComments = false
-        session.showDescriptionSheet = false
-        session.isEndscreenDismissed = false
-        session.liveEndscreenVideos = emptyList()
-        session.showCommentsSheet = false
-        session.showDownloadSheet = false
-    }
-
     val isNetworkConnected by session.networkObserver.isConnectedFlow.collectAsState(initial = session.networkObserver.isConnected())
     val isOfflinePlaying by OfflineAudioPlayerManager.isPlaying.collectAsState()
 
@@ -1047,8 +1031,27 @@ private fun PlayerLifecycleEffects(
         )
     }
 
-    LaunchedEffect(video.id) {
+    LaunchedEffect(video.id, video.playlistId, video.isPlaylist) {
         OfflineAudioPlayerManager.stop(context)
+        if (video.channelAvatarUrl.isNotBlank()) {
+            session.activeAvatarUrl = video.channelAvatarUrl
+        }
+        session.skippedSegmentUuids = ConcurrentHashMap.newKeySet()
+        session.undoneSegmentUuids = ConcurrentHashMap.newKeySet()
+        session.hasSyncedMediaSessionInitialPosition = false
+        session.lastSyncedMediaSessionSec = 0f
+        session.recContinuationToken = null
+        session.canLoadMoreRecs = true
+        session.nextQueueData = null
+        session.commentsList = emptyList()
+        session.commentsTotalCountText = ""
+        session.commentsContinuationToken = null
+        session.isLoadingComments = false
+        session.showDescriptionSheet = false
+        session.isEndscreenDismissed = false
+        session.liveEndscreenVideos = emptyList()
+        session.showCommentsSheet = false
+        session.showDownloadSheet = false
         session.playerState = PlayerState(
             videoId = video.id,
             playbackSpeed = session.playerState.playbackSpeed
@@ -1068,6 +1071,24 @@ private fun PlayerLifecycleEffects(
         val fromInternal = session.isInternalNavigation
         if (fromInternal) {
             session.isInternalNavigation = false
+            if (session.currentMixIndex !in session.mixPlaylist.indices || session.mixPlaylist[session.currentMixIndex].id != video.id) {
+                val idx = session.mixPlaylist.indexOfFirst { it.id == video.id }
+                if (idx != -1) {
+                    session.currentMixIndex = idx
+                }
+            }
+        } else {
+            val isExplicitPlaylist = video.isPlaylist || !video.playlistId.isNullOrBlank()
+            session.isExplicitPlaylistSession = isExplicitPlaylist
+            session.mixPlaylist = emptyList()
+            session.currentMixIndex = 0
+            session.showMixSheet = false
+            session.mixTitle = ""
+            session.activePlaylistId = if (isExplicitPlaylist) {
+                video.playlistId?.ifBlank { null } ?: "RD${video.id}"
+            } else {
+                null
+            }
         }
 
         val lastPos = repository.getLastPosition(video.id)
@@ -1092,10 +1113,19 @@ private fun PlayerLifecycleEffects(
 
         launch {
             session.isLoadingQueue = true
-            val targetPlaylistId = video.playlistId?.ifBlank { null }
-                ?: session.activePlaylistId?.ifBlank { null }
-                ?: "RD${video.id}"
-            session.activePlaylistId = targetPlaylistId
+            val isExplicitPlaylist = session.isExplicitPlaylistSession
+            val targetPlaylistId = if (isExplicitPlaylist) {
+                if (!fromInternal) {
+                    video.playlistId?.ifBlank { null } ?: "RD${video.id}"
+                } else {
+                    session.activePlaylistId?.ifBlank { null } ?: "RD${video.id}"
+                }
+            } else {
+                null
+            }
+            if (!fromInternal) {
+                session.activePlaylistId = targetPlaylistId
+            }
             val nextData = repository.getWatchNext(video.id, targetPlaylistId)
             if (nextData != null) {
                 session.nextQueueData = nextData
@@ -1128,18 +1158,46 @@ private fun PlayerLifecycleEffects(
                     thumbnailUrl = enrichedVideo.thumbnailUrl,
                     currentPositionMs = (session.currentPositionSec * 1000).toLong()
                 )
-                session.recommendedVideos = nextData.recommendations
+                session.recommendedVideos = nextData.recommendations.filter { it.id != video.id }
                 session.recContinuationToken = nextData.recommendationsContinuationToken
                 session.canLoadMoreRecs = true
 
                 if (!fromInternal) {
-                    session.showMixSheet = (video.isPlaylist || !video.playlistId.isNullOrBlank()) && nextData.mixPlaylist.isNotEmpty()
-                    session.mixPlaylist = nextData.mixPlaylist
-                    session.currentMixIndex = if (nextData.mixPlaylist.isNotEmpty()) {
-                        val match = nextData.mixPlaylist.indexOfFirst { it.id == video.id }
-                        if (match != -1) match else nextData.currentIndex
-                    } else 0
-                    session.mixTitle = nextData.playlistTitle.ifBlank { if (video.isPlaylist) video.title else "Mix" }
+                    val rawMix = nextData.mixPlaylist
+                    if (isExplicitPlaylist) {
+                        val preparedMix = if (rawMix.isNotEmpty() && rawMix.none { it.id == video.id }) {
+                            listOf(enrichedVideo.copy(playlistId = null)) + rawMix
+                        } else {
+                            rawMix
+                        }
+                        session.mixPlaylist = preparedMix
+                        session.showMixSheet = preparedMix.isNotEmpty()
+                        session.currentMixIndex = if (preparedMix.isNotEmpty()) {
+                            val match = preparedMix.indexOfFirst { it.id == video.id }
+                            if (match != -1) match else nextData.currentIndex.coerceIn(0, preparedMix.lastIndex)
+                        } else 0
+                        session.mixTitle = nextData.playlistTitle.ifBlank { enrichedVideo.title }
+                    } else {
+                        val rng = kotlin.random.Random(System.nanoTime())
+                        val otherItems = rawMix.filter { it.id != video.id }
+                        val unplayedShuffled = otherItems
+                            .filterNot { session.isVideoInBackStackCallback(it.id) }
+                            .shuffled(rng)
+                        val playedShuffled = otherItems
+                            .filter { session.isVideoInBackStackCallback(it.id) }
+                            .shuffled(rng)
+                        val currentEntry = rawMix.firstOrNull { it.id == video.id }
+                            ?: enrichedVideo.copy(playlistId = null, isPlaylist = false)
+                        val preparedMix = if (otherItems.isNotEmpty()) {
+                            listOf(currentEntry) + unplayedShuffled + playedShuffled
+                        } else {
+                            rawMix
+                        }
+                        session.mixPlaylist = preparedMix
+                        session.showMixSheet = false
+                        session.currentMixIndex = 0
+                        session.mixTitle = context.getString(R.string.player_up_next)
+                    }
                 } else {
                     if (session.currentMixIndex !in session.mixPlaylist.indices || session.mixPlaylist[session.currentMixIndex].id != video.id) {
                         val idx = session.mixPlaylist.indexOfFirst { it.id == video.id }
@@ -1149,7 +1207,12 @@ private fun PlayerLifecycleEffects(
                     }
                     if (session.mixPlaylist.isNotEmpty() && session.currentMixIndex >= session.mixPlaylist.size - 5) {
                         val existingIds = session.mixPlaylist.map { it.id }.toSet()
-                        val freshItems = nextData.mixPlaylist.filter { it.id !in existingIds }
+                        val rawFresh = nextData.mixPlaylist.filter { it.id !in existingIds }
+                        val freshItems = if (isExplicitPlaylist) {
+                            rawFresh
+                        } else {
+                            rawFresh.shuffled(kotlin.random.Random(System.nanoTime()))
+                        }
                         if (freshItems.isNotEmpty()) {
                             session.mixPlaylist = session.mixPlaylist + freshItems
                         }

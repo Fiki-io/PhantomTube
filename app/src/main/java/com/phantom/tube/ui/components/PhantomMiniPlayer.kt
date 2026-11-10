@@ -207,21 +207,23 @@ fun PhantomMiniPlayer(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = video.title.ifBlank { "Sedang Memutar" },
+                        text = video.title.ifBlank { stringResource(R.string.common_loading) },
                         color = TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = video.channelTitle.ifBlank { "Channel" },
-                        color = TextSecondary,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (video.channelTitle.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = video.channelTitle,
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(6.dp))

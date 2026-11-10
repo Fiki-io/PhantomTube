@@ -154,7 +154,7 @@
     <string name="player_tap_to_view_comments">タップしてコメントを表示...</string>
     <string name="player_no_comments_sheet">この動画にはコメントがありません</string>
     <string name="player_more_details">...もっと見る</string>
-    <string name="player_up_next_short">次の動画</string>
+    <string name="player_up_next_short">その他の動画</string>
     <string name="action_close">閉じる</string>
     <string name="action_back">戻る</string>
     <string name="action_loading">読み込み中...</string>

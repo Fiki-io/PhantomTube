@@ -6,13 +6,9 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -26,21 +22,14 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 
-/**
- * Spesifikasi pegas & kurva transisi terpusat (Single Source of Truth) tanpa overshoot/getaran berlebih.
- */
 object IosSpringSpecs {
     val SmoothOutEasing = CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f)
 
@@ -64,6 +53,7 @@ object IosSpringSpecs {
 object PhantomMotion {
     val SmoothOutEasing = CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f)
     val SmoothInEasing = CubicBezierEasing(0.4f, 0.0f, 1.0f, 1.0f)
+    val SheetDismissThresholdDp = 96.dp
 
     val ScreenSlideEnter: EnterTransition =
         slideInHorizontally(
@@ -107,10 +97,6 @@ object PhantomMotion {
         fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutLinearInEasing))
 }
 
-/**
- * Efek tekan interaktif menggunakan MutableInteractionSource.collectIsPressedAsState()
- * sehingga tidak memblokir scroll LazyColumn / parent gesture detector.
- */
 fun Modifier.iosBounceClick(
     scaleDown: Float = 0.96f,
     alphaDown: Float = 0.90f,
@@ -146,61 +132,3 @@ fun Modifier.iosBounceClick(
         )
 }
 
-/**
- * Animasi masuk item list yang deterministik dan bebas kedip saat di-scroll cepat.
- */
-fun Modifier.animateItemEntrance(
-    index: Int = 0,
-    delayPerItemMs: Long = 20L
-): Modifier = composed {
-    var isVisible by rememberSaveable(index) { mutableStateOf(false) }
-
-    LaunchedEffect(index) {
-        if (!isVisible) {
-            isVisible = true
-        }
-    }
-
-    val alpha by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = 180,
-            easing = IosSpringSpecs.SmoothOutEasing
-        ),
-        label = "entrance_alpha"
-    )
-
-    val translationY by animateFloatAsState(
-        targetValue = if (isVisible) 0f else 16f,
-        animationSpec = tween(
-            durationMillis = 190,
-            easing = IosSpringSpecs.SmoothOutEasing
-        ),
-        label = "entrance_y"
-    )
-
-    this.graphicsLayer {
-        this.alpha = alpha
-        this.translationY = translationY
-    }
-}
-
-@Composable
-fun Modifier.floatingTransition(
-    offsetRange: Float = 6f,
-    durationMillis: Int = 2400
-): Modifier {
-    val infiniteTransition = rememberInfiniteTransition(label = "floating_infinite")
-    val dy by infiniteTransition.animateFloat(
-        initialValue = -offsetRange,
-        targetValue = offsetRange,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = durationMillis, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "floating_dy"
-    )
-    return this.graphicsLayer {
-        translationY = dy
-    }
-}

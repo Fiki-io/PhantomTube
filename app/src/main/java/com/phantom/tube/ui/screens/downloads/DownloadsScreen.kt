@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsTopHeight
@@ -76,6 +78,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -114,7 +118,10 @@ fun DownloadsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
+    val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     val downloads by repository.getDownloads().collectAsState(initial = emptyList())
     val activeTrack by OfflineAudioPlayerManager.currentTrack.collectAsState()
@@ -192,7 +199,14 @@ fun DownloadsScreen(
                 )
             }
 
-            IconButton(onClick = { isSearchActive = !isSearchActive }) {
+            IconButton(onClick = {
+                isSearchActive = !isSearchActive
+                if (!isSearchActive) {
+                    searchQuery = ""
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
+            }) {
                 Icon(
                     imageVector = if (isSearchActive) Icons.Default.Clear else Icons.Default.Search,
                     contentDescription = stringResource(R.string.nav_search),
@@ -415,7 +429,7 @@ fun DownloadsScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 130.dp)
+                contentPadding = PaddingValues(top = 8.dp, bottom = bottomNavInset + 140.dp)
             ) {
                 items(filteredList, key = { it.id }) { item ->
                     val isAudio = item.format.equals("MP3", ignoreCase = true)

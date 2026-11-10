@@ -115,10 +115,10 @@ class InnerTubeClient(
 
     suspend fun fetchWatchNext(videoId: String, playlistId: String? = null): NextQueue? = withContext(Dispatchers.IO) {
         try {
+            val targetPlaylistId = if (!playlistId.isNullOrBlank()) playlistId else "RD$videoId"
             val bodyJson = JSONObject().apply {
                 put("context", createClientContext())
                 put("videoId", videoId)
-                val targetPlaylistId = if (!playlistId.isNullOrBlank()) playlistId else "RD$videoId"
                 put("playlistId", targetPlaylistId)
             }
             val request = Request.Builder()

@@ -1,73 +1,50 @@
 package com.phantom.tube.ui.screens.player.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.border
 import coil.compose.AsyncImage
+import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeSurface
-import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoItem
-import com.phantom.tube.R
+import com.phantom.tube.ui.components.PhantomAnchoredPlayerSheet
 import com.phantom.tube.ui.components.PhantomLinkText
-import androidx.compose.ui.res.stringResource
-import kotlin.math.roundToInt
 
 @Composable
 fun PlayerDescriptionSheet(
@@ -85,137 +62,27 @@ fun PlayerDescriptionSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var descSheetOffsetY by remember { mutableFloatStateOf(0f) }
-    val animatedDescSheetOffsetY by animateFloatAsState(
-        targetValue = descSheetOffsetY,
-        animationSpec = tween(durationMillis = 200),
-        label = "desc_sheet_offset"
-    )
-
-    LaunchedEffect(visible) {
-        if (visible) {
-            descSheetOffsetY = 0f
-        }
-    }
-
-    val descHandleDragModifier = Modifier.pointerInput(Unit) {
-        detectVerticalDragGestures(
-            onVerticalDrag = { change, dragAmount ->
-                change.consume()
-                descSheetOffsetY = (descSheetOffsetY + dragAmount).coerceAtLeast(0f)
-            },
-            onDragEnd = {
-                if (descSheetOffsetY > 140f) {
-                    onDismiss()
-                } else {
-                    descSheetOffsetY = 0f
-                }
-            },
-            onDragCancel = {
-                descSheetOffsetY = 0f
-            }
-        )
-    }
-
-    AnimatedVisibility(
-        visible = visible && !isFullscreen,
-        enter = fadeIn(animationSpec = tween(180)) + slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it },
-        exit = fadeOut(animationSpec = tween(100)) + slideOutVertically(animationSpec = tween(150, easing = FastOutLinearInEasing)) { it },
+    PhantomAnchoredPlayerSheet(
+        visible = visible,
+        isFullscreen = isFullscreen,
+        title = stringResource(R.string.player_description),
+        onDismiss = onDismiss,
         modifier = modifier
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { onDismiss() }
+        val descriptionText = nextQueueData?.description.orEmpty()
+        val chapters = remember(descriptionText) {
+            com.phantom.tube.data.model.VideoChapterParser.parse(descriptionText)
+        }
+
+        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(top = 4.dp, bottom = navBarBottom + 32.dp)
         ) {
-            // Invisible top spacer reserving the height of status bar + 16:9 Video Player Box
-            Spacer(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .aspectRatio(16f / 9f)
-            )
-
-            // Sheet container filling the space below the video, NEVER overlapping the video
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .offset { IntOffset(0, animatedDescSheetOffsetY.roundToInt()) }
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .background(Color(0xFF212121))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {}
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .navigationBarsPadding()
-                ) {
-                    // Drag handle
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(descHandleDragModifier)
-                            .padding(vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(width = 38.dp, height = 4.dp)
-                                .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
-                        )
-                    }
-
-                    // Header: Deskripsi + Close button
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(descHandleDragModifier),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.player_description),
-                            color = TextPrimary,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        IconButton(onClick = onDismiss) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = stringResource(R.string.action_close),
-                                tint = TextSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp)
-                            .height(1.dp)
-                            .background(Color(0xFF2E2E2E))
-                    )
-
-                    val descriptionText = nextQueueData?.description.orEmpty()
-                    val chapters = remember(descriptionText) {
-                        com.phantom.tube.data.model.VideoChapterParser.parse(descriptionText)
-                    }
-
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        // 1. Video Title
-                        item {
+            // 1. Video Title
+            item {
                             Text(
                                 text = nextQueueData?.currentVideo?.title?.ifBlank { video.title } ?: video.title,
                                 color = TextPrimary,
@@ -495,8 +362,6 @@ fun PlayerDescriptionSheet(
                             Spacer(modifier = Modifier.height(24.dp))
                         }
                     }
-                }
-            }
-        }
     }
 }
+

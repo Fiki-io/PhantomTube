@@ -154,7 +154,7 @@
     <string name="player_tap_to_view_comments">Tap to view comments...</string>
     <string name="player_no_comments_sheet">No comments for this video</string>
     <string name="player_more_details">...more</string>
-    <string name="player_up_next_short">Up Next</string>
+    <string name="player_up_next_short">More Videos</string>
     <string name="action_close">Close</string>
     <string name="action_back">Back</string>
     <string name="action_loading">Loading...</string>

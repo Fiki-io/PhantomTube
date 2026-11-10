@@ -11,16 +11,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -669,13 +672,21 @@ fun ChannelAboutBottomSheet(
         sheetState = sheetState,
         containerColor = YouTubeSurface,
         tonalElevation = 0.dp,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
     ) {
-        ChannelAboutCard(
-            profile = profile,
-            onChannelClick = onChannelClick,
-            onVideoLinkClick = onVideoLinkClick
-        )
-        Spacer(modifier = Modifier.height(24.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(bottom = 28.dp)
+        ) {
+            ChannelAboutCard(
+                profile = profile,
+                onChannelClick = onChannelClick,
+                onVideoLinkClick = onVideoLinkClick
+            )
+        }
     }
 }

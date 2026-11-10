@@ -26,6 +26,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsTopHeight
@@ -75,6 +78,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
@@ -258,7 +263,28 @@ fun SearchScreen(
 
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val density = LocalDensity.current
+    val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    val isImeVisible = WindowInsets.ime.getBottom(density) > 0
+    var wasImeVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(isImeVisible) {
+        if (isImeVisible) {
+            wasImeVisible = true
+        } else if (wasImeVisible) {
+            wasImeVisible = false
+            focusManager.clearFocus()
+        }
+    }
+
+    LaunchedEffect(searchListState.isScrollInProgress) {
+        if (searchListState.isScrollInProgress) {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+        }
+    }
 
     fun updateSearchInput(newText: String, requestKeyboardFocus: Boolean = false) {
         searchTextFieldValue = TextFieldValue(
@@ -276,6 +302,7 @@ fun SearchScreen(
     fun executeSearch(query: String, filter: SearchFilter = selectedFilter) {
         val trimmed = query.trim()
         if (trimmed.isBlank()) return
+        focusManager.clearFocus()
         keyboardController?.hide()
 
         val parsedLink = com.phantom.tube.core.util.extractYouTubeLinkFromText(trimmed)
@@ -403,6 +430,8 @@ fun SearchScreen(
     }
 
     BackHandler(enabled = isBackInterceptEnabled) {
+        focusManager.clearFocus()
+        keyboardController?.hide()
         if (hasSearched || searchQuery.isNotEmpty()) {
             searchTextFieldValue = androidx.compose.ui.text.input.TextFieldValue("")
             hasSearched = false
@@ -411,7 +440,6 @@ fun SearchScreen(
             detailedSuggestions = emptyList()
             selectedFilter = SearchFilter.ALL
             isFilterBarVisible = true
-            keyboardController?.hide()
         } else {
             onBackClick()
         }
@@ -437,7 +465,11 @@ fun SearchScreen(
                 contentDescription = stringResource(R.string.action_back),
                 size = 38.dp,
                 iconSize = 20.dp,
-                onClick = onBackClick
+                onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    onBackClick()
+                }
             )
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -573,7 +605,7 @@ fun SearchScreen(
 
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = bottomNavInset + 140.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             if (combinedSuggestions.isEmpty()) {
@@ -619,6 +651,8 @@ fun SearchScreen(
                                                 .fillMaxWidth()
                                                 .clip(RoundedCornerShape(10.dp))
                                                 .clickable {
+                                                    focusManager.clearFocus()
+                                                    keyboardController?.hide()
                                                     if (!item.channelId.isNullOrBlank()) {
                                                         onChannelClick(item.channelId, item.channelTitle ?: item.query)
                                                     } else {
@@ -747,7 +781,7 @@ fun SearchScreen(
                     LazyColumn(
                         state = searchListState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 100.dp),
+                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = bottomNavInset + 140.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         // 1. YouTube-style Channel Card at top of search results
@@ -761,6 +795,8 @@ fun SearchScreen(
                                     channel = channel,
                                     repository = repository,
                                     onClick = {
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
                                         onChannelClick(channel.id, channel.title)
                                     }
                                 )
@@ -777,9 +813,15 @@ fun SearchScreen(
                                 video = video,
                                 progressFraction = historyMap[video.id] ?: 0f,
                                 onChannelClick = { chId ->
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
                                     onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
                                 },
-                                onClick = { onVideoClick(video) }
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    onVideoClick(video)
+                                }
                             )
                         }
 
@@ -866,7 +908,7 @@ fun SearchScreen(
 
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 2.dp, bottom = bottomNavInset + 140.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             items(

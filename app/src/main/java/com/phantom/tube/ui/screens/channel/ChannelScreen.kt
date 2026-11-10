@@ -53,6 +53,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -96,6 +98,8 @@ fun ChannelScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
 
     var profile by remember(channelId) { mutableStateOf<ChannelProfile?>(null) }
@@ -137,6 +141,8 @@ fun ChannelScreen(
     }
 
     BackHandler {
+        focusManager.clearFocus()
+        keyboardController?.hide()
         if (isSearchActive) {
             isSearchActive = false
             searchQuery = ""
@@ -184,7 +190,11 @@ fun ChannelScreen(
             isSearchActive = isSearchActive,
             onToggleSearch = {
                 isSearchActive = !isSearchActive
-                if (!isSearchActive) searchQuery = ""
+                if (!isSearchActive) {
+                    searchQuery = ""
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
             },
             onShareChannel = {
                 val id = currentProfile?.id?.ifBlank { channelId } ?: channelId
@@ -314,7 +324,7 @@ fun ChannelScreen(
             currentProfile != null -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = navBarPadding + 32.dp)
+                    contentPadding = PaddingValues(bottom = navBarPadding + 110.dp)
                 ) {
                     item(key = "channel_header") {
                         ChannelHeaderSection(

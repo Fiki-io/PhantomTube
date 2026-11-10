@@ -41,18 +41,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.phantom.tube.R
 import com.phantom.tube.core.theme.BubbleDockBg
 import com.phantom.tube.core.theme.BubbleDockBorder
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.YouTubeRed
-import androidx.compose.ui.res.stringResource
-import com.phantom.tube.R
 import kotlin.math.roundToInt
 
 enum class NavTab(val titleRes: Int, val icon: ImageVector) {
@@ -79,17 +81,21 @@ fun BubbleBottomNav(
     val tabs = NavTab.values()
     val activeIndex = tabs.indexOf(currentTab).coerceAtLeast(0)
 
+    val configuration = LocalConfiguration.current
+    val dockHeight = if (configuration.fontScale > 1.15f) 68.dp else 60.dp
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(start = 20.dp, end = 20.dp, bottom = 16.dp, top = 4.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
+                .widthIn(max = 460.dp)
+                .height(dockHeight)
                 .clip(RoundedCornerShape(32.dp))
                 .background(BubbleDockBg)
                 .border(
@@ -219,7 +225,9 @@ fun BubbleBottomNav(
                                 color = textColor,
                                 fontSize = 10.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                maxLines = 1
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         }
                     }

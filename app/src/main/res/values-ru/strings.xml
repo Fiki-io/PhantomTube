@@ -154,7 +154,7 @@
     <string name="player_tap_to_view_comments">Нажмите, чтобы просмотреть комментарии...</string>
     <string name="player_no_comments_sheet">Для этого видео нет комментариев</string>
     <string name="player_more_details">...ещё</string>
-    <string name="player_up_next_short">Следующее</string>
+    <string name="player_up_next_short">Другие видео</string>
     <string name="action_close">Закрыть</string>
     <string name="action_back">Назад</string>
     <string name="action_loading">Загрузка...</string>

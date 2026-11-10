@@ -217,7 +217,8 @@ object WatchNextParser {
                         channelId = itemChannelId,
                         thumbnailUrl = thumb,
                         durationText = duration,
-                        playlistId = detectedPlaylistId
+                        playlistId = null,
+                        isPlaylist = false
                     )
                     fullPlaylist.add(item)
 

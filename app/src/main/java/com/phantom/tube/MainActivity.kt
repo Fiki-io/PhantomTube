@@ -76,16 +76,27 @@ class MainActivity : ComponentActivity() {
     private var isPlayerMinimized by mutableStateOf(false)
     private var pendingDeepLinkChannelId by mutableStateOf<String?>(null)
     private val playbackBackStack = mutableListOf<VideoItem>()
+    private val playbackForwardStack = mutableListOf<VideoItem>()
 
-    private fun openVideo(nextVideo: VideoItem, pushCurrentToBackStack: Boolean = true) {
+    private fun openVideo(
+        nextVideo: VideoItem,
+        pushCurrentToBackStack: Boolean = true,
+        fromForwardStack: Boolean = false
+    ) {
         OfflineAudioPlayerManager.stop(this)
         val current = activeVideo
+        if (!fromForwardStack) {
+            if (playbackForwardStack.lastOrNull()?.id == nextVideo.id) {
+                playbackForwardStack.removeAt(playbackForwardStack.lastIndex)
+            } else {
+                playbackForwardStack.clear()
+            }
+        }
         if (pushCurrentToBackStack && current != null && current.id != nextVideo.id) {
-            if (playbackBackStack.lastOrNull()?.id != current.id) {
-                playbackBackStack.add(current)
-                if (playbackBackStack.size > 30) {
-                    playbackBackStack.removeAt(0)
-                }
+            playbackBackStack.removeAll { it.id == current.id }
+            playbackBackStack.add(current)
+            if (playbackBackStack.size > 40) {
+                playbackBackStack.removeAt(0)
             }
         }
         activeVideo = nextVideo
@@ -229,6 +240,13 @@ class MainActivity : ComponentActivity() {
 
                 val isFullPlayerCovering = activeVideo != null && !isPlayerMinimized
                 val isAnyOverlayOpen = activeChannelId != null || isSettingsOpen || isDownloadsOpen || isFullPlayerCovering
+                val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+                val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+
+                LaunchedEffect(isFullPlayerCovering, currentTab, activeChannelId, isSettingsOpen, isDownloadsOpen, activeVideo?.id) {
+                    focusManager.clearFocus(force = true)
+                    keyboardController?.hide()
+                }
 
                 // Mutually exclusive system back press handlers (topmost active layer wins)
                 BackHandler(
@@ -429,6 +447,7 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(offlineTrack) {
                         if (offlineTrack != null && activeVideo != null) {
                             playbackBackStack.clear()
+                            playbackForwardStack.clear()
                             activeVideo = null
                             isPlayerMinimized = false
                         }
@@ -468,20 +487,56 @@ class MainActivity : ComponentActivity() {
                             },
                             onClose = {
                                 playbackBackStack.clear()
+                                playbackForwardStack.clear()
                                 activeVideo = null
                                 isPlayerMinimized = false
                             },
                             onPlayNextVideo = { nextVideo: VideoItem ->
                                 openVideo(nextVideo, pushCurrentToBackStack = true)
                             },
+                            onSelectQueueVideo = { queueVideo: VideoItem, isForward: Boolean ->
+                                if (isForward) {
+                                    openVideo(queueVideo, pushCurrentToBackStack = true)
+                                } else {
+                                    OfflineAudioPlayerManager.stop(this@MainActivity)
+                                    activeVideo?.let { current ->
+                                        playbackForwardStack.removeAll { it.id == current.id }
+                                        playbackForwardStack.add(current)
+                                    }
+                                    if (playbackBackStack.lastOrNull()?.id == queueVideo.id) {
+                                        playbackBackStack.removeAt(playbackBackStack.lastIndex)
+                                    }
+                                    activeVideo = queueVideo
+                                }
+                            },
                             onPlayPreviousVideo = {
                                 if (playbackBackStack.isNotEmpty()) {
+                                    activeVideo?.let { current ->
+                                        playbackForwardStack.removeAll { it.id == current.id }
+                                        playbackForwardStack.add(current)
+                                    }
                                     val prevVid = playbackBackStack.removeAt(playbackBackStack.lastIndex)
                                     activeVideo = prevVid
                                     true
                                 } else {
                                     false
                                 }
+                            },
+                            onPlayForwardVideo = {
+                                if (playbackForwardStack.isNotEmpty()) {
+                                    val forwardVid = playbackForwardStack.removeAt(playbackForwardStack.lastIndex)
+                                    openVideo(
+                                        nextVideo = forwardVid,
+                                        pushCurrentToBackStack = true,
+                                        fromForwardStack = true
+                                    )
+                                    true
+                                } else {
+                                    false
+                                }
+                            },
+                            isVideoInBackStack = { videoId ->
+                                playbackBackStack.any { it.id == videoId }
                             },
                             onChannelClick = { chId: String, chTitle: String ->
                                 activeChannelId = chId

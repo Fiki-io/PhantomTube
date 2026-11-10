@@ -13,7 +13,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import java.util.Locale
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -401,6 +404,7 @@ fun BoxScope.PlayerControlsOverlay(
     isQualityMenuExpanded: Boolean,
     isZoomToFill: Boolean,
     doubleTapSeekSeconds: Int = 10,
+    canSkipPrevious: Boolean = true,
     currentTimeSecProvider: () -> Float,
     durationSecProvider: () -> Float,
     bufferedFractionProvider: () -> Float,
@@ -449,14 +453,16 @@ fun BoxScope.PlayerControlsOverlay(
                 )
         ) {
             // Top Bar Controls
+            val controlBtnSize = if (isFullscreen) 36.dp else 32.dp
+            val controlIconSize = if (isFullscreen) 19.dp else 17.dp
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
                     .padding(
-                        start = if (isFullscreen) 24.dp else 12.dp,
-                        end = if (isFullscreen) 24.dp else 12.dp,
-                        top = if (isFullscreen) 16.dp else 10.dp
+                        start = if (isFullscreen) 24.dp else 10.dp,
+                        end = if (isFullscreen) 24.dp else 10.dp,
+                        top = if (isFullscreen) 16.dp else 8.dp
                     ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -464,19 +470,23 @@ fun BoxScope.PlayerControlsOverlay(
                 PhantomIconButton(
                     icon = Icons.Default.ExpandMore,
                     contentDescription = stringResource(R.string.player_minimize),
-                    size = 38.dp,
-                    iconSize = 24.dp,
+                    size = if (isFullscreen) 38.dp else 34.dp,
+                    iconSize = if (isFullscreen) 24.dp else 22.dp,
                     onClick = onMinimizeOrExitFullscreen
                 )
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .padding(start = 6.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(if (isFullscreen) 8.dp else 5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Closed Captions Toggle
                     Box(
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(controlBtnSize)
                             .clip(RoundedCornerShape(10.dp))
                             .background(if (isCaptionsEnabled && hasCaptions) Color(0x33FF0033) else Color(0x44272727))
                             .border(
@@ -493,7 +503,7 @@ fun BoxScope.PlayerControlsOverlay(
                             tint = if (isCaptionsEnabled && hasCaptions) YouTubeRed
                             else if (!hasCaptions) Color.White.copy(alpha = 0.35f)
                             else Color.White.copy(alpha = 0.75f),
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(controlIconSize)
                         )
                     }
 
@@ -506,7 +516,7 @@ fun BoxScope.PlayerControlsOverlay(
 
                         Box(
                             modifier = Modifier
-                                .height(34.dp)
+                                .height(controlBtnSize)
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(
                                     if (isQualityMenuExpanded) Color(0x33FF0033)
@@ -522,18 +532,18 @@ fun BoxScope.PlayerControlsOverlay(
                                     onToggleQualityMenu(!isQualityMenuExpanded)
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 }
-                                .padding(horizontal = 8.dp),
+                                .padding(horizontal = if (isFullscreen) 8.dp else 6.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.HighQuality,
                                     contentDescription = stringResource(R.string.player_quality_format, currentQualityBadge),
                                     tint = if (isQualityMenuExpanded) YouTubeRed else if (isHighQuality) Color.White else Color.White.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(17.dp)
+                                    modifier = Modifier.size(if (isFullscreen) 17.dp else 15.dp)
                                 )
                                 Text(
                                     text = currentQualityBadge,
@@ -596,7 +606,7 @@ fun BoxScope.PlayerControlsOverlay(
                     // Zoom to Fill Toggle
                     Box(
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(controlBtnSize)
                             .clip(RoundedCornerShape(10.dp))
                             .background(if (isZoomToFill) Color.White.copy(alpha = 0.22f) else Color(0x44272727))
                             .border(
@@ -611,14 +621,14 @@ fun BoxScope.PlayerControlsOverlay(
                             imageVector = if (isZoomToFill) Icons.Default.FitScreen else Icons.Default.CropFree,
                             contentDescription = stringResource(if (isZoomToFill) R.string.player_zoom_original else R.string.player_zoom_fill),
                             tint = if (isZoomToFill) Color.White else Color.White.copy(alpha = 0.65f),
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(controlIconSize)
                         )
                     }
 
                     // Screen Lock Button
                     Box(
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(controlBtnSize)
                             .clip(RoundedCornerShape(10.dp))
                             .background(Color(0x44272727))
                             .border(0.5.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
@@ -629,22 +639,31 @@ fun BoxScope.PlayerControlsOverlay(
                             imageVector = Icons.Default.Lock,
                             contentDescription = stringResource(R.string.player_lock_screen),
                             tint = Color.White.copy(alpha = 0.75f),
-                            modifier = Modifier.size(17.dp)
+                            modifier = Modifier.size(if (isFullscreen) 17.dp else 15.dp)
                         )
                     }
 
                     // Playback Speed Quick Button
+                    val formattedSpeed = remember(playerState.playbackSpeed) {
+                        String.format(Locale.US, "%.2fx", playerState.playbackSpeed)
+                            .trimEnd('0')
+                            .trimEnd('.')
+                            .let { if (!it.endsWith("x")) "${it}x" else it }
+                    }
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFF272727))
+                            .height(controlBtnSize)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x44272727))
+                            .border(0.5.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
                             .iosBounceClick(scaleDown = 0.90f, onClick = onCycleSpeed)
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                            .padding(horizontal = if (isFullscreen) 8.dp else 7.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "${playerState.playbackSpeed}x",
+                            text = formattedSpeed,
                             color = Color.White,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -653,8 +672,8 @@ fun BoxScope.PlayerControlsOverlay(
                     PhantomIconButton(
                         icon = Icons.Default.Settings,
                         contentDescription = stringResource(R.string.nav_settings),
-                        size = 36.dp,
-                        iconSize = 20.dp,
+                        size = controlBtnSize,
+                        iconSize = if (isFullscreen) 20.dp else 18.dp,
                         onClick = onOpenSettings
                     )
                 }
@@ -676,6 +695,7 @@ fun BoxScope.PlayerControlsOverlay(
                     contentDescription = stringResource(R.string.player_prev_video),
                     size = 42.dp,
                     iconSize = 22.dp,
+                    tint = if (canSkipPrevious) TextPrimary else TextPrimary.copy(alpha = 0.35f),
                     onClick = onSkipPrevious
                 )
 

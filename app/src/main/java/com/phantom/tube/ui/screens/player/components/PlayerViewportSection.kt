@@ -20,12 +20,15 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FastForward
@@ -102,10 +105,10 @@ fun BoxScope.PlayerAmbientBackdrop(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .statusBarsPadding()
+            .windowInsetsTopHeight(WindowInsets.statusBars)
             .graphicsLayer {
                 val progress = sheetProgressProvider()
-                alpha = ((progress - 0.92f) / 0.08f).coerceIn(0f, 1f)
+                alpha = (progress / 0.25f).coerceIn(0f, 1f)
             }
             .background(SystemStatusBarColor)
     )
@@ -114,12 +117,11 @@ fun BoxScope.PlayerAmbientBackdrop(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .graphicsLayer {
                 val progress = sheetProgressProvider()
                 val sheetOff = (1f - progress) * screenHeightPx
                 translationY = sheetOff
-                alpha = (progress / 0.25f).coerceIn(0f, 1f)
+                alpha = (progress / 0.2f).coerceIn(0f, 1f)
             }
             .background(ObsidianDark)
     )
@@ -197,6 +199,7 @@ fun BoxScope.PlayerVideoViewportBox(
     isQualityMenuExpanded: Boolean,
     isZoomToFill: Boolean,
     doubleTapSeekSeconds: Int,
+    canSkipPrevious: Boolean = true,
     seekAnimationSide: SeekFeedbackDirection?,
     seekAccumulatedSeconds: Int,
     showSponsorPill: Boolean,
@@ -557,9 +560,10 @@ fun BoxScope.PlayerVideoViewportBox(
                 if (liveEndscreenVideos.isNotEmpty()) {
                     liveEndscreenVideos
                 } else {
-                    nextQueueData?.effectiveEndscreens?.ifEmpty {
-                        recommendedVideos.filter { it.id != video.id }.take(2)
-                    } ?: recommendedVideos.filter { it.id != video.id }.take(2)
+                    val regularRecs = recommendedVideos.filter {
+                        it.id != video.id && !it.isPlaylist && it.playlistId.isNullOrBlank()
+                    }.take(2)
+                    nextQueueData?.effectiveEndscreens?.ifEmpty { regularRecs } ?: regularRecs
                 }
             }
             PlayerEndscreenOverlay(
@@ -580,6 +584,7 @@ fun BoxScope.PlayerVideoViewportBox(
                 isQualityMenuExpanded = isQualityMenuExpanded,
                 isZoomToFill = isZoomToFill,
                 doubleTapSeekSeconds = doubleTapSeekSeconds,
+                canSkipPrevious = canSkipPrevious,
                 currentTimeSecProvider = currentTimeSecProvider,
                 durationSecProvider = durationSecProvider,
                 bufferedFractionProvider = bufferedFractionProvider,

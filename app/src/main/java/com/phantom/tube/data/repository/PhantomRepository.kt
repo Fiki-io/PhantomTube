@@ -232,7 +232,7 @@ class PhantomRepository(
                 isPlaylist = true
             )
             blendedVideos.add(mixCard)
-            seenIds.add(mixCard.id)
+            seenIds.add("playlist_$mixPlaylistId")
         }
 
         // 6. Smart Interleaving (Weighted Blending: 65% Core Interest, 35% Exploration)

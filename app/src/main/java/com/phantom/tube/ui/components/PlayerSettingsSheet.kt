@@ -1,28 +1,32 @@
 package com.phantom.tube.ui.components
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,7 +46,6 @@ import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -51,27 +54,34 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.GlassBorderDim
 import com.phantom.tube.core.theme.GlassBorderLight
-import com.phantom.tube.core.theme.GlassSurface
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
-import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeSurface
+import kotlinx.coroutines.launch
 import java.util.Locale
-
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import kotlin.math.roundToInt
 
 private enum class PlayerSheetPage(val depth: Int) {
     MAIN(0),
@@ -105,11 +115,95 @@ fun PlayerSettingsSheet(
     modifier: Modifier = Modifier
 ) {
     var currentPage by remember { mutableStateOf(PlayerSheetPage.MAIN) }
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val dismissThresholdPx = with(density) { PhantomMotion.SheetDismissThresholdDp.toPx() }
+    val dragOffsetY = remember { Animatable(0f) }
 
     LaunchedEffect(visible) {
         if (!visible) {
             currentPage = PlayerSheetPage.MAIN
+        } else {
+            dragOffsetY.snapTo(0f)
         }
+    }
+
+    BackHandler(enabled = visible) {
+        if (currentPage != PlayerSheetPage.MAIN) {
+            currentPage = PlayerSheetPage.MAIN
+        } else {
+            onDismiss()
+        }
+    }
+
+    fun settleOrDismiss(velocityY: Float = 0f) {
+        if (dragOffsetY.value > dismissThresholdPx || velocityY > 1100f) {
+            onDismiss()
+        } else {
+            scope.launch {
+                dragOffsetY.animateTo(
+                    targetValue = 0f,
+                    animationSpec = IosSpringSpecs.Gentle
+                )
+            }
+        }
+    }
+
+    val nestedScrollConnection = remember(dismissThresholdPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.Drag && available.y < 0f && dragOffsetY.value > 0f) {
+                    val consumedY = available.y.coerceAtLeast(-dragOffsetY.value)
+                    scope.launch {
+                        dragOffsetY.snapTo((dragOffsetY.value + consumedY).coerceAtLeast(0f))
+                    }
+                    return Offset(0f, consumedY)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (source == NestedScrollSource.Drag && available.y > 0f) {
+                    scope.launch {
+                        dragOffsetY.snapTo((dragOffsetY.value + available.y).coerceAtLeast(0f))
+                    }
+                    return Offset(0f, available.y)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (dragOffsetY.value > 0f) {
+                    settleOrDismiss(velocityY = available.y)
+                    return available
+                }
+                return Velocity.Zero
+            }
+        }
+    }
+
+    val handleDragModifier = Modifier.pointerInput(dismissThresholdPx) {
+        detectVerticalDragGestures(
+            onVerticalDrag = { change, dragAmount ->
+                change.consume()
+                scope.launch {
+                    dragOffsetY.snapTo((dragOffsetY.value + dragAmount).coerceAtLeast(0f))
+                }
+            },
+            onDragEnd = {
+                settleOrDismiss()
+            },
+            onDragCancel = {
+                scope.launch {
+                    dragOffsetY.animateTo(0f, IosSpringSpecs.Gentle)
+                }
+            }
+        )
     }
 
     val enterTransition = if (isFullscreen) {
@@ -118,10 +212,7 @@ fun PlayerSettingsSheet(
             animationSpec = IosSpringSpecs.GentleOffset
         )
     } else {
-        fadeIn(tween(180)) + slideInVertically(
-            initialOffsetY = { it / 2 },
-            animationSpec = IosSpringSpecs.GentleOffset
-        )
+        PhantomMotion.SheetSlideEnter
     }
 
     val exitTransition = if (isFullscreen) {
@@ -130,10 +221,7 @@ fun PlayerSettingsSheet(
             animationSpec = IosSpringSpecs.GentleOffset
         )
     } else {
-        fadeOut(tween(150)) + slideOutVertically(
-            targetOffsetY = { it / 2 },
-            animationSpec = IosSpringSpecs.GentleOffset
-        )
+        PhantomMotion.SheetSlideExit
     }
 
     AnimatedVisibility(
@@ -142,6 +230,11 @@ fun PlayerSettingsSheet(
         exit = exitTransition,
         modifier = modifier.fillMaxSize()
     ) {
+        val screenHeightDp = configuration.screenHeightDp.dp
+        val screenWidthDp = configuration.screenWidthDp.dp
+        val maxPortraitSheetHeight = (screenHeightDp * 0.84f).coerceAtLeast(280.dp)
+        val maxLandscapeSheetWidth = (screenWidthDp * 0.54f).coerceIn(280.dp, 420.dp)
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -161,49 +254,46 @@ fun PlayerSettingsSheet(
 
             Surface(
                 modifier = Modifier
+                    .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
                     .then(
                         if (isFullscreen) {
                             Modifier
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
-                                .widthIn(min = 340.dp, max = 400.dp)
+                                .widthIn(min = 280.dp, max = maxLandscapeSheetWidth)
                                 .fillMaxHeight()
                         } else {
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 540.dp)
+                                .widthIn(max = 560.dp)
+                                .heightIn(max = maxPortraitSheetHeight)
                         }
                     )
                     .clip(sheetShape)
                     .border(0.75.dp, GlassBorderLight, sheetShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {}
-                    ),
+                    .pointerInput(Unit) {
+                        detectTapGestures { /* Consume surface tap */ }
+                    }
+                    .nestedScroll(nestedScrollConnection),
                 color = YouTubeSurface,
                 shape = sheetShape
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(if (isFullscreen) Modifier else Modifier.navigationBarsPadding())
-                        .padding(bottom = if (isFullscreen) 8.dp else 16.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    if (!isFullscreen) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(handleDragModifier)
+                            .padding(top = 10.dp, bottom = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 10.dp, bottom = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(38.dp)
-                                    .height(4.dp)
-                                    .clip(CircleShape)
-                                    .background(TextMuted.copy(alpha = 0.45f))
-                            )
-                        }
+                                .width(38.dp)
+                                .height(4.dp)
+                                .clip(CircleShape)
+                                .background(TextMuted.copy(alpha = 0.45f))
+                        )
                     }
 
                     AnimatedContent(
@@ -229,6 +319,7 @@ fun PlayerSettingsSheet(
                                     isAudioOnly = isAudioOnly,
                                     sleepTimerOption = sleepTimerOption,
                                     sleepTimerRemainingSec = sleepTimerRemainingSec,
+                                    headerDragModifier = handleDragModifier,
                                     onOpenQuality = { currentPage = PlayerSheetPage.QUALITY },
                                     onOpenSpeed = { currentPage = PlayerSheetPage.SPEED },
                                     onOpenSeek = { currentPage = PlayerSheetPage.DOUBLE_TAP_SEEK },
@@ -303,6 +394,7 @@ private fun PlayerSettingsMainPage(
     isAudioOnly: Boolean,
     sleepTimerOption: SleepTimerOption,
     sleepTimerRemainingSec: Int?,
+    headerDragModifier: Modifier = Modifier,
     onOpenQuality: () -> Unit,
     onOpenSpeed: () -> Unit,
     onOpenSeek: () -> Unit,
@@ -337,10 +429,13 @@ private fun PlayerSettingsMainPage(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+            .padding(bottom = 24.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(headerDragModifier)
                 .padding(horizontal = 22.dp, vertical = 14.dp)
         ) {
             Text(
