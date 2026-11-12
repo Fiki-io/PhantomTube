@@ -11,8 +11,8 @@ android {
         applicationId = "com.phantom.tube"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "2.10.29"
+        versionCode = 7
+        versionName = "2.11.12"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
