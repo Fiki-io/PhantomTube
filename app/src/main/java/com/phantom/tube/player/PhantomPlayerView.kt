@@ -109,12 +109,16 @@ class PhantomPlayerController(context: Context) {
         }
     }
 
-    fun play() {
-        evaluateJs("window.playVideo();")
+    fun play(fadeIn: Boolean = true) {
+        evaluateJs("window.playVideo($fadeIn);")
     }
 
-    fun pause() {
-        evaluateJs("window.pauseVideo();")
+    fun pause(fadeOut: Boolean = false) {
+        evaluateJs("window.pauseVideo($fadeOut);")
+    }
+
+    fun recoverAudioDucking() {
+        evaluateJs("if (window.recoverAudioDucking) window.recoverAudioDucking();")
     }
 
     fun seekTo(seconds: Float) {

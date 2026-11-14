@@ -328,18 +328,7 @@ fun PlayerScreen(
                 currentTimeSecProvider = { session.currentPositionSec },
                 durationSecProvider = { session.currentDurationSec },
                 onExpand = onExpand,
-                onTogglePlayPause = {
-                    if (session.playerState.isPlaying) {
-                        session.controller.pause()
-                    } else {
-                        if (!session.networkObserver.isConnected()) {
-                            session.showNotice(context.getString(R.string.player_no_internet_notice))
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        } else {
-                            session.controller.play()
-                        }
-                    }
-                },
+                onTogglePlayPause = { session.togglePlayPauseFromUser() },
                 onClose = onClose
             )
         }
@@ -564,18 +553,7 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerViewportBridgeSect
             session.currentPositionSec = newTime
             session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (newTime * 1000).toLong())
         },
-        onTogglePlayPause = {
-            if (session.playerState.isPlaying) {
-                session.controller.pause()
-            } else {
-                if (!session.networkObserver.isConnected()) {
-                    session.showNotice(context.getString(R.string.player_no_internet_notice))
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                } else {
-                    session.controller.play()
-                }
-            }
-        },
+        onTogglePlayPause = { session.togglePlayPauseFromUser() },
         onForward10s = {
             val delta = doubleTapSeekSeconds
             session.seekAccumulatedSeconds = if (session.seekAnimationSide == SeekFeedbackDirection.FORWARD) {
@@ -603,14 +581,14 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerViewportBridgeSect
             session.currentPositionSec = targetSec
             session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (targetSec * 1000).toLong())
             if (session.wasPlayingBeforeScrub) {
-                session.controller.play()
+                session.markUserPlay(fadeIn = false)
             }
         },
         onScrubbing = { scrubbing, fraction, touchX ->
             if (scrubbing && !session.isScrubbing) {
                 session.wasPlayingBeforeScrub = session.playerState.isPlaying
                 if (session.playerState.isPlaying) {
-                    session.controller.pause()
+                    session.controller.pause(fadeOut = false)
                 }
             }
             session.isScrubbing = scrubbing
@@ -729,7 +707,7 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerSheetsBridgeSectio
             session.currentPositionSec = clamped
             session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (clamped * 1000).toLong())
             if (!session.playerState.isPlaying) {
-                session.controller.play()
+                session.markUserPlay(fadeIn = false)
             }
         },
         onVideoLinkClick = { targetVideo ->
@@ -931,7 +909,7 @@ private fun PlayerLifecycleEffects(
 
     LaunchedEffect(isOfflinePlaying) {
         if (isOfflinePlaying) {
-            session.controller.pause()
+            session.markUserPause(fadeOut = false)
         }
     }
 
@@ -945,9 +923,10 @@ private fun PlayerLifecycleEffects(
                 if (session.wasPlayingBeforeOffline || session.isPlaybackStalled || session.playerState.isBuffering) {
                     session.wasPlayingBeforeOffline = false
                     session.isPlaybackStalled = false
-                    session.controller.play()
+                    session.markUserPlay(fadeIn = true)
                     delay(2500)
                     if (!session.playerState.isPlaying && session.networkObserver.isConnected()) {
+                        session.prepareForNewVideoLoad()
                         session.controller.loadVideo(session.currentVideo.id, session.currentPositionSec)
                     }
                 }
@@ -990,7 +969,7 @@ private fun PlayerLifecycleEffects(
             if (session.playerState.isPlaying) {
                 val current = (session.sleepTimerRemainingSec ?: 0) - 1
                 if (current <= 0) {
-                    session.controller.pause()
+                    session.markUserPause(fadeOut = true)
                     session.sleepTimerRemainingSec = null
                     session.sleepTimerOption = SleepTimerOption.OFF
                 } else {
@@ -1095,6 +1074,7 @@ private fun PlayerLifecycleEffects(
         session.currentDurationSec = 0f
         session.currentBufferedFraction = 0f
         session.playerState = session.playerState.copy(currentTimeSec = lastPos / 1000f)
+        session.prepareForNewVideoLoad()
         session.controller.loadVideo(video.id, lastPos / 1000f)
 
         session.mediaService?.updateMediaInfo(
@@ -1368,18 +1348,21 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                         if (!session.networkObserver.isConnected()) {
                             session.showNotice(context.getString(R.string.player_no_internet_notice))
                         } else {
-                            session.controller.play()
+                            session.markUserPlay(fadeIn = true)
                         }
                     }
-                    onPauseAction = { session.controller.pause() }
+                    onPauseAction = { session.markUserPause(fadeOut = true) }
                     onNextAction = { session.playNext() }
                     onPreviousAction = { session.playPrevious() }
                     onOfflineTimeoutAction = {
-                        session.controller.pause()
+                        session.markUserPause(fadeOut = false)
                         session.isOfflineWaiting = false
                         session.wasPlayingBeforeOffline = false
                         session.showNotice(context.getString(R.string.player_stopped_offline_timeout))
                     }
+                    onExternalAudioDuckingEnded = { session.handleExternalAudioDuckingEnded() }
+                    onExternalAudioInterruptionDetected = { session.handleExternalAudioInterruptionDetected() }
+                    onExternalAudioInterruptionEnded = { session.handleExternalAudioInterruptionEnded() }
                     onSeekAction = { posMs ->
                         val sec = posMs / 1000f
                         session.controller.seekTo(sec)
@@ -1415,6 +1398,12 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                     insetsController.show(WindowInsetsCompat.Type.systemBars())
                 }
             }
+            session.mediaService?.apply {
+                onExternalAudioDuckingEnded = null
+                onExternalAudioInterruptionDetected = null
+                onExternalAudioInterruptionEnded = null
+                clearExternalInterruptionState()
+            }
             session.controller.release()
             StoryboardHelper.clearCache()
             try {
@@ -1441,7 +1430,7 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                     } else false
                     if (!inPip) {
                         if (!isBgAllowed) {
-                            session.controller.pause()
+                            session.markUserPause(fadeOut = false)
                         } else {
                             session.controller.setVideoSurfaceActive(false)
                         }

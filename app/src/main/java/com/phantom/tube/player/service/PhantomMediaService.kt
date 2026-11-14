@@ -11,14 +11,20 @@ import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Icon
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
 import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
+import androidx.annotation.RequiresApi
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
@@ -57,12 +63,29 @@ class PhantomMediaService : Service() {
     private var offlineTimeoutJob: Job? = null
     private var wasPlayingBeforeDisconnect = false
 
+    private val audioManager: AudioManager? by lazy {
+        getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+    }
+    private var audioPlaybackCallback: AudioManager.AudioPlaybackCallback? = null
+    private var audioModeChangedListener: Any? = null
+    private var externalDebounceJob: Job? = null
+    private var duckRecoveryDebounceJob: Job? = null
+    private var pendingPausedMediaObserveJob: Job? = null
+    private var externalInterruptionWatchJob: Job? = null
+
+    private var externalWhilePlayingStartMs: Long = 0L
+    private var hadSustainedExternalWhilePlaying: Boolean = false
+    private var externalWhilePausedConfirmed: Boolean = false
+
     var onPlayAction: (() -> Unit)? = null
     var onPauseAction: (() -> Unit)? = null
     var onNextAction: (() -> Unit)? = null
     var onPreviousAction: (() -> Unit)? = null
     var onSeekAction: ((Long) -> Unit)? = null
     var onOfflineTimeoutAction: (() -> Unit)? = null
+    var onExternalAudioDuckingEnded: (() -> Unit)? = null
+    var onExternalAudioInterruptionDetected: (() -> Unit)? = null
+    var onExternalAudioInterruptionEnded: (() -> Unit)? = null
 
     companion object {
         const val CHANNEL_ID = "phantom_media_playback"
@@ -89,8 +112,267 @@ class PhantomMediaService : Service() {
         networkConnectivityObserver = NetworkConnectivityObserver(this)
         createNotificationChannel()
         setupMediaSession()
+        startAudioEnvironmentMonitoring()
         observeNetworkConnectivity()
         startForegroundCompat(buildNotification())
+    }
+
+    private fun startAudioEnvironmentMonitoring() {
+        val am = audioManager ?: return
+        val callback = object : AudioManager.AudioPlaybackCallback() {
+            override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>) {
+                evaluateAudioEnvironment(configs, am.mode)
+            }
+        }
+        audioPlaybackCallback = callback
+        am.registerAudioPlaybackCallback(callback, Handler(Looper.getMainLooper()))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            registerAudioModeListenerApi31(am)
+        }
+    }
+
+    private fun stopAudioEnvironmentMonitoring() {
+        val am = audioManager ?: return
+        audioPlaybackCallback?.let { cb ->
+            try {
+                am.unregisterAudioPlaybackCallback(cb)
+            } catch (_: Exception) {}
+        }
+        audioPlaybackCallback = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            unregisterAudioModeListenerApi31(am)
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun registerAudioModeListenerApi31(am: AudioManager) {
+        val listener = AudioManager.OnModeChangedListener { newMode ->
+            evaluateAudioEnvironment(am.activePlaybackConfigurations, newMode)
+        }
+        audioModeChangedListener = listener
+        try {
+            am.addOnModeChangedListener(mainExecutor, listener)
+        } catch (_: Exception) {}
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun unregisterAudioModeListenerApi31(am: AudioManager) {
+        val listener = audioModeChangedListener as? AudioManager.OnModeChangedListener
+        if (listener != null) {
+            try {
+                am.removeOnModeChangedListener(listener)
+            } catch (_: Exception) {}
+        }
+        audioModeChangedListener = null
+    }
+
+    private fun hasDedicatedExternalUsage(configs: List<AudioPlaybackConfiguration>): Boolean {
+        for (cfg in configs) {
+            when (cfg.audioAttributes.usage) {
+                AudioAttributes.USAGE_VOICE_COMMUNICATION,
+                AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING,
+                AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+                AudioAttributes.USAGE_ALARM,
+                AudioAttributes.USAGE_ASSISTANT -> return true
+            }
+        }
+        return false
+    }
+
+    private fun countMediaLikeConfigs(configs: List<AudioPlaybackConfiguration>): Int {
+        var count = 0
+        for (cfg in configs) {
+            when (cfg.audioAttributes.usage) {
+                AudioAttributes.USAGE_MEDIA,
+                AudioAttributes.USAGE_GAME,
+                AudioAttributes.USAGE_UNKNOWN -> count++
+            }
+        }
+        return count
+    }
+
+    private fun isAnyExternalAudioActiveWhenPaused(
+        configs: List<AudioPlaybackConfiguration>,
+        mode: Int
+    ): Boolean {
+        return mode != AudioManager.MODE_NORMAL ||
+            hasDedicatedExternalUsage(configs) ||
+            countMediaLikeConfigs(configs) >= 1
+    }
+
+    private fun isAnyExternalAudioActiveWhilePlaying(
+        configs: List<AudioPlaybackConfiguration>,
+        mode: Int
+    ): Boolean {
+        return mode != AudioManager.MODE_NORMAL ||
+            hasDedicatedExternalUsage(configs) ||
+            countMediaLikeConfigs(configs) >= 2
+    }
+
+    private fun startCallOrPauseWatch(shortWindowOnly: Boolean) {
+        if (externalInterruptionWatchJob?.isActive == true) return
+        externalInterruptionWatchJob = serviceScope.launch {
+            val startedAt = SystemClock.elapsedRealtime()
+            while (true) {
+                delay(350L)
+                val am = audioManager ?: break
+                val configs = am.activePlaybackConfigurations
+                val mode = am.mode
+                if (isPlaying) break
+                evaluateAudioEnvironment(configs, mode)
+                val idleNow = !isAnyExternalAudioActiveWhenPaused(configs, mode)
+                if (idleNow && (mode == AudioManager.MODE_NORMAL) &&
+                    (!externalWhilePausedConfirmed || (shortWindowOnly && SystemClock.elapsedRealtime() - startedAt > 1800L))
+                ) {
+                    break
+                }
+                if (shortWindowOnly && !externalWhilePausedConfirmed && SystemClock.elapsedRealtime() - startedAt > 1800L) {
+                    break
+                }
+            }
+            externalInterruptionWatchJob = null
+        }
+    }
+
+    private fun reEvaluateAudioEnvironment() {
+        val am = audioManager ?: return
+        evaluateAudioEnvironment(am.activePlaybackConfigurations, am.mode)
+    }
+
+    private fun evaluateAudioEnvironment(
+        configs: List<AudioPlaybackConfiguration>,
+        mode: Int
+    ) {
+        val now = SystemClock.elapsedRealtime()
+        val isCallOrCommMode = (mode != AudioManager.MODE_NORMAL)
+        val hasDedicatedExternal = hasDedicatedExternalUsage(configs)
+        val mediaLikeCount = countMediaLikeConfigs(configs)
+
+        if (isPlaying) {
+            externalWhilePausedConfirmed = false
+            pendingPausedMediaObserveJob?.cancel()
+            pendingPausedMediaObserveJob = null
+            externalDebounceJob?.cancel()
+            externalDebounceJob = null
+            externalInterruptionWatchJob?.cancel()
+            externalInterruptionWatchJob = null
+
+            val externalActive = isCallOrCommMode || hasDedicatedExternal || mediaLikeCount >= 2
+            if (externalActive) {
+                duckRecoveryDebounceJob?.cancel()
+                duckRecoveryDebounceJob = null
+                if (externalWhilePlayingStartMs == 0L) {
+                    externalWhilePlayingStartMs = now
+                }
+                if (isCallOrCommMode || hasDedicatedExternal) {
+                    hadSustainedExternalWhilePlaying = true
+                }
+            } else if (externalWhilePlayingStartMs > 0L) {
+                val overlapDuration = now - externalWhilePlayingStartMs
+                val shouldRecover = hadSustainedExternalWhilePlaying || overlapDuration >= 280L
+                externalWhilePlayingStartMs = 0L
+                hadSustainedExternalWhilePlaying = false
+                if (shouldRecover) {
+                    duckRecoveryDebounceJob?.cancel()
+                    duckRecoveryDebounceJob = serviceScope.launch {
+                        delay(400L)
+                        val am = audioManager ?: return@launch
+                        if (isPlaying && !isAnyExternalAudioActiveWhilePlaying(am.activePlaybackConfigurations, am.mode)) {
+                            onExternalAudioDuckingEnded?.invoke()
+                        }
+                    }
+                }
+            }
+        } else {
+            duckRecoveryDebounceJob?.cancel()
+            duckRecoveryDebounceJob = null
+
+            val hadExternalOverlapBeforePause = hadSustainedExternalWhilePlaying ||
+                (externalWhilePlayingStartMs > 0L && mediaLikeCount >= 1)
+            externalWhilePlayingStartMs = 0L
+            hadSustainedExternalWhilePlaying = false
+
+            if (isCallOrCommMode || hasDedicatedExternal) {
+                externalDebounceJob?.cancel()
+                externalDebounceJob = null
+                pendingPausedMediaObserveJob?.cancel()
+                pendingPausedMediaObserveJob = null
+                externalWhilePausedConfirmed = true
+                onExternalAudioInterruptionDetected?.invoke()
+                if (isCallOrCommMode) {
+                    startCallOrPauseWatch(shortWindowOnly = false)
+                }
+            } else if (mediaLikeCount >= 1) {
+                externalDebounceJob?.cancel()
+                externalDebounceJob = null
+                externalInterruptionWatchJob?.cancel()
+                externalInterruptionWatchJob = null
+                if (externalWhilePausedConfirmed || mediaLikeCount >= 2 || hadExternalOverlapBeforePause) {
+                    externalWhilePausedConfirmed = true
+                    pendingPausedMediaObserveJob?.cancel()
+                    pendingPausedMediaObserveJob = null
+                    onExternalAudioInterruptionDetected?.invoke()
+                } else if (pendingPausedMediaObserveJob?.isActive != true) {
+                    pendingPausedMediaObserveJob = serviceScope.launch {
+                        delay(220L)
+                        val am = audioManager ?: return@launch
+                        if (!isPlaying && countMediaLikeConfigs(am.activePlaybackConfigurations) >= 1) {
+                            externalWhilePausedConfirmed = true
+                            onExternalAudioInterruptionDetected?.invoke()
+                        }
+                    }
+                }
+            } else {
+                pendingPausedMediaObserveJob?.cancel()
+                pendingPausedMediaObserveJob = null
+                if (!isCallOrCommMode) {
+                    externalInterruptionWatchJob?.cancel()
+                    externalInterruptionWatchJob = null
+                }
+                if (externalWhilePausedConfirmed && externalDebounceJob?.isActive != true) {
+                    externalDebounceJob = serviceScope.launch {
+                        delay(650L)
+                        val am = audioManager ?: return@launch
+                        if (!isPlaying && !isAnyExternalAudioActiveWhenPaused(am.activePlaybackConfigurations, am.mode)) {
+                            externalWhilePausedConfirmed = false
+                            onExternalAudioInterruptionEnded?.invoke()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun isExternalAudioCurrentlyActive(): Boolean {
+        val am = audioManager ?: return false
+        val configs = am.activePlaybackConfigurations
+        return am.mode != AudioManager.MODE_NORMAL ||
+            hasDedicatedExternalUsage(configs) ||
+            externalWhilePausedConfirmed ||
+            hadSustainedExternalWhilePlaying ||
+            (externalWhilePlayingStartMs > 0L) ||
+            (!isPlaying && countMediaLikeConfigs(configs) >= 2)
+    }
+
+    fun onUnexpectedOnlinePause() {
+        reEvaluateAudioEnvironment()
+        if (!isPlaying && !externalWhilePausedConfirmed) {
+            startCallOrPauseWatch(shortWindowOnly = true)
+        }
+    }
+
+    fun clearExternalInterruptionState() {
+        externalDebounceJob?.cancel()
+        externalDebounceJob = null
+        duckRecoveryDebounceJob?.cancel()
+        duckRecoveryDebounceJob = null
+        pendingPausedMediaObserveJob?.cancel()
+        pendingPausedMediaObserveJob = null
+        externalInterruptionWatchJob?.cancel()
+        externalInterruptionWatchJob = null
+        externalWhilePlayingStartMs = 0L
+        hadSustainedExternalWhilePlaying = false
+        externalWhilePausedConfirmed = false
     }
 
     private fun showNoInternetToast() {
@@ -305,6 +587,7 @@ class PhantomMediaService : Service() {
             (lastNotifiedChannel != currentChannel) ||
             forceNotify
 
+        val prevPlaying = isPlaying
         isPlaying = effectivelyPlaying
         if (currentPositionMs >= 0L) {
             this.currentPositionMs = currentPositionMs
@@ -313,6 +596,9 @@ class PhantomMediaService : Service() {
             acquireWakeLock()
         } else {
             releaseWakeLock()
+        }
+        if (prevPlaying != isPlaying) {
+            reEvaluateAudioEnvironment()
         }
 
         val state = when {
@@ -496,6 +782,8 @@ class PhantomMediaService : Service() {
     }
 
     override fun onDestroy() {
+        stopAudioEnvironmentMonitoring()
+        clearExternalInterruptionState()
         offlineTimeoutJob?.cancel()
         offlineTimeoutJob = null
         serviceScope.cancel()

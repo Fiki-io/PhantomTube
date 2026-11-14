@@ -130,6 +130,14 @@ class PlayerSessionState(
     var isOfflineWaiting by mutableStateOf(false)
     var wasPlayingBeforeOffline by mutableStateOf(false)
 
+    var isUserPaused by mutableStateOf(false)
+    var isPendingFadePause by mutableStateOf(false)
+    var pausedByExternalAudio by mutableStateOf(false)
+    var unexpectedPauseElapsedMs by mutableLongStateOf(0L)
+    var lastLoadVideoElapsedMs by mutableLongStateOf(0L)
+    private var pendingFadePauseJob: Job? = null
+    private var duckRecoveryCooldownMs: Long = 0L
+
     var lastProgressElapsedRealtime by mutableLongStateOf(0L)
     var lastObservedPlaybackSec by mutableFloatStateOf(0f)
     var isPlaybackStalled by mutableStateOf(false)
@@ -171,6 +179,97 @@ class PlayerSessionState(
         noticeJob = scope.launch {
             delay(1800)
             playerNoticeText = null
+        }
+    }
+
+    fun markUserPlay(fadeIn: Boolean = true) {
+        pendingFadePauseJob?.cancel()
+        pendingFadePauseJob = null
+        isPendingFadePause = false
+        isUserPaused = false
+        pausedByExternalAudio = false
+        unexpectedPauseElapsedMs = 0L
+        mediaService?.clearExternalInterruptionState()
+        controller.play(fadeIn = fadeIn)
+    }
+
+    fun markUserPause(fadeOut: Boolean = true) {
+        isUserPaused = true
+        pausedByExternalAudio = false
+        unexpectedPauseElapsedMs = 0L
+        mediaService?.clearExternalInterruptionState()
+        if (fadeOut) {
+            isPendingFadePause = true
+            pendingFadePauseJob?.cancel()
+            pendingFadePauseJob = scope.launch {
+                delay(350L)
+                isPendingFadePause = false
+                pendingFadePauseJob = null
+            }
+            controller.pause(fadeOut = true)
+        } else {
+            pendingFadePauseJob?.cancel()
+            pendingFadePauseJob = null
+            isPendingFadePause = false
+            controller.pause(fadeOut = false)
+        }
+    }
+
+    fun togglePlayPauseFromUser() {
+        if (isPendingFadePause) {
+            markUserPlay(fadeIn = true)
+        } else if (playerState.isPlaying) {
+            markUserPause(fadeOut = true)
+        } else {
+            if (!networkObserver.isConnected()) {
+                showNotice(context.getString(R.string.player_no_internet_notice))
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            } else {
+                markUserPlay(fadeIn = true)
+            }
+        }
+    }
+
+    fun prepareForNewVideoLoad() {
+        pendingFadePauseJob?.cancel()
+        pendingFadePauseJob = null
+        isPendingFadePause = false
+        isUserPaused = false
+        pausedByExternalAudio = false
+        unexpectedPauseElapsedMs = 0L
+        lastLoadVideoElapsedMs = SystemClock.elapsedRealtime()
+        mediaService?.clearExternalInterruptionState()
+    }
+
+    fun handleExternalAudioInterruptionDetected() {
+        if (isUserPaused || isScrubbing || isOfflineWaiting || playerState.isPlaying || playerState.isEnded) {
+            return
+        }
+        if (!networkObserver.isConnected()) return
+        val now = SystemClock.elapsedRealtime()
+        if (pausedByExternalAudio || (unexpectedPauseElapsedMs > 0L && (now - unexpectedPauseElapsedMs) <= 2200L)) {
+            pausedByExternalAudio = true
+        }
+    }
+
+    fun handleExternalAudioInterruptionEnded() {
+        if (pausedByExternalAudio && !isUserPaused && !isScrubbing && !isOfflineWaiting &&
+            !playerState.isPlaying && !playerState.isEnded && networkObserver.isConnected()
+        ) {
+            pausedByExternalAudio = false
+            unexpectedPauseElapsedMs = 0L
+            controller.play(fadeIn = true)
+        }
+    }
+
+    fun handleExternalAudioDuckingEnded() {
+        val now = SystemClock.elapsedRealtime()
+        if (playerState.isPlaying && !isPendingFadePause && !isScrubbing &&
+            (now - lastLoadVideoElapsedMs > 1500L) &&
+            (now - duckRecoveryCooldownMs > 800L)
+        ) {
+            duckRecoveryCooldownMs = now
+            controller.recoverAudioDucking()
         }
     }
 
@@ -462,6 +561,12 @@ class PlayerSessionState(
         onStateChangeCallback = { state ->
             when (state) {
                 1 -> {
+                    pendingFadePauseJob?.cancel()
+                    pendingFadePauseJob = null
+                    isPendingFadePause = false
+                    isUserPaused = false
+                    pausedByExternalAudio = false
+                    unexpectedPauseElapsedMs = 0L
                     isPlaybackStalled = false
                     lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
                     lastObservedPlaybackSec = currentPositionSec
@@ -497,6 +602,10 @@ class PlayerSessionState(
                     }
                 }
                 2 -> {
+                    val wasPlaying = playerState.isPlaying
+                    pendingFadePauseJob?.cancel()
+                    pendingFadePauseJob = null
+                    isPendingFadePause = false
                     isPlaybackStalled = false
                     wasPlayingBeforeOffline = false
                     playerState = playerState.copy(isPlaying = false, isBuffering = false)
@@ -506,6 +615,17 @@ class PlayerSessionState(
                         forceNotify = true,
                         isBuffering = false
                     )
+                    if (wasPlaying && !isUserPaused && !isScrubbing && !isOfflineWaiting && networkObserver.isConnected()) {
+                        unexpectedPauseElapsedMs = SystemClock.elapsedRealtime()
+                        if (mediaService?.isExternalAudioCurrentlyActive() == true) {
+                            pausedByExternalAudio = true
+                        } else {
+                            mediaService?.onUnexpectedOnlinePause()
+                        }
+                    } else {
+                        unexpectedPauseElapsedMs = 0L
+                        pausedByExternalAudio = false
+                    }
                     val activeVid = currentVideo
                     val pos = currentPositionSec
                     val dur = currentDurationSec
@@ -533,6 +653,11 @@ class PlayerSessionState(
                     )
                 }
                 0 -> {
+                    pendingFadePauseJob?.cancel()
+                    pendingFadePauseJob = null
+                    isPendingFadePause = false
+                    pausedByExternalAudio = false
+                    unexpectedPauseElapsedMs = 0L
                     isPlaybackStalled = false
                     wasPlayingBeforeOffline = false
                     playerState = playerState.copy(isPlaying = false, isEnded = true)
@@ -543,9 +668,9 @@ class PlayerSessionState(
                     }
                     if (isLoopEnabled) {
                         controller.seekTo(0f)
-                        controller.play()
+                        controller.play(fadeIn = false)
                     } else if (sleepTimerOption == SleepTimerOption.END_OF_VIDEO) {
-                        controller.pause()
+                        markUserPause(fadeOut = true)
                         sleepTimerOption = SleepTimerOption.OFF
                         sleepTimerRemainingSec = null
                     } else if (isAutoplayNext) {
