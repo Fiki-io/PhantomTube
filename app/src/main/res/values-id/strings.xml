@@ -258,7 +258,7 @@
     <string name="downloads_share_file">Bagikan File</string>
     <string name="downloads_delete_title">Hapus Unduhan?</string>
     <string name="downloads_delete_confirm_desc">File "%1$s" akan dihapus dari penyimpanan perangkat dan daftar unduhan.</string>
-    <string name="downloads_toast_playing">Memutar %1$s musik offline</string>
+    <string name="downloads_toast_playing">Memutar %1$d musik offline</string>
     <string name="downloads_toast_deleted">Unduhan berhasil dihapus</string>
     <string name="downloads_toast_no_external">Tidak ada pemutar eksternal yang kompatibel</string>
     <string name="downloads_toast_share_failed">Gagal membagikan file</string>
@@ -420,4 +420,8 @@
     <string name="player_no_internet_notice">Tidak ada koneksi internet</string>
     <string name="player_online_restored">Koneksi terhubung kembali</string>
     <string name="player_stopped_offline_timeout">Pemutaran dihentikan karena koneksi terputus 5 menit</string>
+    <string name="download_storage_permission_title">Izin Penyimpanan Diperlukan</string>
+    <string name="download_storage_permission_desc">Izinkan akses penyimpanan di Pengaturan untuk menyimpan unduhan di Android 8–9.</string>
+    <string name="download_storage_permission_denied">Izin penyimpanan diperlukan untuk menyimpan file di versi Android ini</string>
+    <string name="action_open_settings">Buka Pengaturan</string>
 </resources>

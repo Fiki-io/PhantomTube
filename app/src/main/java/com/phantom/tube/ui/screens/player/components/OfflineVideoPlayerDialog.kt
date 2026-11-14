@@ -176,9 +176,35 @@ fun OfflineVideoPlayerDialog(
         onDispose {}
     }
 
+    val pendingOrientationUnlock = remember { java.util.concurrent.atomic.AtomicReference<Runnable?>(null) }
+
+    val cancelOrientationUnlock = {
+        val currentRunnable = pendingOrientationUnlock.getAndSet(null)
+        if (currentRunnable != null) {
+            activity?.window?.decorView?.removeCallbacks(currentRunnable)
+        }
+    }
+
+    val exitFullscreenToPortrait = {
+        isManualLandscape = false
+        if (activity != null) {
+            cancelOrientationUnlock()
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            val unlockRunnable = Runnable {
+                if (!isManualLandscape) {
+                    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
+                pendingOrientationUnlock.set(null)
+            }
+            pendingOrientationUnlock.set(unlockRunnable)
+            activity.window.decorView.postDelayed(unlockRunnable, 600)
+        }
+    }
+
     // Reset orientasi & hentikan video saat dialog ditutup
     DisposableEffect(Unit) {
         onDispose {
+            cancelOrientationUnlock()
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             videoViewRef?.stopPlayback()
             videoViewRef = null
@@ -187,23 +213,24 @@ fun OfflineVideoPlayerDialog(
 
     val toggleFullscreen = {
         val targetLandscape = !isLandscape
-        isManualLandscape = targetLandscape
-        activity?.requestedOrientation = if (targetLandscape) {
-            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        if (targetLandscape) {
+            cancelOrientationUnlock()
+            isManualLandscape = true
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         } else {
-            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            exitFullscreenToPortrait()
         }
     }
 
     val closePlayer = {
+        cancelOrientationUnlock()
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         onDismiss()
     }
 
     BackHandler {
         if (isLandscape) {
-            isManualLandscape = false
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            exitFullscreenToPortrait()
         } else {
             closePlayer()
         }
@@ -277,12 +304,13 @@ fun OfflineVideoPlayerDialog(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(doubleTapSeekSeconds) {
+                    .pointerInput(doubleTapSeekSeconds, isBuffering, durationMs) {
                         detectTapGestures(
                             onTap = {
                                 showControls = !showControls
                             },
                             onDoubleTap = { offset ->
+                                if (isBuffering || durationMs <= 0) return@detectTapGestures
                                 val deltaMs = doubleTapSeekSeconds * 1000
                                 val label = context.getString(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString())
                                 videoViewRef?.let { vv ->
@@ -419,7 +447,7 @@ fun OfflineVideoPlayerDialog(
                             modifier = Modifier
                                 .size(48.dp)
                                 .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                                .clickable {
+                                .clickable(enabled = !isBuffering && durationMs > 0) {
                                     val deltaMs = doubleTapSeekSeconds * 1000
                                     val label = context.getString(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString())
                                     videoViewRef?.let { vv ->
@@ -444,7 +472,7 @@ fun OfflineVideoPlayerDialog(
                             modifier = Modifier
                                 .size(68.dp)
                                 .background(YouTubeRed, CircleShape)
-                                .clickable {
+                                .clickable(enabled = !isBuffering) {
                                     videoViewRef?.let { vv ->
                                         if (vv.isPlaying) {
                                             vv.pause()
@@ -470,7 +498,7 @@ fun OfflineVideoPlayerDialog(
                             modifier = Modifier
                                 .size(48.dp)
                                 .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                                .clickable {
+                                .clickable(enabled = !isBuffering && durationMs > 0) {
                                     val deltaMs = doubleTapSeekSeconds * 1000
                                     val label = context.getString(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString())
                                     videoViewRef?.let { vv ->
@@ -513,13 +541,16 @@ fun OfflineVideoPlayerDialog(
 
                         Slider(
                             value = displayPos.toFloat().coerceIn(0f, maxDur.toFloat()),
+                            enabled = !isBuffering && durationMs > 0,
                             onValueChange = { newVal ->
                                 isUserScrubbing = true
                                 scrubPositionMs = newVal
                             },
                             onValueChangeFinished = {
-                                videoViewRef?.seekTo(scrubPositionMs.toInt())
-                                currentPositionMs = scrubPositionMs.toInt()
+                                if (!isBuffering && durationMs > 0) {
+                                    videoViewRef?.seekTo(scrubPositionMs.toInt())
+                                    currentPositionMs = scrubPositionMs.toInt()
+                                }
                                 isUserScrubbing = false
                             },
                             valueRange = 0f..maxDur.toFloat(),

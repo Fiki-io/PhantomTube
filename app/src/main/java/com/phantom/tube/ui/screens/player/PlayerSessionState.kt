@@ -62,6 +62,8 @@ class PlayerSessionState(
 
     var playerNoticeText by mutableStateOf<String?>(null)
     private var noticeJob: Job? = null
+    private var sponsorPillJob: Job? = null
+    private var orientationUnlockRunnable: Runnable? = null
 
     var playerState by mutableStateOf(
         PlayerState(
@@ -377,15 +379,43 @@ class PlayerSessionState(
         }
     }
 
+    fun enterFullscreen() {
+        val activity = context.findActivity()
+        if (activity != null) {
+            orientationUnlockRunnable?.let { activity.window.decorView.removeCallbacks(it) }
+            orientationUnlockRunnable = null
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
+        isFullscreen = true
+    }
+
     fun exitFullscreenToPortrait() {
         val activity = context.findActivity()
         if (activity != null) {
+            orientationUnlockRunnable?.let { activity.window.decorView.removeCallbacks(it) }
             activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-            activity.window.decorView.postDelayed({
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            }, 600)
+            val runnable = Runnable {
+                if (!isFullscreen) {
+                    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
+                orientationUnlockRunnable = null
+            }
+            orientationUnlockRunnable = runnable
+            activity.window.decorView.postDelayed(runnable, 600)
         }
         isFullscreen = false
+    }
+
+    fun cancelOrientationUnlock() {
+        val activity = context.findActivity() ?: return
+        orientationUnlockRunnable?.let { activity.window.decorView.removeCallbacks(it) }
+        orientationUnlockRunnable = null
+    }
+
+    fun dismissSponsorPill() {
+        sponsorPillJob?.cancel()
+        sponsorPillJob = null
+        showSponsorPill = false
     }
 
     fun loadMoreRecommendations() {
@@ -468,6 +498,7 @@ class PlayerSessionState(
                 }
                 2 -> {
                     isPlaybackStalled = false
+                    wasPlayingBeforeOffline = false
                     playerState = playerState.copy(isPlaying = false, isBuffering = false)
                     mediaService?.updatePlaybackState(
                         playing = false,
@@ -489,8 +520,9 @@ class PlayerSessionState(
                     }
                 }
                 3 -> {
+                    val wasPlaying = playerState.isPlaying
                     playerState = playerState.copy(isBuffering = true)
-                    if (!networkObserver.isConnected()) {
+                    if (wasPlaying && !networkObserver.isConnected()) {
                         wasPlayingBeforeOffline = true
                     }
                     mediaService?.updatePlaybackState(
@@ -502,6 +534,7 @@ class PlayerSessionState(
                 }
                 0 -> {
                     isPlaybackStalled = false
+                    wasPlayingBeforeOffline = false
                     playerState = playerState.copy(isPlaying = false, isEnded = true)
                     mediaService?.updatePlaybackState(false, 0L, forceNotify = true, isBuffering = false)
                     val endedVidId = activeVideo.id
@@ -595,7 +628,8 @@ class PlayerSessionState(
                     mediaService?.updatePlaybackState(playerState.isPlaying, (match.endSecond * 1000).toLong())
                 }
                 showSponsorPill = true
-                scope.launch {
+                sponsorPillJob?.cancel()
+                sponsorPillJob = scope.launch {
                     delay(4000)
                     showSponsorPill = false
                 }

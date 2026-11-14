@@ -1,5 +1,14 @@
 package com.phantom.tube.ui.screens.player.components
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -33,6 +42,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,7 +50,12 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.phantom.tube.core.util.findActivity
+import com.phantom.tube.core.util.safeStartActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -88,6 +103,8 @@ fun DownloadFormatSheet(
 ) {
     val context = LocalContext.current
     var selectedFormatTab by remember { mutableIntStateOf(0) } // 0 = Audio (MP3), 1 = Video (MP4)
+    var pendingDownloadQuality by remember { mutableStateOf<AvailableQuality?>(null) }
+    var showStorageSettingsDialog by remember { mutableStateOf(false) }
 
     val activeDownloads by PhantomDownloader.downloadStates.collectAsState()
     val downloadState = activeDownloads[video.id] ?: DownloadState.Idle
@@ -95,7 +112,49 @@ fun DownloadFormatSheet(
     val audioQualities = remember(context) { PhantomDownloadEngine.getAudioQualities(context) }
     val videoQualities = remember(context) { PhantomDownloadEngine.getVideoQualities(context) }
 
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val queued = pendingDownloadQuality
+        pendingDownloadQuality = null
+        if (granted && queued != null) {
+            PhantomDownloader.enqueueDownload(
+                context = context,
+                video = video,
+                quality = queued,
+                repository = repository
+            )
+        } else if (!granted) {
+            val activity = context.findActivity()
+            val canShowRationale = activity != null &&
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
+            if (!canShowRationale && activity != null) {
+                showStorageSettingsDialog = true
+            } else {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.download_storage_permission_denied),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
     fun triggerDownload(quality: AvailableQuality) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!hasPermission) {
+                pendingDownloadQuality = quality
+                storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                return
+            }
+        }
         PhantomDownloader.enqueueDownload(
             context = context,
             video = video,
@@ -574,6 +633,50 @@ fun DownloadFormatSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (showStorageSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showStorageSettingsDialog = false },
+            containerColor = com.phantom.tube.core.theme.YouTubeSurface,
+            titleContentColor = TextPrimary,
+            textContentColor = TextSecondary,
+            title = {
+                Text(
+                    text = stringResource(R.string.download_storage_permission_title),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(text = stringResource(R.string.download_storage_permission_desc))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showStorageSettingsDialog = false
+                        val settingsIntent = Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:${context.packageName}")
+                        )
+                        context.safeStartActivity(settingsIntent)
+                    }
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_open_settings),
+                        color = YouTubeRed,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStorageSettingsDialog = false }) {
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        color = TextSecondary
+                    )
+                }
+            }
+        )
     }
 }
 

@@ -258,7 +258,7 @@
     <string name="downloads_share_file">Compartir archivo</string>
     <string name="downloads_delete_title">¿Eliminar descarga?</string>
     <string name="downloads_delete_confirm_desc">"%1$s" se eliminará del almacenamiento y la lista de descargas.</string>
-    <string name="downloads_toast_playing">Reproduciendo %1$s canciones sin conexión</string>
+    <string name="downloads_toast_playing">Reproduciendo %1$d canciones sin conexión</string>
     <string name="downloads_toast_deleted">Descarga eliminada con éxito</string>
     <string name="downloads_toast_no_external">No se encontró un reproductor externo compatible</string>
     <string name="downloads_toast_share_failed">Error al compartir el archivo</string>
@@ -420,4 +420,8 @@
     <string name="player_no_internet_notice">Sin conexión a internet</string>
     <string name="player_online_restored">Conexión restablecida</string>
     <string name="player_stopped_offline_timeout">Reproducción detenida tras 5 minutos sin conexión</string>
+    <string name="download_storage_permission_title">Permiso de almacenamiento requerido</string>
+    <string name="download_storage_permission_desc">Permite el acceso al almacenamiento en Ajustes para guardar descargas en Android 8–9.</string>
+    <string name="download_storage_permission_denied">Se requiere permiso de almacenamiento para guardar descargas en esta versión de Android</string>
+    <string name="action_open_settings">Abrir Ajustes</string>
 </resources>

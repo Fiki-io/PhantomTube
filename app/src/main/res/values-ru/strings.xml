@@ -258,7 +258,7 @@
     <string name="downloads_share_file">Поделиться файлом</string>
     <string name="downloads_delete_title">Удалить загрузку?</string>
     <string name="downloads_delete_confirm_desc">Файл «%1$s» будет удален из памяти устройства и списка загрузок.</string>
-    <string name="downloads_toast_playing">Воспроизведение %1$s офлайн-треков</string>
+    <string name="downloads_toast_playing">Воспроизведение %1$d офлайн-треков</string>
     <string name="downloads_toast_deleted">Загрузка удалена</string>
     <string name="downloads_toast_no_external">Совместимый внешний плеер не найден</string>
     <string name="downloads_toast_share_failed">Не удалось поделиться файлом</string>
@@ -420,4 +420,8 @@
     <string name="player_no_internet_notice">Нет подключения к интернету</string>
     <string name="player_online_restored">Соединение восстановлено</string>
     <string name="player_stopped_offline_timeout">Воспроизведение остановлено из-за отсутствия сети в течение 5 минут</string>
+    <string name="download_storage_permission_title">Требуется разрешение на доступ к памяти</string>
+    <string name="download_storage_permission_desc">Разрешите доступ к хранилищу в настройках для сохранения файлов на Android 8–9.</string>
+    <string name="download_storage_permission_denied">Для сохранения загрузок на этой версии Android требуется разрешение на доступ к памяти</string>
+    <string name="action_open_settings">Открыть настройки</string>
 </resources>

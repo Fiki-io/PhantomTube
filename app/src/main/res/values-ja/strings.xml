@@ -258,7 +258,7 @@
     <string name="downloads_share_file">ファイルを共有</string>
     <string name="downloads_delete_title">ダウンロードを削除しますか？</string>
     <string name="downloads_delete_confirm_desc">「%1$s」を端末ストレージおよびダウンロードリストから削除します。</string>
-    <string name="downloads_toast_playing">オフライン音楽%1$s曲を再生中</string>
+    <string name="downloads_toast_playing">オフライン音楽%1$d曲を再生中</string>
     <string name="downloads_toast_deleted">ダウンロードを削除しました</string>
     <string name="downloads_toast_no_external">対応する外部プレーヤーが見つかりません</string>
     <string name="downloads_toast_share_failed">ファイルの共有に失敗しました</string>
@@ -420,4 +420,8 @@
     <string name="player_no_internet_notice">インターネットに接続されていません</string>
     <string name="player_online_restored">接続が復旧しました</string>
     <string name="player_stopped_offline_timeout">5分間オフラインのため再生を停止しました</string>
+    <string name="download_storage_permission_title">ストレージ権限が必要です</string>
+    <string name="download_storage_permission_desc">Android 8〜9でダウンロードを保存するには、設定でストレージへのアクセスを許可してください。</string>
+    <string name="download_storage_permission_denied">このAndroidバージョンで保存するにはストレージ権限が必要です</string>
+    <string name="action_open_settings">設定を開く</string>
 </resources>

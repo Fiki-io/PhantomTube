@@ -211,7 +211,11 @@ fun HomeScreen(
                     repository.getFeedPage(query = categoryToQuery(category, contentCountry))
                 }
                 videos = result.videos
-                continuationToken = result.continuationToken ?: if (result.videos.isNotEmpty()) "feed_start" else null
+                continuationToken = if (category == "Semua") {
+                    result.continuationToken ?: if (result.videos.isNotEmpty()) "feed_start" else null
+                } else {
+                    result.continuationToken
+                }
                 hasError = result.videos.isEmpty()
                 if (isRefresh) {
                     listState.scrollToItem(0)
@@ -251,7 +255,7 @@ fun HomeScreen(
                     val newVideos = result.videos.filterNot { v -> v.id in existingIds }
                     videos = videos + newVideos
                 }
-                continuationToken = result.continuationToken ?: if (result.videos.isNotEmpty()) "feed_start" else null
+                continuationToken = if (result.videos.isEmpty()) null else result.continuationToken
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {

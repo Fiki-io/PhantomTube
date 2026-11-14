@@ -1,5 +1,6 @@
 package com.phantom.tube.data.download
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,11 +8,13 @@ import android.app.PendingIntent
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.phantom.tube.PhantomApp
 import kotlinx.coroutines.CoroutineScope
@@ -401,11 +404,26 @@ object PhantomDownloader {
                     }
                 } else {
                     // Fallback untuk Android 8.0 - 9.0 (API 26 - 28)
+                    val hasStoragePerm = ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (!hasStoragePerm) {
+                        try {
+                            response.close()
+                        } catch (_: Exception) {}
+                        return@withContext Result.failure(
+                            SecurityException(context.getString(R.string.download_storage_permission_denied))
+                        )
+                    }
+
                     val baseDir = Environment.getExternalStoragePublicDirectory(
                         if (isAudio) Environment.DIRECTORY_MUSIC else Environment.DIRECTORY_DOWNLOADS
                     )
                     val targetDir = File(baseDir, "Phantom")
-                    if (!targetDir.exists()) targetDir.mkdirs()
+                    if (!targetDir.exists() && !targetDir.mkdirs()) {
+                        throw Exception(context.getString(R.string.download_error_general))
+                    }
 
                     val targetFile = File(targetDir, cleanName)
                     var isSuccess = false

@@ -167,6 +167,7 @@ class PhantomMediaService : Service() {
                 }
 
                 override fun onPause() {
+                    wasPlayingBeforeDisconnect = false
                     onPauseAction?.invoke()
                 }
 
@@ -191,6 +192,7 @@ class PhantomMediaService : Service() {
                 }
 
                 override fun onStop() {
+                    wasPlayingBeforeDisconnect = false
                     onPauseAction?.invoke()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -292,8 +294,10 @@ class PhantomMediaService : Service() {
         isBuffering: Boolean = false
     ) {
         val effectivelyPlaying = playing && !isBuffering
-        if (!effectivelyPlaying && isPlaying && !networkConnectivityObserver.isConnected()) {
+        if (isBuffering && isPlaying && !networkConnectivityObserver.isConnected()) {
             wasPlayingBeforeDisconnect = true
+        } else if (effectivelyPlaying || (!isBuffering && !playing)) {
+            wasPlayingBeforeDisconnect = false
         }
 
         val stateChanged = (lastNotifiedPlaying != effectivelyPlaying) ||
@@ -457,7 +461,10 @@ class PhantomMediaService : Service() {
                     onPlayAction?.invoke()
                 }
             }
-            ACTION_PAUSE -> onPauseAction?.invoke()
+            ACTION_PAUSE -> {
+                wasPlayingBeforeDisconnect = false
+                onPauseAction?.invoke()
+            }
             ACTION_NEXT -> {
                 if (!networkConnectivityObserver.isConnected()) {
                     showNoInternetToast()
@@ -473,6 +480,7 @@ class PhantomMediaService : Service() {
                 }
             }
             ACTION_STOP -> {
+                wasPlayingBeforeDisconnect = false
                 onPauseAction?.invoke()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()

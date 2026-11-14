@@ -2,6 +2,11 @@ package com.phantom.tube.data.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.http.HttpResponseCache
+import coil.imageLoader
+import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
+import com.phantom.tube.player.PhantomRenderEngine
+import com.phantom.tube.player.StoryboardHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -199,34 +204,70 @@ class PhantomPreferences(context: Context) {
         try {
             val appCacheDir = context.cacheDir
             if (appCacheDir != null && appCacheDir.isDirectory) {
-                size += getFolderSize(appCacheDir)
+                size += getClearableFolderSize(appCacheDir)
             }
             val externalCache = context.externalCacheDir
             if (externalCache != null && externalCache.isDirectory) {
-                size += getFolderSize(externalCache)
+                size += getClearableFolderSize(externalCache)
             }
         } catch (_: Exception) {}
         return size
     }
 
     fun clearAppCache(context: Context) {
+        val appContext = context.applicationContext
+        runCatching { appContext.imageLoader.memoryCache?.clear() }
+        runCatching { ChannelAvatarCache.clear() }
+        runCatching { PhantomRenderEngine.clearCache() }
+        runCatching { StoryboardHelper.clearCache() }
+        runCatching {
+            HttpResponseCache.getInstalled()?.let { installed ->
+                installed.delete()
+                val httpCacheDir = File(appContext.cacheDir, HTTP_CACHE_DIR_NAME)
+                if (!httpCacheDir.exists()) httpCacheDir.mkdirs()
+                HttpResponseCache.install(httpCacheDir, HTTP_CACHE_MAX_BYTES)
+            }
+        }
         try {
-            context.cacheDir?.deleteRecursively()
-            context.externalCacheDir?.deleteRecursively()
+            clearDirectoryChildrenSafely(appContext.cacheDir)
+            clearDirectoryChildrenSafely(appContext.externalCacheDir)
         } catch (_: Exception) {}
     }
 
-    private fun getFolderSize(file: File): Long {
+    private fun isProtectedSystemCacheDir(dirName: String): Boolean {
+        return dirName == "WebView" ||
+            dirName == "app_webview" ||
+            dirName.startsWith("org.chromium.")
+    }
+
+    private fun getClearableFolderSize(dir: File): Long {
         var size = 0L
-        val children = file.listFiles() ?: return 0L
+        val children = dir.listFiles() ?: return 0L
         for (child in children) {
-            size += if (child.isDirectory) getFolderSize(child) else child.length()
+            if (child.isDirectory && isProtectedSystemCacheDir(child.name)) continue
+            size += if (child.isDirectory) getClearableFolderSize(child) else child.length()
         }
         return size
     }
 
+    private fun clearDirectoryChildrenSafely(dir: File?) {
+        val children = dir?.listFiles() ?: return
+        for (child in children) {
+            if (child.isDirectory && isProtectedSystemCacheDir(child.name)) continue
+            if (child.name == HTTP_CACHE_DIR_NAME) {
+                if (HttpResponseCache.getInstalled() == null) {
+                    child.deleteRecursively()
+                }
+                continue
+            }
+            child.deleteRecursively()
+        }
+    }
+
     companion object {
         private const val PREFS_NAME = "phantom_user_preferences"
+        private const val HTTP_CACHE_DIR_NAME = "http_cache"
+        private const val HTTP_CACHE_MAX_BYTES = 8L * 1024 * 1024
 
         private const val KEY_DEFAULT_QUALITY = "pref_default_quality"
         private const val KEY_DEFAULT_SPEED = "pref_default_speed"

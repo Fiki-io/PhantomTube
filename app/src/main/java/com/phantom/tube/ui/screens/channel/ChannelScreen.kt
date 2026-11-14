@@ -112,6 +112,8 @@ fun ChannelScreen(
     var searchQuery by remember(channelId) { mutableStateOf("") }
     var showAboutSheet by remember { mutableStateOf(false) }
     var isLoadingMore by remember { mutableStateOf(false) }
+    var isLoadingVideosTab by remember(channelId) { mutableStateOf(false) }
+    var hasFetchedVideosTab by remember(channelId) { mutableStateOf(false) }
 
     val resolvedChannelId = profile?.id?.ifBlank { channelId } ?: channelId
     val isSubscribed by repository.isSubscribed(resolvedChannelId).collectAsState(initial = false)
@@ -138,6 +140,34 @@ fun ChannelScreen(
 
     LaunchedEffect(channelId) {
         loadChannel()
+    }
+
+    LaunchedEffect(selectedTab, profile?.id) {
+        val prof = profile ?: return@LaunchedEffect
+        if (selectedTab == ChannelTabType.VIDEOS &&
+            prof.videos.isEmpty() &&
+            !hasFetchedVideosTab &&
+            !prof.videoTabParams.isNullOrBlank()
+        ) {
+            isLoadingVideosTab = true
+            try {
+                val vTab = repository.getChannel(
+                    channelId = resolvedChannelId,
+                    params = prof.videoTabParams
+                )
+                if (vTab != null) {
+                    profile = prof.copy(
+                        videos = if (vTab.videos.isNotEmpty()) vTab.videos else prof.videos,
+                        continuationToken = vTab.continuationToken ?: prof.continuationToken,
+                        sortChips = if (vTab.sortChips.isNotEmpty()) vTab.sortChips else prof.sortChips
+                    )
+                }
+            } catch (_: Exception) {
+            } finally {
+                hasFetchedVideosTab = true
+                isLoadingVideosTab = false
+            }
+        }
     }
 
     BackHandler {
@@ -438,7 +468,22 @@ fun ChannelScreen(
                                     onSelectSort = { selectedSort = it }
                                 )
                             }
-                            if (filteredVideos.isEmpty()) {
+                            if (isLoadingVideosTab && filteredVideos.isEmpty()) {
+                                item(key = "videos_tab_loading") {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            color = YouTubeRed,
+                                            strokeWidth = 2.5.dp,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+                                }
+                            } else if (filteredVideos.isEmpty()) {
                                 item {
                                     ChannelEmptyStateBox(stringResource(R.string.channel_no_videos))
                                 }
@@ -475,7 +520,7 @@ fun ChannelScreen(
                                         }
                                     }
                                 }
-                                if (isLoadingMore) {
+                                if (isLoadingMore || isLoadingVideosTab) {
                                     item {
                                         Box(
                                             modifier = Modifier

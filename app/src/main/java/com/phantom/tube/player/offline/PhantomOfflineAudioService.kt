@@ -51,6 +51,8 @@ import kotlin.random.Random
 class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     private var mediaPlayer: MediaPlayer? = null
+    @Volatile
+    private var isPrepared: Boolean = false
     private var mediaSession: MediaSession? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var audioManager: AudioManager? = null
@@ -123,7 +125,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         }
 
         val currentTrack = OfflineAudioPlayerManager.currentTrack.value
-        startForegroundCompat(buildNotification(currentTrack, isPlaying = mediaPlayer?.isPlaying ?: false))
+        val currentlyPlaying = isPrepared && (mediaPlayer?.isPlaying == true)
+        startForegroundCompat(buildNotification(currentTrack, isPlaying = currentlyPlaying))
 
         when (intent?.action) {
             ACTION_PLAY_QUEUE -> {
@@ -151,7 +154,9 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
             }
             ACTION_UPDATE_LOOP -> {
                 val mode = OfflineAudioPlayerManager.repeatMode.value
-                mediaPlayer?.isLooping = (mode == OfflineRepeatMode.ONE)
+                if (isPrepared) {
+                    mediaPlayer?.isLooping = (mode == OfflineRepeatMode.ONE)
+                }
             }
             ACTION_UPDATE_SHUFFLE -> {
                 // Status shuffle dikelola di OfflineAudioPlayerManager
@@ -289,6 +294,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
         val track = queue[index]
         OfflineAudioPlayerManager.updateTrack(track, index)
+        OfflineAudioPlayerManager.updatePosition(0L)
+        OfflineAudioPlayerManager.updateDuration(0L)
 
         // Update foreground notification immediately before async preparation
         startForegroundCompat(buildNotification(track, isPlaying = true))
@@ -306,27 +313,27 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 )
 
                 // Prioritaskan Content Uri Scoped Storage, lalu fallback ke File path
-                var prepared = false
+                var sourceSet = false
                 if (track.fileUri.isNotBlank()) {
                     try {
                         setDataSource(this@PhantomOfflineAudioService, Uri.parse(track.fileUri))
-                        prepared = true
+                        sourceSet = true
                     } catch (_: Exception) {}
                 }
-                if (!prepared && track.filePath.isNotBlank()) {
+                if (!sourceSet && track.filePath.isNotBlank()) {
                     val file = File(track.filePath)
                     if (file.exists()) {
                         setDataSource(file.absolutePath)
-                        prepared = true
+                        sourceSet = true
                     }
                 }
 
-                if (!prepared) {
-                    // Coba jalur umum MediaStore Scoped Storage
-                    setDataSource(this@PhantomOfflineAudioService, Uri.parse(track.fileUri))
+                if (!sourceSet) {
+                    throw IllegalStateException("Audio file unavailable")
                 }
 
                 setOnPreparedListener { mp ->
+                    isPrepared = true
                     resumeOnFocusGain = false
                     requestAudioFocus()
                     registerNoisyReceiver()
@@ -350,10 +357,13 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 }
 
                 setOnErrorListener { _, _, _ ->
+                    isPrepared = false
                     unregisterNoisyReceiver()
                     releaseWakeLockSafe()
                     OfflineAudioPlayerManager.updatePlaybackState(false)
                     stopProgressTracker()
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
                     true
                 }
 
@@ -361,14 +371,20 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            isPrepared = false
+            releasePlayer()
             unregisterNoisyReceiver()
             releaseWakeLockSafe()
             OfflineAudioPlayerManager.updatePlaybackState(false)
+            stopProgressTracker()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
     }
 
     private fun togglePlayPause() {
         val mp = mediaPlayer ?: return
+        if (!isPrepared) return
         if (mp.isPlaying) {
             pausePlayback(fromFocusLoss = false)
         } else {
@@ -378,6 +394,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
     private fun resumePlayback() {
         val mp = mediaPlayer ?: return
+        if (!isPrepared) return
         if (!mp.isPlaying) {
             resumeOnFocusGain = false
             requestAudioFocus()
@@ -397,14 +414,14 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     }
 
     private fun pausePlayback(fromFocusLoss: Boolean = false) {
-        val mp = mediaPlayer ?: return
         if (!fromFocusLoss) {
             resumeOnFocusGain = false
             abandonAudioFocus()
         }
         unregisterNoisyReceiver()
         releaseWakeLockSafe()
-        if (mp.isPlaying) {
+        val mp = mediaPlayer
+        if (mp != null && isPrepared && mp.isPlaying) {
             mp.pause()
             OfflineAudioPlayerManager.updatePlaybackState(false)
             stopProgressTracker()
@@ -413,6 +430,9 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 updateMediaSessionState(false, mp.currentPosition.toLong())
                 updateNotification(track, false)
             }
+        } else {
+            OfflineAudioPlayerManager.updatePlaybackState(false)
+            stopProgressTracker()
         }
     }
 
@@ -448,7 +468,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
     private fun playPrevious() {
         val mp = mediaPlayer
-        if (mp != null && mp.currentPosition > 3000) {
+        if (mp != null && isPrepared && mp.currentPosition > 3000) {
             // Jika sudah lewat 3 detik, ulangi dari awal lagu
             seekTo(0L)
             return
@@ -464,6 +484,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
     private fun seekTo(positionMs: Long) {
         val mp = mediaPlayer ?: return
+        if (!isPrepared) return
         mp.seekTo(positionMs.toInt())
         OfflineAudioPlayerManager.updatePosition(positionMs)
         updateMediaSessionState(mp.isPlaying, positionMs)
@@ -474,7 +495,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         progressJob = serviceScope.launch {
             while (isActive) {
                 mediaPlayer?.let { mp ->
-                    if (mp.isPlaying) {
+                    if (isPrepared && mp.isPlaying) {
                         val pos = mp.currentPosition.toLong()
                         OfflineAudioPlayerManager.updatePosition(pos)
                     }
@@ -490,7 +511,17 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     }
 
     private fun loadThumbnailBitmap(url: String) {
-        if (url.isBlank() || url == lastThumbnailUrl) return
+        if (url.isBlank()) {
+            lastThumbnailUrl = ""
+            currentBitmap = null
+            val track = OfflineAudioPlayerManager.currentTrack.value
+            if (track != null) {
+                applyMetadata(track, null)
+                updateNotification(track, isPrepared && (mediaPlayer?.isPlaying == true))
+            }
+            return
+        }
+        if (url == lastThumbnailUrl && currentBitmap != null) return
         lastThumbnailUrl = url
         currentBitmap = null
 
@@ -513,7 +544,10 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                             if (track != null) {
                                 applyMetadata(track, bitmap)
                                 val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                                notifManager.notify(NOTIFICATION_ID, buildNotification(track, mediaPlayer?.isPlaying ?: false))
+                                notifManager.notify(
+                                    NOTIFICATION_ID,
+                                    buildNotification(track, isPrepared && (mediaPlayer?.isPlaying == true))
+                                )
                             }
                         }
                     }
@@ -523,8 +557,17 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     }
 
     private fun applyMetadata(track: DownloadEntity, bitmap: Bitmap?) {
+        val mpDuration = if (isPrepared) {
+            try {
+                mediaPlayer?.duration?.toLong()?.coerceAtLeast(0L)
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
         val dur = OfflineAudioPlayerManager.durationMs.value.takeIf { it > 0 }
-            ?: mediaPlayer?.duration?.toLong()?.coerceAtLeast(0L)
+            ?: mpDuration
             ?: 0L
         val metadataBuilder = MediaMetadata.Builder()
             .putString(MediaMetadata.METADATA_KEY_TITLE, track.title)
@@ -656,6 +699,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     }
 
     private fun releasePlayer() {
+        isPrepared = false
         try {
             mediaPlayer?.stop()
             mediaPlayer?.release()
@@ -671,21 +715,25 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 abandonAudioFocus()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                val wasPlaying = mediaPlayer?.isPlaying == true
+                val wasPlaying = isPrepared && (mediaPlayer?.isPlaying == true)
                 resumeOnFocusGain = wasPlaying
                 if (wasPlaying) {
                     pausePlayback(fromFocusLoss = true)
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                try {
-                    mediaPlayer?.setVolume(0.25f, 0.25f)
-                } catch (_: Exception) {}
+                if (isPrepared) {
+                    try {
+                        mediaPlayer?.setVolume(0.25f, 0.25f)
+                    } catch (_: Exception) {}
+                }
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
-                try {
-                    mediaPlayer?.setVolume(1.0f, 1.0f)
-                } catch (_: Exception) {}
+                if (isPrepared) {
+                    try {
+                        mediaPlayer?.setVolume(1.0f, 1.0f)
+                    } catch (_: Exception) {}
+                }
                 if (resumeOnFocusGain) {
                     resumeOnFocusGain = false
                     resumePlayback()
@@ -696,7 +744,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        if (mediaPlayer?.isPlaying != true) {
+        if (!isPrepared || mediaPlayer?.isPlaying != true) {
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }

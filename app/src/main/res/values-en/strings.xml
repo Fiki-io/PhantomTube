@@ -258,7 +258,7 @@
     <string name="downloads_share_file">Share File</string>
     <string name="downloads_delete_title">Delete Download?</string>
     <string name="downloads_delete_confirm_desc">"%1$s" will be deleted from device storage and download list.</string>
-    <string name="downloads_toast_playing">Playing %1$s offline tracks</string>
+    <string name="downloads_toast_playing">Playing %1$d offline tracks</string>
     <string name="downloads_toast_deleted">Download deleted successfully</string>
     <string name="downloads_toast_no_external">No compatible external player found</string>
     <string name="downloads_toast_share_failed">Failed to share file</string>
@@ -420,4 +420,8 @@
     <string name="player_no_internet_notice">No internet connection</string>
     <string name="player_online_restored">Connection restored</string>
     <string name="player_stopped_offline_timeout">Playback stopped after 5 minutes offline</string>
+    <string name="download_storage_permission_title">Storage Permission Required</string>
+    <string name="download_storage_permission_desc">Allow storage access in Settings to save downloaded media on Android 8–9 devices.</string>
+    <string name="download_storage_permission_denied">Storage permission is required to save downloads on this Android version</string>
+    <string name="action_open_settings">Open Settings</string>
 </resources>

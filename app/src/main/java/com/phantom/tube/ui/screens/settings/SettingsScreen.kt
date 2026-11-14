@@ -39,6 +39,7 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -70,7 +71,9 @@ import com.phantom.tube.ui.screens.settings.components.SettingsSingleChoiceDialo
 import com.phantom.tube.ui.screens.settings.components.SettingsSubScreenHeader
 import com.phantom.tube.ui.screens.settings.components.SettingsToggleRow
 import com.phantom.tube.ui.screens.settings.components.SettingsValueRow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 @Composable
@@ -103,8 +106,11 @@ fun SettingsScreen(
 
     val pauseWatchHistory by preferences.pauseWatchHistory.collectAsState()
 
-    var cacheSizeBytes by remember {
-        mutableLongStateOf(preferences.getCacheSizeBytes(context))
+    var cacheSizeBytes by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(Unit) {
+        cacheSizeBytes = withContext(Dispatchers.IO) {
+            preferences.getCacheSizeBytes(context)
+        }
     }
 
     var showLanguageDialog by remember { mutableStateOf(false) }
@@ -510,13 +516,18 @@ fun SettingsScreen(
             confirmLabel = stringResource(R.string.dialog_clean),
             isDestructive = false,
             onConfirm = {
-                preferences.clearAppCache(context)
-                cacheSizeBytes = 0L
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.toast_cache_cleared),
-                    Toast.LENGTH_SHORT
-                ).show()
+                scope.launch {
+                    val remainingBytes = withContext(Dispatchers.IO) {
+                        preferences.clearAppCache(context)
+                        preferences.getCacheSizeBytes(context)
+                    }
+                    cacheSizeBytes = remainingBytes
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.toast_cache_cleared),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             },
             onDismiss = { showClearCacheConfirm = false }
         )

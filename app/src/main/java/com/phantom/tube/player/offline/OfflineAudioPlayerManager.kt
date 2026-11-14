@@ -82,11 +82,7 @@ object OfflineAudioPlayerManager {
             context.stopService(Intent(context, com.phantom.tube.player.service.PhantomMediaService::class.java))
         } catch (_: Exception) {}
 
-        val clampedIndex = if (_isShuffle.value && tracks.size > 1 && startIndex == 0) {
-            (0 until tracks.size).random()
-        } else {
-            startIndex.coerceIn(0, tracks.lastIndex)
-        }
+        val clampedIndex = startIndex.coerceIn(0, tracks.lastIndex)
         _queue.value = tracks
         _currentIndex.value = clampedIndex
         _currentTrack.value = tracks[clampedIndex]

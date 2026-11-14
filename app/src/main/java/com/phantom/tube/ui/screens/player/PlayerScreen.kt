@@ -471,14 +471,14 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerViewportBridgeSect
                     repository.resetWatchPosition(activeVid.id)
                 }
             }
-            session.showSponsorPill = false
+            session.dismissSponsorPill()
         },
         onUndoSponsorSkip = {
             session.undoneSegmentUuids.addAll(session.skippedSegmentUuids)
             session.controller.seekTo(session.lastSkippedFromSec)
             session.currentPositionSec = session.lastSkippedFromSec
             session.mediaService?.updatePlaybackState(session.playerState.isPlaying, (session.lastSkippedFromSec * 1000).toLong())
-            session.showSponsorPill = false
+            session.dismissSponsorPill()
         },
         onDismissEndscreen = { session.isEndscreenDismissed = true },
         onEndscreenVideoClick = { targetVid ->
@@ -594,9 +594,7 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerViewportBridgeSect
             if (session.isFullscreen) {
                 session.exitFullscreenToPortrait()
             } else {
-                val activity = context.findActivity()
-                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                session.isFullscreen = true
+                session.enterFullscreen()
             }
         },
         onSeek = { fraction ->
@@ -1057,6 +1055,7 @@ private fun PlayerLifecycleEffects(
             playbackSpeed = session.playerState.playbackSpeed
         )
         session.appliedDefaultsVideoId = null
+        session.dismissSponsorPill()
         session.sponsorSegments = emptyList()
         session.lastRecordedPositionSec = 0f
         session.isPlaybackStalled = false
@@ -1407,6 +1406,7 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
 
         onDispose {
             activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            session.cancelOrientationUnlock()
             if (session.isFullscreen) {
                 activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 val window = activity?.window
