@@ -247,7 +247,7 @@ class PlayerSessionState(
         }
         if (!networkObserver.isConnected()) return
         val now = SystemClock.elapsedRealtime()
-        if (pausedByExternalAudio || (unexpectedPauseElapsedMs > 0L && (now - unexpectedPauseElapsedMs) <= 2200L)) {
+        if (pausedByExternalAudio || (unexpectedPauseElapsedMs > 0L && (now - unexpectedPauseElapsedMs) <= 4500L)) {
             pausedByExternalAudio = true
         }
     }
@@ -619,6 +619,7 @@ class PlayerSessionState(
                         unexpectedPauseElapsedMs = SystemClock.elapsedRealtime()
                         if (mediaService?.isExternalAudioCurrentlyActive() == true) {
                             pausedByExternalAudio = true
+                            mediaService?.ensurePausedInterruptionMonitoring()
                         } else {
                             mediaService?.onUnexpectedOnlinePause()
                         }

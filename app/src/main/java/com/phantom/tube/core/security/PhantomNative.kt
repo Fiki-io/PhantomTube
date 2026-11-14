@@ -521,6 +521,7 @@ object PhantomNative {
         window.playVideo = function(fadeIn) {
             try {
                 clearFadeTimers();
+                window.__phantomDuckRecoveringUntil = 0;
                 var useFade = (fadeIn === true);
                 var iframe = document.querySelector('iframe');
                 if (player) {
@@ -551,6 +552,7 @@ object PhantomNative {
         window.pauseVideo = function(fadeOut) {
             try {
                 clearFadeTimers();
+                window.__phantomDuckRecoveringUntil = 0;
                 var useFade = (fadeOut === true);
                 var iframe = document.querySelector('iframe');
                 if (useFade && iframe && iframe.contentWindow) {
@@ -572,7 +574,7 @@ object PhantomNative {
         window.recoverAudioDucking = function() {
             try {
                 clearFadeTimers();
-                window.__phantomDuckRecoveringUntil = Date.now() + 500;
+                window.__phantomDuckRecoveringUntil = Date.now() + 1100;
                 var iframe = document.querySelector('iframe');
                 if (iframe && iframe.contentWindow) {
                     iframe.contentWindow.postMessage({ type: 'PHANTOM_RECOVER_DUCKING', durationMs: 450 }, '*');
@@ -1327,19 +1329,26 @@ a[href*="youtube.com/watch"] {
                 if (!vid || vid.paused || vid.ended) return;
                 isPhantomFadeActive = true;
                 applyAudioVolume(vid, p, 0.0);
-                vid.pause();
+                if (p && typeof p.pauseVideo === 'function') {
+                    p.pauseVideo();
+                }
+                if (!vid.paused) {
+                    vid.pause();
+                }
                 phantomDuckKickTimer = setTimeout(function() {
                     phantomDuckKickTimer = null;
                     try {
                         applyAudioVolume(vid, p, 0.02);
-                        var pr = vid.play();
-                        if (pr && typeof pr.catch === 'function') {
-                            pr.catch(function() {
-                                try { if (p && typeof p.playVideo === 'function') p.playVideo(); } catch(pe) {}
-                            });
-                        }
-                        if (p && typeof p.playVideo === 'function' && vid.paused) {
+                        if (p && typeof p.playVideo === 'function') {
                             p.playVideo();
+                        }
+                        if (vid && vid.paused && typeof vid.play === 'function') {
+                            var pr = vid.play();
+                            if (pr && typeof pr.catch === 'function') {
+                                pr.catch(function() {
+                                    try { if (p && typeof p.playVideo === 'function') p.playVideo(); } catch(pe) {}
+                                });
+                            }
                         }
                         animateAudioVolume(vid, p, 0.02, 1.0, dur, function() {
                             isPhantomFadeActive = false;
@@ -1348,7 +1357,7 @@ a[href*="youtube.com/watch"] {
                         isPhantomFadeActive = false;
                         applyAudioVolume(vid, p, 1.0);
                     }
-                }, 40);
+                }, 320);
             } catch(err) {
                 isPhantomFadeActive = false;
             }

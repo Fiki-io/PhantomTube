@@ -158,9 +158,13 @@ class PhantomPlayerController(context: Context) {
     private fun evaluateJs(script: String) {
         val target = webView ?: return
         if (Looper.myLooper() == Looper.getMainLooper()) {
+            target.resumeTimers()
             target.evaluateJavascript(script, null)
         } else {
-            target.post { target.evaluateJavascript(script, null) }
+            target.post {
+                target.resumeTimers()
+                target.evaluateJavascript(script, null)
+            }
         }
     }
 
