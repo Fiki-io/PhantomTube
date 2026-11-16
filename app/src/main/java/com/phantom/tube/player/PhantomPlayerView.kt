@@ -43,9 +43,9 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
     }
 
     override fun onWindowVisibilityChanged(visibility: Int) {
-        // Forward real window visibility so Chromium drops GPU compositor / video surface ticks when hidden,
-        // while JS document.hidden shield + skipping super.onPause() keeps HTML5 audio playing.
-        super.onWindowVisibilityChanged(visibility)
+        // Intercept GONE/INVISIBLE so Chromium C++ WebContents::WasHidden() does not suspend
+        // active <video> playback when the app enters background; JS/CSS 1x1 collapse handles GPU savings.
+        super.onWindowVisibilityChanged(View.VISIBLE)
     }
 
     override fun onPause() {
