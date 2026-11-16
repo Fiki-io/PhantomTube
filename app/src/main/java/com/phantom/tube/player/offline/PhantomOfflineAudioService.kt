@@ -543,8 +543,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                             val track = OfflineAudioPlayerManager.currentTrack.value
                             if (track != null) {
                                 applyMetadata(track, bitmap)
-                                val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                                notifManager.notify(
+                                val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                                notifManager?.notify(
                                     NOTIFICATION_ID,
                                     buildNotification(track, isPrepared && (mediaPlayer?.isPlaying == true))
                                 )

@@ -51,6 +51,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.phantom.tube.ui.components.IosSpringSpecs
@@ -261,6 +262,8 @@ fun BoxScope.PlayerVideoViewportBox(
 
     val floatingOffsetX = remember { Animatable(0f) }
     val floatingOffsetY = remember { Animatable(0f) }
+    var rawFloatX by remember { mutableFloatStateOf(0f) }
+    var rawFloatY by remember { mutableFloatStateOf(0f) }
     val floatingScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
@@ -275,6 +278,8 @@ fun BoxScope.PlayerVideoViewportBox(
 
     LaunchedEffect(isMinimized) {
         if (!isMinimized) {
+            rawFloatX = 0f
+            rawFloatY = 0f
             floatingOffsetX.snapTo(0f)
         }
     }
@@ -316,12 +321,12 @@ fun BoxScope.PlayerVideoViewportBox(
             .aspectRatio(16f / 9f)
             .offset {
                 IntOffset(
-                    x = floatingOffsetX.value.toInt(),
-                    y = floatingOffsetY.value.toInt()
+                    x = (floatingOffsetX.value + rawFloatX).toInt(),
+                    y = (floatingOffsetY.value + rawFloatY).toInt()
                 )
             }
             .graphicsLayer {
-                val curX = floatingOffsetX.value
+                val curX = floatingOffsetX.value + rawFloatX
                 val overRight = (curX - 0f).coerceAtLeast(0f)
                 val overLeft = (leftSnapX - curX).coerceAtLeast(0f)
                 val edgeOver = kotlin.math.max(overRight, overLeft)
@@ -400,15 +405,18 @@ fun BoxScope.PlayerVideoViewportBox(
                 onTogglePlayPause = onTogglePlayPause,
                 onClose = onClose,
                 onDrag = { deltaX, deltaY ->
-                    floatingScope.launch {
-                        floatingOffsetX.snapTo(floatingOffsetX.value + deltaX)
-                        val clampedY = (floatingOffsetY.value + deltaY).coerceIn(minOffsetY, 0f)
-                        floatingOffsetY.snapTo(clampedY)
-                    }
+                    rawFloatX += deltaX
+                    val desiredY = (floatingOffsetY.value + rawFloatY + deltaY).coerceIn(minOffsetY, 0f)
+                    rawFloatY = desiredY - floatingOffsetY.value
                 },
                 onDragEnd = {
-                    floatingScope.launch {
-                        val curX = floatingOffsetX.value
+                    val curX = floatingOffsetX.value + rawFloatX
+                    val curY = (floatingOffsetY.value + rawFloatY).coerceIn(minOffsetY, 0f)
+                    rawFloatX = 0f
+                    rawFloatY = 0f
+                    floatingScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                        floatingOffsetX.snapTo(curX)
+                        floatingOffsetY.snapTo(curY)
                         val dismissThreshold = miniWidthPx * 0.42f
                         if (curX > dismissThreshold) {
                             floatingOffsetX.animateTo(miniWidthPx + 120f, tween(180))

@@ -645,10 +645,9 @@ fun BoxScope.PlayerControlsOverlay(
 
                     // Playback Speed Quick Button
                     val formattedSpeed = remember(playerState.playbackSpeed) {
-                        String.format(Locale.US, "%.2fx", playerState.playbackSpeed)
+                        String.format(Locale.getDefault(), "%.2f", playerState.playbackSpeed)
                             .trimEnd('0')
-                            .trimEnd('.')
-                            .let { if (!it.endsWith("x")) "${it}x" else it }
+                            .trimEnd('.', ',') + "x"
                     }
                     Box(
                         modifier = Modifier

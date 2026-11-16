@@ -21,9 +21,14 @@ import com.phantom.tube.data.settings.PhantomPreferences
 import com.phantom.tube.data.sponsorblock.SponsorBlockClient
 import kotlinx.coroutines.flow.Flow
 
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import com.phantom.tube.core.util.LocaleHelper
+import com.phantom.tube.core.util.RegionHelper
 import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 
 class PhantomRepository(
     private val innerTubeClient: InnerTubeClient = InnerTubeClient(),
@@ -37,10 +42,10 @@ class PhantomRepository(
 ) {
     init {
         innerTubeClient.regionCodeProvider = {
-            preferences?.contentCountry?.value ?: "GLOBAL"
+            preferences?.contentCountry?.value ?: RegionHelper.resolveDefaultCountry()
         }
         innerTubeClient.languageCodeProvider = {
-            preferences?.appLanguage?.value ?: "en"
+            preferences?.appLanguage?.value ?: LocaleHelper.resolveDefaultLanguage()
         }
     }
     suspend fun getHomeRecommendations(
@@ -55,7 +60,7 @@ class PhantomRepository(
             }
         }
 
-        val country = preferences?.contentCountry?.value ?: "ID"
+        val country = preferences?.contentCountry?.value ?: RegionHelper.resolveDefaultCountry()
         val defaultQuery = when (country) {
             "GLOBAL" -> "trending global"
             "US" -> "trending us"
@@ -189,7 +194,7 @@ class PhantomRepository(
                 .filter { it.isNotBlank() && !it.equals(targetA.channelTitle, ignoreCase = true) }
                 .distinct()
                 .take(2)
-            val lang = preferences?.appLanguage?.value ?: "id"
+            val lang = preferences?.appLanguage?.value ?: LocaleHelper.resolveDefaultLanguage()
             val andMoreText = when (lang) {
                 "en" -> "and more"
                 "es" -> "y más"
@@ -267,7 +272,7 @@ class PhantomRepository(
     }
 
     suspend fun getFeedPage(query: String? = null, continuation: String? = null): FeedResult {
-        return innerTubeClient.fetchFeedPage(query, continuation)
+        return innerTubeClient.fetchFeedPage(query = query, continuation = continuation)
     }
 
     suspend fun getFeed(query: String = "trending"): List<VideoItem> {
@@ -452,6 +457,7 @@ class PhantomRepository(
                     videoId = video.id,
                     title = video.title,
                     channelTitle = video.channelTitle,
+                    channelId = video.channelId,
                     thumbnailUrl = video.thumbnailUrl,
                     durationText = video.durationText
                 )
@@ -460,6 +466,19 @@ class PhantomRepository(
     }
 
     // Subscriptions
+    @Volatile
+    private var subscriptionFeedCacheKey: String = ""
+    @Volatile
+    private var subscriptionFeedCacheTimestampMs: Long = 0L
+    @Volatile
+    private var subscriptionFeedCacheVideos: List<VideoItem> = emptyList()
+
+    private fun invalidateSubscriptionFeedCache() {
+        subscriptionFeedCacheKey = ""
+        subscriptionFeedCacheTimestampMs = 0L
+        subscriptionFeedCacheVideos = emptyList()
+    }
+
     fun getSubscriptions(): Flow<List<SubscriptionEntity>> {
         return subscriptionDao.getAllSubscriptions()
     }
@@ -470,10 +489,97 @@ class PhantomRepository(
 
     suspend fun subscribe(subscription: SubscriptionEntity) {
         subscriptionDao.insert(subscription)
+        invalidateSubscriptionFeedCache()
     }
 
     suspend fun unsubscribe(channelId: String) {
         subscriptionDao.delete(channelId)
+        invalidateSubscriptionFeedCache()
+    }
+
+    suspend fun getSubscriptionFeed(
+        subscriptions: List<SubscriptionEntity>,
+        forceRefresh: Boolean = false
+    ): List<VideoItem> = withContext(Dispatchers.IO) {
+        if (subscriptions.isEmpty()) {
+            invalidateSubscriptionFeedCache()
+            return@withContext emptyList()
+        }
+
+        val targetChannels = subscriptions.take(15)
+        val country = preferences?.contentCountry?.value ?: RegionHelper.resolveDefaultCountry()
+        val lang = preferences?.appLanguage?.value ?: LocaleHelper.resolveDefaultLanguage()
+        val cacheKey = buildString {
+            append(targetChannels.map { it.channelId.ifBlank { it.channelTitle } }.sorted().joinToString("|"))
+            append("::$country::$lang")
+        }
+
+        val now = System.currentTimeMillis()
+        if (!forceRefresh &&
+            subscriptionFeedCacheKey == cacheKey &&
+            subscriptionFeedCacheVideos.isNotEmpty() &&
+            now - subscriptionFeedCacheTimestampMs < SUBSCRIPTION_FEED_TTL_MS
+        ) {
+            return@withContext subscriptionFeedCacheVideos
+        }
+
+        val results = coroutineScope {
+            targetChannels.map { sub ->
+                async {
+                    val channelVideos = mutableListOf<VideoItem>()
+                    try {
+                        val targetId = sub.channelId.ifBlank { sub.channelTitle }
+                        val chanProfile = getChannel(targetId)
+                        if (chanProfile != null) {
+                            if (chanProfile.videos.isNotEmpty()) {
+                                channelVideos.addAll(chanProfile.videos)
+                            }
+                            if (chanProfile.homeVideos.isNotEmpty()) {
+                                channelVideos.addAll(chanProfile.homeVideos)
+                            }
+                            if (chanProfile.featuredVideo != null) {
+                                channelVideos.add(chanProfile.featuredVideo)
+                            }
+                            if (channelVideos.isEmpty() && !chanProfile.videoTabParams.isNullOrBlank()) {
+                                val vTabRes = getChannel(targetId, params = chanProfile.videoTabParams)
+                                if (vTabRes != null && vTabRes.videos.isNotEmpty()) {
+                                    channelVideos.addAll(vTabRes.videos)
+                                }
+                            }
+                        }
+                    } catch (_: Exception) {
+                    }
+                    channelVideos.map { v ->
+                        v.copy(
+                            channelTitle = v.channelTitle.ifBlank { sub.channelTitle },
+                            channelAvatarUrl = v.channelAvatarUrl.ifBlank { sub.channelAvatarUrl },
+                            channelId = v.channelId.ifBlank { sub.channelId }
+                        )
+                    }.take(6)
+                }
+            }.awaitAll()
+        }
+
+        val maxPerChan = results.maxOfOrNull { it.size } ?: 0
+        val interleaved = ArrayList<VideoItem>()
+        for (i in 0 until maxPerChan) {
+            for (chanList in results) {
+                if (i < chanList.size) {
+                    interleaved.add(chanList[i])
+                }
+            }
+        }
+        val deduplicated = interleaved.distinctBy { it.id }
+        if (deduplicated.isNotEmpty()) {
+            subscriptionFeedCacheKey = cacheKey
+            subscriptionFeedCacheTimestampMs = System.currentTimeMillis()
+            subscriptionFeedCacheVideos = deduplicated
+        }
+        deduplicated
+    }
+
+    companion object {
+        private const val SUBSCRIPTION_FEED_TTL_MS = 5 * 60 * 1000L
     }
 
     // Channel profile & videos

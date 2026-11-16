@@ -50,7 +50,9 @@ object PhantomMemoryOptimizer {
                 if (aggressiveGraphicsPurge) {
                     PhantomRenderEngine.clearCache()
                     StoryboardHelper.clearCache()
-                    appContext.imageLoader.trimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)
+                    appContext.imageLoader.trimMemory(ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN)
+                } else {
+                    appContext.imageLoader.trimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE)
                 }
             }
         }

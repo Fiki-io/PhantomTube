@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -92,8 +94,17 @@ fun OfflineMiniPlayer(
                     contentAlignment = Alignment.Center
                 ) {
                     if (track.thumbnailUrl.isNotBlank()) {
+                        val thumbRequest = remember(track.thumbnailUrl, context) {
+                            ImageRequest.Builder(context)
+                                .data(track.thumbnailUrl)
+                                .size(128, 128)
+                                .precision(Precision.INEXACT)
+                                .allowRgb565(true)
+                                .allowHardware(false)
+                                .build()
+                        }
                         AsyncImage(
-                            model = track.thumbnailUrl,
+                            model = thumbRequest,
                             contentDescription = track.title,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
@@ -132,7 +143,7 @@ fun OfflineMiniPlayer(
                 // Play / Pause Button
                 IconButton(
                     onClick = { OfflineAudioPlayerManager.togglePlayPause(context) },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -145,7 +156,7 @@ fun OfflineMiniPlayer(
                 // Next Button
                 IconButton(
                     onClick = { OfflineAudioPlayerManager.playNext(context) },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
@@ -158,7 +169,7 @@ fun OfflineMiniPlayer(
                 // Close Button
                 IconButton(
                     onClick = { OfflineAudioPlayerManager.stop(context) },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,

@@ -32,17 +32,21 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
@@ -103,8 +107,17 @@ fun MixPlaylistItemCard(
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color(0xFF181818))
             ) {
+                val context = LocalContext.current
                 AsyncImage(
-                    model = video.thumbnailUrl,
+                    model = remember(video.thumbnailUrl, context) {
+                        ImageRequest.Builder(context)
+                            .data(video.thumbnailUrl)
+                            .size(240, 136)
+                            .precision(Precision.INEXACT)
+                            .allowRgb565(true)
+                            .allowHardware(false)
+                            .build()
+                    },
                     contentDescription = video.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.matchParentSize()

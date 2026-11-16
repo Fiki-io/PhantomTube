@@ -54,6 +54,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.phantom.tube.core.util.LocalNotificationPermissionRequester
 import com.phantom.tube.core.util.findActivity
 import com.phantom.tube.core.util.safeStartActivity
 import androidx.compose.runtime.Composable
@@ -77,6 +78,8 @@ import androidx.compose.ui.unit.dp
 import com.phantom.tube.R
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
@@ -102,6 +105,7 @@ fun DownloadFormatSheet(
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
     val context = LocalContext.current
+    val requestNotificationPermission = LocalNotificationPermissionRequester.current
     var selectedFormatTab by remember { mutableIntStateOf(0) } // 0 = Audio (MP3), 1 = Video (MP4)
     var pendingDownloadQuality by remember { mutableStateOf<AvailableQuality?>(null) }
     var showStorageSettingsDialog by remember { mutableStateOf(false) }
@@ -118,6 +122,7 @@ fun DownloadFormatSheet(
         val queued = pendingDownloadQuality
         pendingDownloadQuality = null
         if (granted && queued != null) {
+            requestNotificationPermission()
             PhantomDownloader.enqueueDownload(
                 context = context,
                 video = video,
@@ -155,6 +160,7 @@ fun DownloadFormatSheet(
                 return
             }
         }
+        requestNotificationPermission()
         PhantomDownloader.enqueueDownload(
             context = context,
             video = video,
@@ -227,7 +233,7 @@ fun DownloadFormatSheet(
                 PhantomIconButton(
                     icon = Icons.Default.Close,
                     contentDescription = stringResource(R.string.action_close),
-                    size = 32.dp,
+                    size = 48.dp,
                     iconSize = 18.dp,
                     onClick = onDismiss
                 )
@@ -245,8 +251,17 @@ fun DownloadFormatSheet(
                     .padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val previewThumbRequest = remember(video.thumbnailUrl, context) {
+                    ImageRequest.Builder(context)
+                        .data(video.thumbnailUrl)
+                        .size(160, 96)
+                        .precision(Precision.INEXACT)
+                        .allowRgb565(true)
+                        .allowHardware(false)
+                        .build()
+                }
                 AsyncImage(
-                    model = video.thumbnailUrl,
+                    model = previewThumbRequest,
                     contentDescription = null,
                     modifier = Modifier
                         .size(width = 80.dp, height = 48.dp)
@@ -391,8 +406,9 @@ fun DownloadFormatSheet(
                     }
 
                     is DownloadState.Downloading -> {
-                        val downloadedMb = String.format(Locale.US, "%.1f", state.bytesDownloaded / (1024f * 1024f))
-                        val totalMb = if (state.totalBytes > 0) String.format(Locale.US, "%.1f MB", state.totalBytes / (1024f * 1024f)) else "..."
+                        val locale = Locale.getDefault()
+                        val downloadedMb = String.format(locale, "%.1f", state.bytesDownloaded / (1024f * 1024f))
+                        val totalMb = if (state.totalBytes > 0) String.format(locale, "%.1f MB", state.totalBytes / (1024f * 1024f)) else "..."
 
                         Column(
                             modifier = Modifier

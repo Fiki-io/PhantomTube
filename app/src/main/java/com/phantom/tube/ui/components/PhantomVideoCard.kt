@@ -56,6 +56,7 @@ import com.phantom.tube.PhantomApp
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.util.safeStartActivity
 import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.VideoItem
@@ -141,12 +142,12 @@ fun PhantomVideoCard(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.QueueMusic,
-                            contentDescription = "Playlist",
+                            contentDescription = stringResource(R.string.player_playlist_badge),
                             tint = Color.White,
                             modifier = Modifier.size(12.dp)
                         )
                         Text(
-                            text = video.durationText.ifBlank { "Playlist" },
+                            text = video.durationText.ifBlank { stringResource(R.string.player_playlist_badge) },
                             color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
@@ -258,7 +259,7 @@ fun PhantomVideoCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Mix",
+                            contentDescription = stringResource(R.string.player_mix_badge),
                             tint = YouTubeRed,
                             modifier = Modifier.size(18.dp)
                         )
@@ -322,13 +323,11 @@ fun PhantomVideoCard(
                             showMenu = true
                         }
                     },
-                    modifier = Modifier
-                        .size(32.dp)
-                        .padding(top = 2.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.settings_player_title),
+                        contentDescription = stringResource(R.string.action_more_options),
                         tint = TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
@@ -391,12 +390,9 @@ fun PhantomVideoCard(
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_SUBJECT, video.title)
                                 putExtra(Intent.EXTRA_TEXT, "${video.title}\nhttps://youtu.be/${video.id}")
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
-                            val shareIntent = Intent.createChooser(sendIntent, null).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(shareIntent)
+                            val shareIntent = Intent.createChooser(sendIntent, null)
+                            context.safeStartActivity(shareIntent)
                         }
                     )
                 }

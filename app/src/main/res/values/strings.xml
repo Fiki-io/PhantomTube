@@ -424,4 +424,19 @@
     <string name="download_storage_permission_desc">Allow storage access in Settings to save downloaded media on Android 8–9 devices.</string>
     <string name="download_storage_permission_denied">Storage permission is required to save downloads on this Android version</string>
     <string name="action_open_settings">Open Settings</string>
+    <string name="action_more_options">More options</string>
+    <string name="update_dialog_install_failed">Unable to open installer</string>
+    <string name="channel_verified">Verified</string>
+    <string name="channel_handle_label">Handle</string>
+    <string name="channel_subscribers_label">Subscribers</string>
+    <string name="channel_videos_label">Videos</string>
+    <string name="channel_id_label">Channel ID</string>
+    <string name="player_channel_label">Channel</string>
+    <string name="player_scrub_preview">Preview scene</string>
+    <string name="crash_detail_error">Error Details</string>
+    <string name="crash_log_label">Error Log</string>
+    <string name="crash_icon_desc">Crash Icon</string>
+    <string name="app_logo_desc">Phantom Logo</string>
+    <string name="player_playlist_badge">Playlist</string>
+    <string name="player_mix_badge">Mix</string>
 </resources>

@@ -29,7 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +60,7 @@ import com.phantom.tube.ui.components.PlayerSettingsSheet
 import com.phantom.tube.ui.components.SleepTimerOption
 import kotlinx.coroutines.launch
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun BoxScope.PlayerPortraitSheetContent(
     isSheetRendered: Boolean,
@@ -90,6 +94,8 @@ fun BoxScope.PlayerPortraitSheetContent(
     onRecommendationClick: (VideoItem) -> Unit
 ) {
     if (!isSheetRendered || isFullscreen) return
+
+    var recVideoToDownload by remember { mutableStateOf<VideoItem?>(null) }
 
     Column(
         modifier = Modifier
@@ -192,6 +198,7 @@ fun BoxScope.PlayerPortraitSheetContent(
                         onChannelClick = { chId ->
                             onChannelSelected(chId, item.channelTitle)
                         },
+                        onDownloadClick = { recVideoToDownload = it },
                         onClick = {
                             onRecommendationClick(item)
                         }
@@ -250,6 +257,14 @@ fun BoxScope.PlayerPortraitSheetContent(
                 .zIndex(4f)
                 .navigationBarsPadding()
                 .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
+        )
+    }
+
+    recVideoToDownload?.let { target ->
+        DownloadFormatSheet(
+            video = target,
+            repository = repository,
+            onDismiss = { recVideoToDownload = null }
         )
     }
 }
@@ -389,7 +404,7 @@ fun BoxScope.PlayerSheetsHost(
         onDismiss = onDismissDescriptionSheet,
         modifier = Modifier
             .fillMaxSize()
-            .zIndex(22f)
+            .zIndex(9f)
     )
 
     PlayerCommentsSheet(
@@ -406,7 +421,7 @@ fun BoxScope.PlayerSheetsHost(
         onDismiss = onDismissCommentsSheet,
         modifier = Modifier
             .fillMaxSize()
-            .zIndex(22f)
+            .zIndex(9f)
     )
 
     if (showDownloadSheet && !isMinimized) {

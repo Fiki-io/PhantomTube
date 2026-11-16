@@ -331,7 +331,7 @@ fun SettingsScreen(
                     SettingsDivider()
                     val formattedCache = remember(cacheSizeBytes) {
                         val mb = cacheSizeBytes.toDouble() / (1024.0 * 1024.0)
-                        String.format(Locale.US, "%.1f MB", mb)
+                        String.format(Locale.getDefault(), "%.1f MB", mb)
                     }
                     SettingsValueRow(
                         icon = Icons.Rounded.CleaningServices,

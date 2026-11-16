@@ -125,6 +125,11 @@ class UpdateManager(
         onProgress: (Float) -> Unit
     ): File? = withContext(Dispatchers.IO) {
         try {
+            val parsedUri = Uri.parse(downloadUrl)
+            if (!parsedUri.scheme.equals("https", ignoreCase = true)) {
+                return@withContext null
+            }
+
             val request = Request.Builder()
                 .url(downloadUrl)
                 .build()
@@ -137,33 +142,65 @@ class UpdateManager(
 
                 val targetDir = context.getExternalFilesDir(null) ?: context.cacheDir
                 val targetFile = File(targetDir, "Phantom-Update.apk")
-                if (targetFile.exists()) {
-                    targetFile.delete()
+                val tempFile = File(targetDir, "Phantom-Update.apk.tmp")
+                if (tempFile.exists()) {
+                    tempFile.delete()
                 }
 
-                body.byteStream().use { input ->
-                    FileOutputStream(targetFile).use { output ->
-                        val buffer = ByteArray(8 * 1024)
-                        var bytesRead: Int
-                        var totalRead = 0L
+                var completed = false
+                try {
+                    body.byteStream().use { input ->
+                        FileOutputStream(tempFile).use { output ->
+                            val buffer = ByteArray(16 * 1024)
+                            var bytesRead: Int
+                            var totalRead = 0L
+                            var lastProgress = -1f
+                            var lastEmitMs = 0L
 
-                        while (input.read(buffer).also { bytesRead = it } != -1) {
-                            output.write(buffer, 0, bytesRead)
-                            totalRead += bytesRead
-                            if (contentLength > 0) {
-                                val progress = totalRead.toFloat() / contentLength.toFloat()
+                            if (contentLength <= 0L) {
                                 withContext(Dispatchers.Main) {
-                                    onProgress(progress.coerceIn(0f, 1f))
+                                    onProgress(-1f)
                                 }
                             }
+
+                            while (input.read(buffer).also { bytesRead = it } != -1) {
+                                output.write(buffer, 0, bytesRead)
+                                totalRead += bytesRead
+                                if (contentLength > 0L) {
+                                    val progress = (totalRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
+                                    val now = System.currentTimeMillis()
+                                    if (progress - lastProgress >= 0.02f || now - lastEmitMs >= 100L || progress >= 1f) {
+                                        lastProgress = progress
+                                        lastEmitMs = now
+                                        withContext(Dispatchers.Main) {
+                                            onProgress(progress)
+                                        }
+                                    }
+                                }
+                            }
+                            output.flush()
+                            if (totalRead <= 0L || (contentLength > 0L && totalRead < contentLength)) {
+                                return@withContext null
+                            }
                         }
-                        output.flush()
+                    }
+
+                    if (targetFile.exists()) {
+                        targetFile.delete()
+                    }
+                    if (!tempFile.renameTo(targetFile)) {
+                        tempFile.copyTo(targetFile, overwrite = true)
+                        tempFile.delete()
+                    }
+                    completed = targetFile.exists() && targetFile.length() > 0L
+                    if (completed) targetFile else null
+                } finally {
+                    if (!completed && tempFile.exists()) {
+                        tempFile.delete()
                     }
                 }
-
-                targetFile
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
@@ -184,19 +221,18 @@ class UpdateManager(
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(intent)
-            } catch (e: Exception) {
-                // Fallback to app details settings
+            } catch (_: Exception) {
                 val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                     data = Uri.parse("package:${context.packageName}")
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-                context.startActivity(fallbackIntent)
+                runCatching { context.startActivity(fallbackIntent) }
             }
         }
     }
 
-    fun promptInstall(apkFile: File) {
-        try {
+    fun promptInstall(apkFile: File): Boolean {
+        return try {
             val apkUri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.provider",
@@ -209,8 +245,9 @@ class UpdateManager(
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
-        } catch (e: Exception) {
-            // Log or ignore
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 }

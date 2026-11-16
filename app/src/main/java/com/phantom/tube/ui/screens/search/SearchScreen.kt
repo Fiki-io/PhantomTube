@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
@@ -50,7 +51,9 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -91,6 +94,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBorder
@@ -111,8 +116,11 @@ import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.SearchChannelCard
 import com.phantom.tube.ui.components.VideoFeedSkeleton
+import com.phantom.tube.ui.screens.player.components.DownloadFormatSheet
 import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -139,6 +147,7 @@ enum class SearchFilter(
     VIEW_COUNT("CAMSAhAB", R.string.search_filter_view_count)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     repository: PhantomRepository,
@@ -162,7 +171,9 @@ fun SearchScreen(
     var isLoadingMore by remember { mutableStateOf(false) }
     var isFetchingSuggestions by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
+    var videoToDownload by remember { mutableStateOf<VideoItem?>(null) }
     val searchListState = remember(lastSearchQuery) { LazyListState() }
+    val uniqueSearchChannels = remember(searchChannels) { searchChannels.distinctBy { it.id } }
 
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
@@ -262,6 +273,8 @@ fun SearchScreen(
     }
 
     val scope = rememberCoroutineScope()
+    var searchJob by remember { mutableStateOf<Job?>(null) }
+    var loadMoreJob by remember { mutableStateOf<Job?>(null) }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -348,7 +361,10 @@ fun SearchScreen(
             }
         }
 
-        scope.launch {
+        searchJob?.cancel()
+        loadMoreJob?.cancel()
+        isLoadingMore = false
+        searchJob = scope.launch {
             repository.saveSearchQuery(trimmed)
             isSearching = true
             hasSearched = true
@@ -362,6 +378,8 @@ fun SearchScreen(
                 searchResults = pageResult.videos
                 searchChannels = pageResult.channels
                 searchContinuationToken = pageResult.continuationToken
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 searchResults = emptyList()
                 searchChannels = emptyList()
@@ -375,7 +393,8 @@ fun SearchScreen(
     fun loadMoreSearch() {
         val token = searchContinuationToken ?: return
         if (isLoadingMore || isSearching) return
-        scope.launch {
+        loadMoreJob?.cancel()
+        loadMoreJob = scope.launch {
             isLoadingMore = true
             try {
                 val pageResult = repository.searchPage(continuation = token)
@@ -385,6 +404,8 @@ fun SearchScreen(
                     searchResults = searchResults + newVideos
                 }
                 searchContinuationToken = pageResult.continuationToken
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -433,11 +454,17 @@ fun SearchScreen(
         focusManager.clearFocus()
         keyboardController?.hide()
         if (hasSearched || searchQuery.isNotEmpty()) {
+            searchJob?.cancel()
+            loadMoreJob?.cancel()
+            isSearching = false
+            isLoadingMore = false
             searchTextFieldValue = androidx.compose.ui.text.input.TextFieldValue("")
             hasSearched = false
             searchResults = emptyList()
             searchChannels = emptyList()
             detailedSuggestions = emptyList()
+            searchContinuationToken = null
+            lastSearchQuery = ""
             selectedFilter = SearchFilter.ALL
             isFilterBarVisible = true
         } else {
@@ -463,7 +490,7 @@ fun SearchScreen(
             PhantomIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = stringResource(R.string.action_back),
-                size = 38.dp,
+                size = 48.dp,
                 iconSize = 20.dp,
                 onClick = {
                     focusManager.clearFocus()
@@ -478,9 +505,11 @@ fun SearchScreen(
             Box(
                 modifier = Modifier
                     .weight(1f)
+                    .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .background(YouTubeSurface)
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .padding(start = 14.dp, end = 4.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
@@ -502,6 +531,7 @@ fun SearchScreen(
                         },
                         modifier = Modifier
                             .weight(1f)
+                            .padding(vertical = 10.dp)
                             .focusRequester(focusRequester),
                         textStyle = TextStyle(
                             color = TextPrimary,
@@ -525,24 +555,33 @@ fun SearchScreen(
                     )
 
                     if (searchQuery.isNotEmpty()) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = stringResource(R.string.search_clear_query),
-                            tint = TextSecondary,
-                            modifier = Modifier
-                                .size(18.dp)
-                                .clickable {
-                                    updateSearchInput("")
-                                    detailedSuggestions = emptyList()
-                                    hasSearched = false
-                                    searchResults = emptyList()
-                                    searchChannels = emptyList()
-                                    searchContinuationToken = null
-                                    lastSearchQuery = ""
-                                    selectedFilter = SearchFilter.ALL
-                                    isFilterBarVisible = true
-                                }
-                        )
+                        IconButton(
+                            onClick = {
+                                searchJob?.cancel()
+                                loadMoreJob?.cancel()
+                                isSearching = false
+                                isLoadingMore = false
+                                updateSearchInput("")
+                                detailedSuggestions = emptyList()
+                                hasSearched = false
+                                searchResults = emptyList()
+                                searchChannels = emptyList()
+                                searchContinuationToken = null
+                                lastSearchQuery = ""
+                                selectedFilter = SearchFilter.ALL
+                                isFilterBarVisible = true
+                            },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = stringResource(R.string.search_clear_query),
+                                tint = TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(10.dp))
                     }
                 }
             }
@@ -668,8 +707,17 @@ fun SearchScreen(
                                                 val clean = InnerTubeHelpers.normalizeUrl(item.channelAvatarUrl)
                                                 clean.ifBlank { ChannelAvatarCache.get(item.channelId, item.channelTitle) }
                                             }
+                                            val suggAvatarRequest = remember(suggAvatar, context) {
+                                                ImageRequest.Builder(context)
+                                                    .data(suggAvatar)
+                                                    .size(96, 96)
+                                                    .precision(Precision.INEXACT)
+                                                    .allowRgb565(true)
+                                                    .allowHardware(false)
+                                                    .build()
+                                            }
                                             AsyncImage(
-                                                model = suggAvatar,
+                                                model = suggAvatarRequest,
                                                 contentDescription = item.channelTitle ?: item.query,
                                                 contentScale = ContentScale.Crop,
                                                 modifier = Modifier
@@ -704,18 +752,19 @@ fun SearchScreen(
                                                 )
                                             }
 
-                                            Spacer(modifier = Modifier.width(8.dp))
-
-                                            Icon(
-                                                imageVector = Icons.Default.NorthWest,
-                                                contentDescription = stringResource(R.string.search_open_channel),
-                                                tint = TextMuted,
-                                                modifier = Modifier
-                                                    .size(16.dp)
-                                                    .clickable {
-                                                        updateSearchInput(item.channelTitle ?: item.query, requestKeyboardFocus = true)
-                                                    }
-                                            )
+                                            IconButton(
+                                                onClick = {
+                                                    updateSearchInput(item.channelTitle ?: item.query, requestKeyboardFocus = true)
+                                                },
+                                                modifier = Modifier.size(48.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.NorthWest,
+                                                    contentDescription = stringResource(R.string.search_open_channel),
+                                                    tint = TextMuted,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
                                         }
                                     } else {
                                         Row(
@@ -726,7 +775,7 @@ fun SearchScreen(
                                                     updateSearchInput(item.query)
                                                     executeSearch(item.query)
                                                 }
-                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Icon(
@@ -744,31 +793,35 @@ fun SearchScreen(
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Icon(
-                                                imageVector = Icons.Default.NorthWest,
-                                                contentDescription = stringResource(R.string.search_insert_query),
-                                                tint = TextMuted,
-                                                modifier = Modifier
-                                                    .size(16.dp)
-                                                    .clickable {
-                                                        updateSearchInput(item.query, requestKeyboardFocus = true)
-                                                    }
-                                            )
-                                            if (item.isHistory) {
-                                                Spacer(modifier = Modifier.width(12.dp))
+                                            IconButton(
+                                                onClick = {
+                                                    updateSearchInput(item.query, requestKeyboardFocus = true)
+                                                },
+                                                modifier = Modifier.size(48.dp)
+                                            ) {
                                                 Icon(
-                                                    imageVector = Icons.Default.Close,
-                                                    contentDescription = stringResource(R.string.search_clear_query),
+                                                    imageVector = Icons.Default.NorthWest,
+                                                    contentDescription = stringResource(R.string.search_insert_query),
                                                     tint = TextMuted,
-                                                    modifier = Modifier
-                                                        .size(16.dp)
-                                                        .clickable {
-                                                            scope.launch {
-                                                                repository.deleteSearchQuery(item.query)
-                                                            }
-                                                        }
+                                                    modifier = Modifier.size(16.dp)
                                                 )
+                                            }
+                                            if (item.isHistory) {
+                                                IconButton(
+                                                    onClick = {
+                                                        scope.launch {
+                                                            repository.deleteSearchQuery(item.query)
+                                                        }
+                                                    },
+                                                    modifier = Modifier.size(48.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Close,
+                                                        contentDescription = stringResource(R.string.search_clear_query),
+                                                        tint = TextMuted,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -785,9 +838,9 @@ fun SearchScreen(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         // 1. YouTube-style Channel Card at top of search results
-                        if (searchChannels.isNotEmpty()) {
+                        if (uniqueSearchChannels.isNotEmpty()) {
                             itemsIndexed(
-                                items = searchChannels.distinctBy { it.id },
+                                items = uniqueSearchChannels,
                                 key = { index, ch -> "search_ch_${ch.id}_$index" },
                                 contentType = { _, _ -> "channel_card" }
                             ) { _, channel ->
@@ -817,6 +870,7 @@ fun SearchScreen(
                                     keyboardController?.hide()
                                     onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
                                 },
+                                onDownloadClick = { videoToDownload = it },
                                 onClick = {
                                     focusManager.clearFocus()
                                     keyboardController?.hide()
@@ -891,19 +945,25 @@ fun SearchScreen(
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
-                            Text(
-                                text = stringResource(R.string.search_history_clear),
-                                color = YouTubeRed,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
+                            Box(
                                 modifier = Modifier
+                                    .heightIn(min = 48.dp)
+                                    .clip(RoundedCornerShape(8.dp))
                                     .clickable {
                                         scope.launch {
                                             repository.clearSearchHistory()
                                         }
                                     }
-                                    .padding(4.dp)
-                            )
+                                    .padding(horizontal = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.search_history_clear),
+                                    color = YouTubeRed,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
 
                         LazyColumn(
@@ -924,7 +984,7 @@ fun SearchScreen(
                                             updateSearchInput(item.query)
                                             executeSearch(item.query)
                                         }
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
@@ -942,30 +1002,34 @@ fun SearchScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        imageVector = Icons.Default.NorthWest,
-                                        contentDescription = stringResource(R.string.search_insert_query),
-                                        tint = TextMuted,
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .clickable {
-                                                updateSearchInput(item.query, requestKeyboardFocus = true)
+                                    IconButton(
+                                        onClick = {
+                                            updateSearchInput(item.query, requestKeyboardFocus = true)
+                                        },
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.NorthWest,
+                                            contentDescription = stringResource(R.string.search_insert_query),
+                                            tint = TextMuted,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            scope.launch {
+                                                repository.deleteSearchQuery(item.query)
                                             }
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = stringResource(R.string.common_delete),
-                                        tint = TextMuted,
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .clickable {
-                                                scope.launch {
-                                                    repository.deleteSearchQuery(item.query)
-                                                }
-                                            }
-                                    )
+                                        },
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = stringResource(R.string.common_delete),
+                                            tint = TextMuted,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -991,6 +1055,14 @@ fun SearchScreen(
                 }
             }
         }
+    }
+
+    videoToDownload?.let { targetVideo ->
+        DownloadFormatSheet(
+            video = targetVideo,
+            repository = repository,
+            onDismiss = { videoToDownload = null }
+        )
     }
 }
 

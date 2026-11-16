@@ -424,4 +424,19 @@
     <string name="download_storage_permission_desc">Разрешите доступ к хранилищу в настройках для сохранения файлов на Android 8–9.</string>
     <string name="download_storage_permission_denied">Для сохранения загрузок на этой версии Android требуется разрешение на доступ к памяти</string>
     <string name="action_open_settings">Открыть настройки</string>
+    <string name="action_more_options">Дополнительно</string>
+    <string name="update_dialog_install_failed">Не удалось открыть установщик</string>
+    <string name="channel_verified">Подтверждено</string>
+    <string name="channel_handle_label">Псевдоним</string>
+    <string name="channel_subscribers_label">Подписчики</string>
+    <string name="channel_videos_label">Видео</string>
+    <string name="channel_id_label">ID канала</string>
+    <string name="player_channel_label">Канал</string>
+    <string name="player_scrub_preview">Предпросмотр сцены</string>
+    <string name="crash_detail_error">Детали ошибки</string>
+    <string name="crash_log_label">Журнал ошибок</string>
+    <string name="crash_icon_desc">Значок ошибки</string>
+    <string name="app_logo_desc">Логотип Phantom</string>
+    <string name="player_playlist_badge">Плейлист</string>
+    <string name="player_mix_badge">Микс</string>
 </resources>

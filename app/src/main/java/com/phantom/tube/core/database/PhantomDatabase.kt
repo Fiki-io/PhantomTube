@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -15,7 +16,10 @@ import kotlinx.coroutines.withContext
 class PhantomDatabase private constructor(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
 
-    private val tableChangeEvents = MutableSharedFlow<String>(extraBufferCapacity = 32)
+    private val tableChangeEvents = MutableSharedFlow<String>(
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
 
     private fun notifyTableChanged(tableName: String) {
         tableChangeEvents.tryEmit(tableName)
@@ -73,12 +77,14 @@ class PhantomDatabase private constructor(context: Context) :
                 videoId TEXT NOT NULL PRIMARY KEY,
                 title TEXT NOT NULL,
                 channelTitle TEXT NOT NULL,
+                channelId TEXT NOT NULL DEFAULT '',
                 thumbnailUrl TEXT NOT NULL,
                 durationText TEXT NOT NULL,
                 savedAt INTEGER NOT NULL
             )
             """.trimIndent()
         )
+        ensureColumnExists(db, "favorites", "channelId", "TEXT NOT NULL DEFAULT ''")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_favorites_savedAt ON favorites(savedAt)")
 
         db.execSQL(
@@ -123,6 +129,27 @@ class PhantomDatabase private constructor(context: Context) :
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS index_downloads_downloadedAt ON downloads(downloadedAt)")
+    }
+
+    private fun ensureColumnExists(
+        db: SQLiteDatabase,
+        tableName: String,
+        columnName: String,
+        columnDefinition: String
+    ) {
+        var hasColumn = false
+        db.rawQuery("PRAGMA table_info($tableName)", null).use { cursor ->
+            val nameIdx = cursor.getColumnIndex("name")
+            while (cursor.moveToNext()) {
+                if (nameIdx >= 0 && cursor.getString(nameIdx) == columnName) {
+                    hasColumn = true
+                    break
+                }
+            }
+        }
+        if (!hasColumn) {
+            db.execSQL("ALTER TABLE $tableName ADD COLUMN $columnName $columnDefinition")
+        }
     }
 
     private val watchHistoryDaoInstance = object : WatchHistoryDao {
@@ -221,6 +248,7 @@ class PhantomDatabase private constructor(context: Context) :
                 put("videoId", favorite.videoId)
                 put("title", favorite.title)
                 put("channelTitle", favorite.channelTitle)
+                put("channelId", favorite.channelId)
                 put("thumbnailUrl", favorite.thumbnailUrl)
                 put("durationText", favorite.durationText)
                 put("savedAt", favorite.savedAt)
@@ -232,7 +260,7 @@ class PhantomDatabase private constructor(context: Context) :
         override fun getAllFavorites(): Flow<List<FavoriteEntity>> = observeTable("favorites") {
             val list = ArrayList<FavoriteEntity>()
             readableDatabase.rawQuery(
-                "SELECT videoId, title, channelTitle, thumbnailUrl, durationText, savedAt FROM favorites ORDER BY savedAt DESC",
+                "SELECT videoId, title, channelTitle, channelId, thumbnailUrl, durationText, savedAt FROM favorites ORDER BY savedAt DESC",
                 null
             ).use { c ->
                 while (c.moveToNext()) {
@@ -241,9 +269,10 @@ class PhantomDatabase private constructor(context: Context) :
                             videoId = c.getString(0),
                             title = c.getString(1),
                             channelTitle = c.getString(2),
-                            thumbnailUrl = c.getString(3),
-                            durationText = c.getString(4),
-                            savedAt = c.getLong(5)
+                            channelId = c.getString(3),
+                            thumbnailUrl = c.getString(4),
+                            durationText = c.getString(5),
+                            savedAt = c.getLong(6)
                         )
                     )
                 }
@@ -439,7 +468,7 @@ class PhantomDatabase private constructor(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "phantom_database"
-        private const val DATABASE_VERSION = 5
+        private const val DATABASE_VERSION = 6
 
         @Volatile
         private var INSTANCE: PhantomDatabase? = null

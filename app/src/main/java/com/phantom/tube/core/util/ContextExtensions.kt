@@ -8,8 +8,11 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.runtime.staticCompositionLocalOf
 import com.phantom.tube.R
 import java.net.URLDecoder
+
+val LocalNotificationPermissionRequester = staticCompositionLocalOf<() -> Unit> { {} }
 
 /**
  * Traverses ContextWrapper chain to retrieve the hosting Activity.

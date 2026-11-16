@@ -28,8 +28,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +57,7 @@ import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.model.VideoItem
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -77,54 +81,67 @@ fun PhantomMiniPlayer(
     val coroutineScope = rememberCoroutineScope()
     val offsetX = remember { Animatable(0f) }
     val offsetY = remember { Animatable(0f) }
+    var rawDragX by remember(video.id) { mutableFloatStateOf(0f) }
+    var rawDragY by remember(video.id) { mutableFloatStateOf(0f) }
 
     val dismissThresholdX = 160f
     val dismissThresholdY = 80f
 
     // Reset offset jika video berganti
     LaunchedEffect(video.id) {
+        rawDragX = 0f
+        rawDragY = 0f
         offsetX.snapTo(0f)
         offsetY.snapTo(0f)
     }
-
-    val currentAbsX = abs(offsetX.value)
-    val dismissAlpha = (1f - (currentAbsX / 360f) - (offsetY.value / 250f)).coerceIn(0.15f, 1f)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
             .graphicsLayer {
-                translationX = offsetX.value
-                translationY = offsetY.value
+                val tx = offsetX.value + rawDragX
+                val ty = offsetY.value + rawDragY
+                val dismissAlpha = (1f - (abs(tx) / 360f) - (ty / 250f)).coerceIn(0.15f, 1f)
+                translationX = tx
+                translationY = ty
                 alpha = dismissAlpha
             }
             .pointerInput(video.id) {
                 detectDragGestures(
                     onDragStart = { },
                     onDrag = { change, dragAmount ->
-                        if (dragAmount.y < -15f && offsetY.value <= 0f && abs(offsetX.value) < 30f) {
+                        val curX = offsetX.value + rawDragX
+                        val curY = offsetY.value + rawDragY
+                        if (dragAmount.y < -15f && curY <= 0f && abs(curX) < 30f) {
                             change.consume()
+                            rawDragX = 0f
+                            rawDragY = 0f
                             onExpand()
                         } else {
                             change.consume()
-                            coroutineScope.launch {
-                                offsetX.snapTo(offsetX.value + dragAmount.x)
-                                if (dragAmount.y > 0 || offsetY.value > 0) {
-                                    offsetY.snapTo((offsetY.value + dragAmount.y).coerceAtLeast(0f))
-                                }
+                            rawDragX += dragAmount.x
+                            val totalY = offsetY.value + rawDragY
+                            if (dragAmount.y > 0f || totalY > 0f) {
+                                rawDragY = (totalY + dragAmount.y).coerceAtLeast(0f) - offsetY.value
                             }
                         }
                     },
                     onDragEnd = {
-                        coroutineScope.launch {
+                        val curX = offsetX.value + rawDragX
+                        val curY = (offsetY.value + rawDragY).coerceAtLeast(0f)
+                        rawDragX = 0f
+                        rawDragY = 0f
+                        coroutineScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                            offsetX.snapTo(curX)
+                            offsetY.snapTo(curY)
                             when {
-                                abs(offsetX.value) > dismissThresholdX -> {
-                                    val targetX = if (offsetX.value > 0) 1000f else -1000f
+                                abs(curX) > dismissThresholdX -> {
+                                    val targetX = if (curX > 0f) 1000f else -1000f
                                     offsetX.animateTo(targetX, tween(200))
                                     onClose()
                                 }
-                                offsetY.value > dismissThresholdY -> {
+                                curY > dismissThresholdY -> {
                                     offsetY.animateTo(600f, tween(200))
                                     onClose()
                                 }
@@ -140,7 +157,13 @@ fun PhantomMiniPlayer(
                         }
                     },
                     onDragCancel = {
-                        coroutineScope.launch {
+                        val curX = offsetX.value + rawDragX
+                        val curY = (offsetY.value + rawDragY).coerceAtLeast(0f)
+                        rawDragX = 0f
+                        rawDragY = 0f
+                        coroutineScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                            offsetX.snapTo(curX)
+                            offsetY.snapTo(curY)
                             launch { offsetX.animateTo(0f, IosSpringSpecs.Bouncy) }
                             launch { offsetY.animateTo(0f, IosSpringSpecs.Bouncy) }
                         }
@@ -226,31 +249,36 @@ fun PhantomMiniPlayer(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
-                // Play / Pause Button
+                // Play / Pause Button (48.dp touch target)
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                        .background(Color(0x1AFFFFFF))
                         .iosBounceClick(scaleDown = 0.88f, onClick = onTogglePlayPause),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.player_play),
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x1AFFFFFF)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.player_play),
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Close Button
+                // Close Button (48.dp touch target)
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .iosBounceClick(scaleDown = 0.85f, onClick = onClose),
                     contentAlignment = Alignment.Center

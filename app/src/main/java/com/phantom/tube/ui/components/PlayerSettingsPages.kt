@@ -191,7 +191,7 @@ internal fun SpeedSubPage(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = String.format(Locale.US, "%.2fx", sliderSpeed)
+                text = String.format(Locale.getDefault(), "%.2fx", sliderSpeed)
                     .trimEnd('0')
                     .trimEnd('.')
                     .let { if (!it.endsWith("x")) "${it}x" else it },
@@ -211,17 +211,22 @@ internal fun SpeedSubPage(
                         sliderSpeed = next
                         onSelect(next)
                     },
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(YouTubeSurfaceLight)
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Remove,
-                        contentDescription = null,
-                        tint = TextPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(YouTubeSurfaceLight),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Remove,
+                            contentDescription = stringResource(R.string.player_speed),
+                            tint = TextPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
                 Slider(
@@ -235,7 +240,7 @@ internal fun SpeedSubPage(
                     valueRange = 0.25f..2.0f,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 10.dp),
+                        .padding(horizontal = 4.dp),
                     colors = SliderDefaults.colors(
                         thumbColor = YouTubeRed,
                         activeTrackColor = YouTubeRed,
@@ -249,17 +254,22 @@ internal fun SpeedSubPage(
                         sliderSpeed = next
                         onSelect(next)
                     },
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(YouTubeSurfaceLight)
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Add,
-                        contentDescription = null,
-                        tint = TextPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(YouTubeSurfaceLight),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Add,
+                            contentDescription = stringResource(R.string.player_speed),
+                            tint = TextPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
@@ -337,7 +347,7 @@ internal fun SleepTimerSubPage(
                 val secs = remainingSec % 60
                 stringResource(
                     R.string.settings_sleep_timer_stopping_in,
-                    String.format(Locale.US, "%02d:%02d", mins, secs)
+                    String.format(Locale.getDefault(), "%02d:%02d", mins, secs)
                 )
             } else null,
             onBack = onBack
@@ -367,7 +377,7 @@ internal fun PlayerSheetSubHeader(
             onClick = onBack,
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .size(28.dp)
+                .size(48.dp)
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,

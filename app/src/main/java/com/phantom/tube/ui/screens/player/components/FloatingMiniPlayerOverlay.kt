@@ -77,57 +77,73 @@ fun BoxScope.FloatingMiniPlayerOverlay(
     Box(
         modifier = Modifier
             .align(Alignment.TopStart)
-            .padding(6.dp)
-            .size(30.dp)
-            .clip(CircleShape)
-            .background(Color(0xB3000000))
+            .size(48.dp)
             .iosBounceClick(scaleDown = 0.88f, onClick = onExpand),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.Fullscreen,
-            contentDescription = stringResource(R.string.player_expand),
-            tint = Color.White,
-            modifier = Modifier.size(18.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(Color(0xB3000000)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Fullscreen,
+                contentDescription = stringResource(R.string.player_expand),
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 
     // 3. Tombol Close (X) di Pojok Kanan Atas
     Box(
         modifier = Modifier
             .align(Alignment.TopEnd)
-            .padding(6.dp)
-            .size(30.dp)
-            .clip(CircleShape)
-            .background(Color(0xB3000000))
+            .size(48.dp)
             .iosBounceClick(scaleDown = 0.88f, onClick = onClose),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.Close,
-            contentDescription = stringResource(R.string.action_close),
-            tint = Color.White,
-            modifier = Modifier.size(16.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(Color(0xB3000000)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = stringResource(R.string.action_close),
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 
     // 4. Tombol Play / Pause di Pojok Kanan Bawah
     Box(
         modifier = Modifier
             .align(Alignment.BottomEnd)
-            .padding(end = 6.dp, bottom = 8.dp)
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(Color(0xB3000000))
+            .padding(bottom = 2.dp)
+            .size(48.dp)
             .iosBounceClick(scaleDown = 0.88f, onClick = onTogglePlayPause),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-            contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.player_play),
-            tint = Color.White,
-            modifier = Modifier.size(18.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(Color(0xB3000000)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.player_play),
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 
     // 5. Garis Progress Tipis di Bagian Paling Bawah

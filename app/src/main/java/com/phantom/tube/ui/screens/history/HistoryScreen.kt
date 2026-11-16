@@ -46,6 +46,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.ObsidianDark
@@ -106,7 +108,7 @@ fun HistoryScreen(
                 PhantomIconButton(
                     icon = Icons.Default.DeleteSweep,
                     contentDescription = stringResource(R.string.library_clear_history),
-                    size = 36.dp,
+                    size = 48.dp,
                     iconSize = 20.dp,
                     onClick = {
                         showClearConfirm = true
@@ -180,8 +182,17 @@ fun HistoryScreen(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(Color(0xFF181818))
                         ) {
+                            val thumbRequest = remember(entry.thumbnailUrl, context) {
+                                ImageRequest.Builder(context)
+                                    .data(entry.thumbnailUrl)
+                                    .size(240, 136)
+                                    .precision(Precision.INEXACT)
+                                    .allowRgb565(true)
+                                    .allowHardware(false)
+                                    .build()
+                            }
                             AsyncImage(
-                                model = entry.thumbnailUrl,
+                                model = thumbRequest,
                                 contentDescription = entry.title,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.matchParentSize()

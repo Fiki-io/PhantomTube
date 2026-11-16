@@ -3,6 +3,7 @@ package com.phantom.tube.player
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
+import android.net.Uri
 import android.util.AttributeSet
 import android.os.Looper
 import android.view.View
@@ -102,7 +103,7 @@ class PhantomPlayerController(context: Context) {
                 webView = webView,
                 aggressiveGraphicsPurge = false
             )
-            evaluateJs("window.loadVideo('$videoId', $startSeconds);")
+            evaluateJs("window.loadVideo('${escapeJsArg(videoId)}', $startSeconds);")
         } else {
             pendingVideoId = videoId
             pendingStartSeconds = startSeconds
@@ -130,11 +131,11 @@ class PhantomPlayerController(context: Context) {
     }
 
     fun setPlaybackQuality(quality: String) {
-        evaluateJs("window.setPlaybackQuality('$quality');")
+        evaluateJs("window.setPlaybackQuality('${escapeJsArg(quality)}');")
     }
 
     fun setCaptionsEnabled(enabled: Boolean, languageCode: String = "id") {
-        evaluateJs("if (window.setCaptionsEnabled) window.setCaptionsEnabled($enabled, '$languageCode');")
+        evaluateJs("if (window.setCaptionsEnabled) window.setCaptionsEnabled($enabled, '${escapeJsArg(languageCode)}');")
     }
 
     fun setAudioOnly(enabled: Boolean) {
@@ -144,11 +145,29 @@ class PhantomPlayerController(context: Context) {
 
     fun setVideoSurfaceActive(active: Boolean, restoreQuality: String = "auto") {
         setPhysicalViewportCollapsed(!active)
-        evaluateJs("if (window.setVideoSurfaceActive) window.setVideoSurfaceActive($active, '$restoreQuality');")
+        evaluateJs("if (window.setVideoSurfaceActive) window.setVideoSurfaceActive($active, '${escapeJsArg(restoreQuality)}');")
     }
 
     fun requestStoryboard() {
         evaluateJs("if (window.requestStoryboard) window.requestStoryboard();")
+    }
+
+    private fun escapeJsArg(value: String): String {
+        val sb = StringBuilder(value.length + 4)
+        for (ch in value) {
+            when (ch) {
+                '\\' -> sb.append("\\\\")
+                '\'' -> sb.append("\\'")
+                '"' -> sb.append("\\\"")
+                '\n' -> sb.append("\\n")
+                '\r' -> sb.append("\\r")
+                '\t' -> sb.append("\\t")
+                '<' -> sb.append("\\u003C")
+                '>' -> sb.append("\\u003E")
+                else -> sb.append(ch)
+            }
+        }
+        return sb.toString()
     }
 
     private fun evaluateJs(script: String) {
@@ -209,7 +228,7 @@ fun PhantomGhostSurface(
                     databaseEnabled = false
                     mediaPlaybackRequiresUserGesture = false
                     cacheMode = WebSettings.LOAD_NO_CACHE
-                    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                    mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                     allowFileAccess = false
                     allowContentAccess = false
                     offscreenPreRaster = false
@@ -252,7 +271,7 @@ fun PhantomGhostSurface(
                 // Load with official HTTPS domain via in-memory native engine
                 val startInt = startSeconds.toInt()
                 val origin = com.phantom.tube.core.security.PhantomNative.getOrigin()
-                loadUrl("$origin/engine/render?v=$videoId&start=$startInt")
+                loadUrl("$origin/engine/render?v=${Uri.encode(videoId)}&start=$startInt")
             }
         },
         update = { /* controller maintains internal state */ }

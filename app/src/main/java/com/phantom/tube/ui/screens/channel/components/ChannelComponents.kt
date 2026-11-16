@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,12 +46,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -58,6 +61,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.GlassBorderDim
@@ -105,19 +110,24 @@ fun ChannelTopBar(
             onClick = {
                 if (isSearchActive) onToggleSearch() else onBack()
             },
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(GlassSurface)
+            modifier = Modifier.size(48.dp)
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = stringResource(R.string.action_back),
-                tint = TextPrimary,
-                modifier = Modifier.size(20.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(GlassSurface),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = stringResource(R.string.action_back),
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium.copy(
@@ -131,32 +141,41 @@ fun ChannelTopBar(
         )
         IconButton(
             onClick = onToggleSearch,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(GlassSurface)
+            modifier = Modifier.size(48.dp)
         ) {
-            Icon(
-                imageVector = if (isSearchActive) Icons.Rounded.Close else Icons.Rounded.Search,
-                contentDescription = stringResource(R.string.search_hint),
-                tint = TextPrimary,
-                modifier = Modifier.size(20.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(GlassSurface),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isSearchActive) Icons.Rounded.Close else Icons.Rounded.Search,
+                    contentDescription = stringResource(R.string.search_hint),
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
-        Spacer(modifier = Modifier.width(8.dp))
         IconButton(
             onClick = onShareChannel,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(GlassSurface)
+            modifier = Modifier.size(48.dp)
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Share,
-                contentDescription = stringResource(R.string.player_share),
-                tint = TextPrimary,
-                modifier = Modifier.size(19.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(GlassSurface),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Share,
+                    contentDescription = stringResource(R.string.player_share),
+                    tint = TextPrimary,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
         }
     }
 }
@@ -168,8 +187,18 @@ fun ChannelHeaderSection(
     onToggleSubscribe: () -> Unit,
     onOpenAboutSheet: () -> Unit
 ) {
+    val context = LocalContext.current
     Column(modifier = Modifier.fillMaxWidth()) {
         if (profile.bannerUrl.isNotBlank()) {
+            val bannerRequest = remember(profile.bannerUrl, context) {
+                ImageRequest.Builder(context)
+                    .data(profile.bannerUrl)
+                    .size(800, 260)
+                    .precision(Precision.INEXACT)
+                    .allowRgb565(true)
+                    .allowHardware(false)
+                    .build()
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -179,7 +208,7 @@ fun ChannelHeaderSection(
                     .background(CardBackground)
             ) {
                 AsyncImage(
-                    model = profile.bannerUrl,
+                    model = bannerRequest,
                     contentDescription = profile.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -214,8 +243,17 @@ fun ChannelHeaderSection(
                 contentAlignment = Alignment.Center
             ) {
                 if (profile.avatarUrl.isNotBlank()) {
+                    val avatarRequest = remember(profile.avatarUrl, context) {
+                        ImageRequest.Builder(context)
+                            .data(profile.avatarUrl)
+                            .size(160, 160)
+                            .precision(Precision.INEXACT)
+                            .allowRgb565(true)
+                            .allowHardware(false)
+                            .build()
+                    }
                     AsyncImage(
-                        model = profile.avatarUrl,
+                        model = avatarRequest,
                         contentDescription = profile.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -249,7 +287,7 @@ fun ChannelHeaderSection(
                         Spacer(modifier = Modifier.width(6.dp))
                         Icon(
                             imageVector = Icons.Rounded.Verified,
-                            contentDescription = "Verified",
+                            contentDescription = stringResource(R.string.channel_verified),
                             tint = TextSecondary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -287,8 +325,9 @@ fun ChannelHeaderSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = 48.dp)
                     .clickable(onClick = onOpenAboutSheet)
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -336,13 +375,13 @@ fun ChannelHeaderSection(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(21.dp))
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(24.dp))
                     .background(subBgColor)
                     .border(
                         width = if (isSubscribed) 1.dp else 0.dp,
                         color = if (isSubscribed) GlassBorderLight else Color.Transparent,
-                        shape = RoundedCornerShape(21.dp)
+                        shape = RoundedCornerShape(24.dp)
                     )
                     .iosBounceClick(scaleDown = 0.96f, onClick = onToggleSubscribe),
                 contentAlignment = Alignment.Center
@@ -400,15 +439,16 @@ fun ChannelTabBar(
                 )
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(18.dp))
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(24.dp))
                         .background(bgColor)
                         .border(
                             width = if (isSelected) 0.dp else 1.dp,
                             color = if (isSelected) Color.Transparent else GlassBorderLight,
-                            shape = RoundedCornerShape(18.dp)
+                            shape = RoundedCornerShape(24.dp)
                         )
                         .clickable { onSelectTab(tab) }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -443,15 +483,17 @@ fun ChannelSortFilterBar(
             val isSelected = order == selectedSort
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(if (isSelected) YouTubeRed.copy(alpha = 0.16f) else GlassSurface)
                     .border(
                         width = 1.dp,
                         color = if (isSelected) YouTubeRed else GlassBorderLight,
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     )
                     .clickable { onSelectSort(order) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = stringResource(order.labelRes),
@@ -470,6 +512,16 @@ fun ChannelCompactVideoRow(
     video: VideoItem,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val thumbRequest = remember(video.thumbnailUrl, context) {
+        ImageRequest.Builder(context)
+            .data(video.thumbnailUrl)
+            .size(320, 180)
+            .precision(Precision.INEXACT)
+            .allowRgb565(true)
+            .allowHardware(false)
+            .build()
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -485,7 +537,7 @@ fun ChannelCompactVideoRow(
                 .background(CardBackground)
         ) {
             AsyncImage(
-                model = video.thumbnailUrl,
+                model = thumbRequest,
                 contentDescription = video.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -604,10 +656,10 @@ fun ChannelAboutCard(
             Spacer(modifier = Modifier.height(14.dp))
 
             val details = mutableListOf<Pair<String, String>>()
-            if (profile.handle.isNotBlank()) details.add("Handle" to profile.handle)
-            if (profile.subscriberCountText.isNotBlank()) details.add("Subscribers" to profile.subscriberCountText)
-            if (profile.videoCountText.isNotBlank()) details.add("Videos" to profile.videoCountText)
-            if (profile.id.isNotBlank()) details.add("Channel ID" to profile.id)
+            if (profile.handle.isNotBlank()) details.add(stringResource(R.string.channel_handle_label) to profile.handle)
+            if (profile.subscriberCountText.isNotBlank()) details.add(stringResource(R.string.channel_subscribers_label) to profile.subscriberCountText)
+            if (profile.videoCountText.isNotBlank()) details.add(stringResource(R.string.channel_videos_label) to profile.videoCountText)
+            if (profile.id.isNotBlank()) details.add(stringResource(R.string.channel_id_label) to profile.id)
 
             details.forEach { (label, value) ->
                 Row(

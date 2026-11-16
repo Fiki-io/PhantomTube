@@ -54,6 +54,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.ObsidianDark
+import com.phantom.tube.core.util.LocalNotificationPermissionRequester
 import com.phantom.tube.core.util.findActivity
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
@@ -69,6 +70,7 @@ import com.phantom.tube.ui.screens.player.components.PlayerAmbientBackdrop
 import com.phantom.tube.ui.screens.player.components.PlayerPortraitSheetContent
 import com.phantom.tube.ui.screens.player.components.PlayerSheetsHost
 import com.phantom.tube.ui.screens.player.components.PlayerVideoViewportBox
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filter
@@ -193,6 +195,9 @@ fun PlayerScreen(
     )
 
     val effectiveDragOffsetProvider = { if (session.isFullscreen && !isMinimized) animatedDragOffset else 0f }
+    val effectiveSheetProgress: () -> Float = {
+        (session.fullSheetProgress.value - (session.portraitDragPx / screenHeightPx)).coerceIn(0f, 1f)
+    }
 
     Box(
         modifier = if (!isSheetRendered || isInPipMode) {
@@ -201,7 +206,7 @@ fun PlayerScreen(
             modifier
                 .fillMaxSize()
                 .drawBehind {
-                    val progress = session.fullSheetProgress.value
+                    val progress = effectiveSheetProgress()
                     val drag = effectiveDragOffsetProvider()
                     val scrimAlpha = if (session.isFullscreen) {
                         (1f - (drag / 120f)).coerceIn(0f, 0.96f)
@@ -218,7 +223,7 @@ fun PlayerScreen(
             isSheetRendered = isSheetRendered,
             isFullscreen = session.isFullscreen,
             thumbnailUrl = video.thumbnailUrl,
-            sheetProgressProvider = { session.fullSheetProgress.value },
+            sheetProgressProvider = effectiveSheetProgress,
             dragOffsetProvider = effectiveDragOffsetProvider,
             screenHeightPx = screenHeightPx,
             isInPipMode = isInPipMode
@@ -228,6 +233,7 @@ fun PlayerScreen(
             session = session,
             video = video,
             isSheetRendered = isSheetRendered,
+            sheetProgressProvider = effectiveSheetProgress,
             effectiveDragOffsetProvider = effectiveDragOffsetProvider,
             screenHeightPx = screenHeightPx,
             dragModifier = dragModifier,
@@ -246,7 +252,7 @@ fun PlayerScreen(
             PlayerPortraitSheetContent(
                 isSheetRendered = isSheetRendered,
                 isFullscreen = session.isFullscreen,
-                sheetProgressProvider = { session.fullSheetProgress.value },
+                sheetProgressProvider = effectiveSheetProgress,
                 dragOffsetProvider = effectiveDragOffsetProvider,
                 screenHeightPx = screenHeightPx,
                 dragModifier = dragModifier,
@@ -348,6 +354,7 @@ fun PlayerScreen(
             session = session,
             video = video,
             isMinimized = isMinimized,
+            sheetProgressProvider = effectiveSheetProgress,
             effectiveDragOffsetProvider = effectiveDragOffsetProvider,
             screenHeightPx = screenHeightPx,
             doubleTapSeekSeconds = doubleTapSeekSeconds,
@@ -362,6 +369,7 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerViewportBridgeSect
     session: PlayerSessionState,
     video: VideoItem,
     isSheetRendered: Boolean,
+    sheetProgressProvider: () -> Float,
     effectiveDragOffsetProvider: () -> Float,
     screenHeightPx: Float,
     dragModifier: Modifier,
@@ -384,7 +392,7 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerViewportBridgeSect
         video = video,
         isSheetRendered = isSheetRendered,
         isFullscreen = session.isFullscreen,
-        sheetProgressProvider = { session.fullSheetProgress.value },
+        sheetProgressProvider = sheetProgressProvider,
         dragOffsetProvider = effectiveDragOffsetProvider,
         screenHeightPx = screenHeightPx,
         dragModifier = dragModifier,
@@ -641,6 +649,7 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerSheetsBridgeSectio
     session: PlayerSessionState,
     video: VideoItem,
     isMinimized: Boolean,
+    sheetProgressProvider: () -> Float,
     effectiveDragOffsetProvider: () -> Float,
     screenHeightPx: Float,
     doubleTapSeekSeconds: Int,
@@ -656,7 +665,7 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerSheetsBridgeSectio
         isMinimized = isMinimized,
         isFullscreen = session.isFullscreen,
         dragOffsetY = session.dragOffsetY,
-        sheetProgressProvider = { session.fullSheetProgress.value },
+        sheetProgressProvider = sheetProgressProvider,
         animatedDragOffsetProvider = effectiveDragOffsetProvider,
         screenHeightPx = screenHeightPx,
         video = session.currentVideo,
@@ -801,10 +810,6 @@ private fun rememberPlayerDragModifier(
                         if (dragAmount > 0f || session.portraitDragPx > 0f) {
                             change.consume()
                             session.portraitDragPx = (session.portraitDragPx + dragAmount).coerceIn(0f, screenHeightPx)
-                            val targetProgress = (1f - (session.portraitDragPx / screenHeightPx)).coerceIn(0f, 1f)
-                            scope.launch {
-                                session.fullSheetProgress.snapTo(targetProgress)
-                            }
                             if (session.portraitDragPx > 15f) {
                                 session.showMixSheet = false
                                 session.showDescriptionSheet = false
@@ -829,14 +834,19 @@ private fun rememberPlayerDragModifier(
                             session.exitFullscreenToPortrait()
                         }
                     } else {
+                        val currentProg = (session.fullSheetProgress.value - (triggeredPortraitDrag / screenHeightPx)).coerceIn(0f, 1f)
                         if (triggeredPortraitDrag > 180f) {
+                            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                                session.fullSheetProgress.snapTo(currentProg)
+                            }
                             session.showMixSheet = false
                             session.showDescriptionSheet = false
                             session.showCommentsSheet = false
                             session.showSettingsSheet = false
                             onMinimize()
                         } else {
-                            scope.launch {
+                            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                                session.fullSheetProgress.snapTo(currentProg)
                                 session.fullSheetProgress.animateTo(
                                     targetValue = 1f,
                                     animationSpec = IosSpringSpecs.Gentle
@@ -846,11 +856,14 @@ private fun rememberPlayerDragModifier(
                     }
                 },
                 onDragCancel = {
+                    val triggeredPortraitDrag = session.portraitDragPx
                     session.dragOffsetY = 0f
                     session.portraitDragPx = 0f
                     session.hasTriggeredHaptic = false
                     if (!session.isFullscreen && !isMinimized) {
-                        scope.launch {
+                        val currentProg = (session.fullSheetProgress.value - (triggeredPortraitDrag / screenHeightPx)).coerceIn(0f, 1f)
+                        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                            session.fullSheetProgress.snapTo(currentProg)
                             session.fullSheetProgress.animateTo(
                                 targetValue = 1f,
                                 animationSpec = IosSpringSpecs.Gentle
@@ -1347,8 +1360,10 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
     val context = session.context
     val repository = session.repository
     val lifecycleOwner = LocalLifecycleOwner.current
+    val requestNotificationPermission = LocalNotificationPermissionRequester.current
 
     DisposableEffect(Unit) {
+        requestNotificationPermission()
         val serviceIntent = Intent(context, PhantomMediaService::class.java)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

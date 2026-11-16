@@ -38,14 +38,17 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.phantom.tube.R
 import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.player.StoryboardData
 import com.phantom.tube.player.StoryboardHelper
+import java.util.Locale
 
 @Composable
 fun ScrubPreviewCard(
@@ -98,10 +101,11 @@ fun ScrubPreviewCard(
     val h = totalSec / 3600
     val m = (totalSec % 3600) / 60
     val s = totalSec % 60
+    val locale = Locale.getDefault()
     val timeText = if (h > 0) {
-        String.format("%d:%02d:%02d", h, m, s)
+        String.format(locale, "%d:%02d:%02d", h, m, s)
     } else {
-        String.format("%02d:%02d", m, s)
+        String.format(locale, "%02d:%02d", m, s)
     }
 
     val totalDurSec = durationSeconds.toLong().coerceAtLeast(0)
@@ -109,9 +113,9 @@ fun ScrubPreviewCard(
     val durM = (totalDurSec % 3600) / 60
     val durS = totalDurSec % 60
     val durText = if (durH > 0) {
-        String.format("%d:%02d:%02d", durH, durM, durS)
+        String.format(locale, "%d:%02d:%02d", durH, durM, durS)
     } else {
-        String.format("%02d:%02d", durM, durS)
+        String.format(locale, "%02d:%02d", durM, durS)
     }
 
     AnimatedVisibility(
@@ -139,7 +143,7 @@ fun ScrubPreviewCard(
             ) {
                 Image(
                     bitmap = currentBmp.asImageBitmap(),
-                    contentDescription = "Preview scene",
+                    contentDescription = stringResource(R.string.player_scrub_preview),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )

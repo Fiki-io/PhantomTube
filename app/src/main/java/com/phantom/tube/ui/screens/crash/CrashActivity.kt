@@ -137,7 +137,7 @@ fun CrashScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.BugReport,
-                        contentDescription = "Crash Icon",
+                        contentDescription = stringResource(R.string.crash_icon_desc),
                         tint = YouTubeRed,
                         modifier = Modifier.size(24.dp)
                     )
@@ -176,7 +176,7 @@ fun CrashScreen(
             ) {
                 Column {
                     Text(
-                        text = "Detail Error",
+                        text = stringResource(R.string.crash_detail_error),
                         color = YouTubeRed,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
@@ -194,7 +194,7 @@ fun CrashScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = "Log Error",
+                text = stringResource(R.string.crash_log_label),
                 color = TextMuted,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
@@ -242,11 +242,13 @@ fun CrashScreen(
             // Copy Log Button
             Button(
                 onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clip = ClipData.newPlainText("Phantom Crash Log", crashReport)
-                    clipboard.setPrimaryClip(clip)
-                    isCopied = true
-                    Toast.makeText(context, context.getString(R.string.crash_copied_toast), Toast.LENGTH_SHORT).show()
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    if (clipboard != null) {
+                        val clip = ClipData.newPlainText("Phantom Crash Log", crashReport)
+                        clipboard.setPrimaryClip(clip)
+                        isCopied = true
+                        Toast.makeText(context, context.getString(R.string.crash_copied_toast), Toast.LENGTH_SHORT).show()
+                    }
                 },
                 modifier = Modifier
                     .weight(1f)

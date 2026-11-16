@@ -29,12 +29,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.TextMuted
@@ -110,8 +113,18 @@ fun PlayerDescriptionSheet(
                                         .clickable { onChannelClick(targetChannelId, targetChannelTitle) }
                                 ) {
                                     if (currentAvatar.isNotBlank()) {
+                                        val context = LocalContext.current
+                                        val avatarRequest = remember(currentAvatar, context) {
+                                            ImageRequest.Builder(context)
+                                                .data(currentAvatar)
+                                                .size(72, 72)
+                                                .precision(Precision.INEXACT)
+                                                .allowRgb565(true)
+                                                .allowHardware(false)
+                                                .build()
+                                        }
                                         AsyncImage(
-                                            model = currentAvatar,
+                                            model = avatarRequest,
                                             contentDescription = targetChannelTitle,
                                             modifier = Modifier
                                                 .size(36.dp)

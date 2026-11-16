@@ -100,7 +100,10 @@ class PhantomApp : Application(), ImageLoaderFactory {
     }
 
     override fun newImageLoader(): ImageLoader {
-        val targetCacheBytes = 1536 * 1024
+        val maxMem = Runtime.getRuntime().maxMemory()
+        val targetCacheBytes = (maxMem / 10L)
+            .coerceIn(8L * 1024L * 1024L, 24L * 1024L * 1024L)
+            .toInt()
 
         return ImageLoader.Builder(this)
             .okHttpClient(sharedHttpClient)
@@ -131,7 +134,7 @@ class PhantomApp : Application(), ImageLoaderFactory {
         super.onTrimMemory(level)
         try {
             this.imageLoader.trimMemory(level)
-            if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW || level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+            if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL || level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
                 com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
                     context = this,
                     aggressiveGraphicsPurge = level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN

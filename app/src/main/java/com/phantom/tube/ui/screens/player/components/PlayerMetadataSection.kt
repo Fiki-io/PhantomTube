@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,6 +51,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.phantom.tube.R
 import com.phantom.tube.core.database.SubscriptionEntity
 import com.phantom.tube.core.theme.CardBackground
@@ -59,6 +62,7 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurfaceLight
+import com.phantom.tube.core.util.safeStartActivity
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoComment
@@ -97,7 +101,8 @@ fun PlayerMetadataSection(
         Spacer(modifier = Modifier.height(6.dp))
 
         // 2. Sub-info row (Handle • Likes • Views • Date • ...selengkapnya)
-        val activeHandle = nextQueueData?.channelHandle?.let { if (it.startsWith("@")) it else "@$it" } ?: ""
+        val cleanHandle = nextQueueData?.channelHandle?.trim().orEmpty()
+        val activeHandle = if (cleanHandle.isBlank()) "" else if (cleanHandle.startsWith("@")) cleanHandle else "@$cleanHandle"
         val activeViews = InnerTubeHelpers.normalizeViewCount(
             nextQueueData?.fullViewCountText?.ifBlank { video.viewCountText } ?: video.viewCountText
         )
@@ -189,6 +194,7 @@ fun PlayerMetadataSection(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .weight(1f)
+                    .heightIn(min = 48.dp)
                     .iosBounceClick(scaleDown = 0.96f) {
                         val tId = targetChannelId.ifBlank { targetChannelTitle }
                         if (tId.isNotBlank()) {
@@ -204,8 +210,17 @@ fun PlayerMetadataSection(
                     contentAlignment = Alignment.Center
                 ) {
                     if (currentAvatar.isNotBlank()) {
+                        val channelAvatarRequest = remember(currentAvatar, context) {
+                            ImageRequest.Builder(context)
+                                .data(currentAvatar)
+                                .size(72, 72)
+                                .precision(Precision.INEXACT)
+                                .allowRgb565(true)
+                                .allowHardware(false)
+                                .build()
+                        }
                         AsyncImage(
-                            model = currentAvatar,
+                            model = channelAvatarRequest,
                             contentDescription = targetChannelTitle,
                             modifier = Modifier
                                 .matchParentSize()
@@ -226,7 +241,7 @@ fun PlayerMetadataSection(
 
                 Column(modifier = Modifier.weight(1f, fill = false)) {
                     Text(
-                        text = targetChannelTitle.ifBlank { "Channel" },
+                        text = targetChannelTitle.ifBlank { stringResource(R.string.player_channel_label) },
                         color = TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -378,12 +393,8 @@ fun PlayerMetadataSection(
                             type = "text/plain"
                             putExtra(Intent.EXTRA_SUBJECT, activeTitle)
                             putExtra(Intent.EXTRA_TEXT, "$activeTitle\nhttps://youtu.be/${video.id}")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
-                        val shareIntent = Intent.createChooser(sendIntent, null).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        context.startActivity(shareIntent)
+                        context.safeStartActivity(Intent.createChooser(sendIntent, null))
                     }
                     .padding(horizontal = 14.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -478,8 +489,17 @@ fun PlayerMetadataSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (topCommentAvatar.isNotBlank()) {
+                        val commentAvatarRequest = remember(topCommentAvatar, context) {
+                            ImageRequest.Builder(context)
+                                .data(topCommentAvatar)
+                                .size(72, 72)
+                                .precision(Precision.INEXACT)
+                                .allowRgb565(true)
+                                .allowHardware(false)
+                                .build()
+                        }
                         AsyncImage(
-                            model = topCommentAvatar,
+                            model = commentAvatarRequest,
                             contentDescription = null,
                             modifier = Modifier
                                 .size(24.dp)

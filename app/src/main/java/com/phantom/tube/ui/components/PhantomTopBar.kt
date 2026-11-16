@@ -186,7 +186,7 @@ fun PhantomTopBar(
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                            contentDescription = "Logo Phantom",
+                            contentDescription = stringResource(R.string.app_logo_desc),
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(RoundedCornerShape(8.dp))
@@ -212,7 +212,7 @@ fun PhantomTopBar(
                             PhantomIconButton(
                                 icon = Icons.Default.Settings,
                                 contentDescription = stringResource(R.string.nav_settings),
-                                size = 38.dp,
+                                size = 48.dp,
                                 iconSize = 20.dp,
                                 onClick = onSettingsClick
                             )
@@ -221,7 +221,7 @@ fun PhantomTopBar(
                         PhantomIconButton(
                             icon = Icons.Default.Search,
                             contentDescription = stringResource(R.string.nav_search),
-                            size = 38.dp,
+                            size = 48.dp,
                             iconSize = 22.dp,
                             onClick = onSearchClick
                         )

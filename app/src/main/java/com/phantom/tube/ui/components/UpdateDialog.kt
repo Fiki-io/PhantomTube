@@ -72,19 +72,21 @@ fun UpdateDialog(
     val isCancellable = !isForceUpdate && state !is UpdateDialogState.Downloading
 
     val handleDismissOrExit: () -> Unit = {
-        if (isCancellable) {
-            onDismiss()
-        } else {
+        if (isForceUpdate) {
             context.findActivity()?.finishAffinity()
+        } else {
+            onDismiss()
         }
     }
 
     Dialog(
         onDismissRequest = {
-            handleDismissOrExit()
+            if (isCancellable || isForceUpdate) {
+                handleDismissOrExit()
+            }
         },
         properties = DialogProperties(
-            dismissOnBackPress = true,
+            dismissOnBackPress = state !is UpdateDialogState.Downloading,
             dismissOnClickOutside = false
         )
     ) {

@@ -424,4 +424,19 @@
     <string name="download_storage_permission_desc">Permite el acceso al almacenamiento en Ajustes para guardar descargas en Android 8–9.</string>
     <string name="download_storage_permission_denied">Se requiere permiso de almacenamiento para guardar descargas en esta versión de Android</string>
     <string name="action_open_settings">Abrir Ajustes</string>
+    <string name="action_more_options">Más opciones</string>
+    <string name="update_dialog_install_failed">No se pudo abrir el instalador</string>
+    <string name="channel_verified">Verificado</string>
+    <string name="channel_handle_label">Identificador</string>
+    <string name="channel_subscribers_label">Suscriptores</string>
+    <string name="channel_videos_label">Videos</string>
+    <string name="channel_id_label">ID del canal</string>
+    <string name="player_channel_label">Canal</string>
+    <string name="player_scrub_preview">Vista previa de escena</string>
+    <string name="crash_detail_error">Detalles del error</string>
+    <string name="crash_log_label">Registro de error</string>
+    <string name="crash_icon_desc">Icono de error</string>
+    <string name="app_logo_desc">Logotipo de Phantom</string>
+    <string name="player_playlist_badge">Lista</string>
+    <string name="player_mix_badge">Mix</string>
 </resources>

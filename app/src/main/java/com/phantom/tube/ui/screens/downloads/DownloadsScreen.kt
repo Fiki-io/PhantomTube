@@ -85,6 +85,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.phantom.tube.core.database.DownloadEntity
 import com.phantom.tube.core.theme.BubbleDockBorder
 import com.phantom.tube.core.theme.CardBackground
@@ -97,10 +99,15 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.util.LocalNotificationPermissionRequester
+import com.phantom.tube.core.util.safeStartActivity
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.player.offline.OfflineAudioPlayerManager
 import com.phantom.tube.ui.screens.player.components.OfflineVideoPlayerDialog
+import androidx.compose.foundation.layout.heightIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 
@@ -118,6 +125,7 @@ fun DownloadsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val requestNotificationPermission = LocalNotificationPermissionRequester.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
@@ -154,11 +162,15 @@ fun DownloadsScreen(
 
     val totalSizeMb = remember(downloads) {
         val totalBytes = downloads.sumOf { it.fileSize }
-        String.format(Locale.US, "%.1f MB", totalBytes / (1024f * 1024f))
+        String.format(Locale.getDefault(), "%.1f MB", totalBytes / (1024f * 1024f))
     }
 
     val audioTracks = remember(downloads) {
         downloads.filter { it.format.equals("MP3", ignoreCase = true) }
+    }
+    val audioCount = audioTracks.size
+    val videoCount = remember(downloads) {
+        downloads.count { it.format.equals("MP4", ignoreCase = true) }
     }
 
     Column(
@@ -265,7 +277,7 @@ fun DownloadsScreen(
             FilterChip(
                 selected = selectedFilter == DownloadFilter.AUDIO,
                 onClick = { selectedFilter = DownloadFilter.AUDIO },
-                label = { Text(stringResource(R.string.downloads_filter_audio, downloads.count { it.format.equals("MP3", true) }), fontSize = 12.sp) },
+                label = { Text(stringResource(R.string.downloads_filter_audio, audioCount), fontSize = 12.sp) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = YouTubeRed,
                     selectedLabelColor = Color.White,
@@ -278,7 +290,7 @@ fun DownloadsScreen(
             FilterChip(
                 selected = selectedFilter == DownloadFilter.VIDEO,
                 onClick = { selectedFilter = DownloadFilter.VIDEO },
-                label = { Text(stringResource(R.string.downloads_filter_video, downloads.count { it.format.equals("MP4", true) }), fontSize = 12.sp) },
+                label = { Text(stringResource(R.string.downloads_filter_video, videoCount), fontSize = 12.sp) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = YouTubeRed,
                     selectedLabelColor = Color.White,
@@ -301,6 +313,7 @@ fun DownloadsScreen(
                 // Sleek Pill-shaped "Putar Semua" Button
                 Button(
                     onClick = {
+                        requestNotificationPermission()
                         val tracksToPlay = if (isShuffle) audioTracks.shuffled() else audioTracks
                         OfflineAudioPlayerManager.playQueue(context, tracksToPlay, 0)
                         Toast.makeText(context, context.getString(R.string.downloads_toast_playing, tracksToPlay.size), Toast.LENGTH_SHORT).show()
@@ -308,7 +321,7 @@ fun DownloadsScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = YouTubeRed),
                     shape = RoundedCornerShape(24.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    modifier = Modifier.height(38.dp)
+                    modifier = Modifier.heightIn(min = 48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
@@ -331,7 +344,7 @@ fun DownloadsScreen(
                     // Quick Shuffle Button
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(if (isShuffle) YouTubeRed.copy(alpha = 0.22f) else GlassSurface)
                             .border(1.dp, if (isShuffle) YouTubeRed else BubbleDockBorder, CircleShape)
@@ -349,14 +362,14 @@ fun DownloadsScreen(
                             imageVector = Icons.Default.Shuffle,
                             contentDescription = stringResource(R.string.downloads_shuffle_on),
                             tint = if (isShuffle) YouTubeRed else TextSecondary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
                     // Quick Repeat Button
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed.copy(alpha = 0.22f) else GlassSurface)
                             .border(1.dp, if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed else BubbleDockBorder, CircleShape)
@@ -375,7 +388,7 @@ fun DownloadsScreen(
                             imageVector = if (repeatMode == com.phantom.tube.player.offline.OfflineRepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
                             contentDescription = stringResource(R.string.downloads_repeat_all),
                             tint = if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed else TextSecondary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -441,6 +454,7 @@ fun DownloadsScreen(
                         isPlaying = isAudioPlaying && isCurrentActive,
                         onItemClick = {
                             if (isAudio) {
+                                requestNotificationPermission()
                                 // Putar musik dengan antrean dari semua audio yang ada
                                 val startIdx = audioTracks.indexOfFirst { it.id == item.id }.coerceAtLeast(0)
                                 OfflineAudioPlayerManager.playQueue(context, audioTracks, startIdx)
@@ -490,7 +504,9 @@ fun DownloadsScreen(
                 Button(
                     onClick = {
                         scope.launch {
-                            deleteDownloadedFile(context, item)
+                            withContext(Dispatchers.IO) {
+                                deleteDownloadedFile(context, item)
+                            }
                             repository.deleteDownload(item.id)
                             if (activeTrack?.id == item.id) {
                                 OfflineAudioPlayerManager.stop(context)
@@ -524,9 +540,10 @@ private fun DownloadItemRow(
     onShare: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
     val isAudio = item.format.equals("MP3", ignoreCase = true)
-    val sizeMb = String.format(Locale.US, "%.1f MB", item.fileSize / (1024f * 1024f))
+    val sizeMb = String.format(Locale.getDefault(), "%.1f MB", item.fileSize / (1024f * 1024f))
 
     Row(
         modifier = Modifier
@@ -551,8 +568,17 @@ private fun DownloadItemRow(
             contentAlignment = Alignment.Center
         ) {
             if (item.thumbnailUrl.isNotBlank()) {
+                val thumbRequest = remember(item.thumbnailUrl, context) {
+                    ImageRequest.Builder(context)
+                        .data(item.thumbnailUrl)
+                        .size(144, 108)
+                        .precision(Precision.INEXACT)
+                        .allowRgb565(true)
+                        .allowHardware(false)
+                        .build()
+                }
                 AsyncImage(
-                    model = item.thumbnailUrl,
+                    model = thumbRequest,
                     contentDescription = item.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -632,7 +658,7 @@ private fun DownloadItemRow(
             IconButton(onClick = { showMenu = true }) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(R.string.settings_player_title),
+                    contentDescription = stringResource(R.string.action_more_options),
                     tint = TextSecondary,
                     modifier = Modifier.size(20.dp)
                 )
@@ -682,12 +708,12 @@ private fun openInExternalPlayer(context: Context, item: DownloadEntity) {
         val mimeType = if (item.format.equals("MP3", ignoreCase = true)) "audio/*" else "video/*"
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, mimeType)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        val chooser = Intent.createChooser(intent, context.getString(R.string.downloads_chooser_play)).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val chooser = Intent.createChooser(intent, context.getString(R.string.downloads_chooser_play))
+        if (!context.safeStartActivity(chooser)) {
+            Toast.makeText(context, context.getString(R.string.downloads_toast_no_external), Toast.LENGTH_SHORT).show()
         }
-        context.startActivity(chooser)
     } catch (_: Exception) {
         Toast.makeText(context, context.getString(R.string.downloads_toast_no_external), Toast.LENGTH_SHORT).show()
     }
@@ -704,12 +730,12 @@ private fun shareMediaFile(context: Context, item: DownloadEntity) {
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = mimeType
             putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        val chooser = Intent.createChooser(intent, context.getString(R.string.downloads_chooser_share, item.title)).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val chooser = Intent.createChooser(intent, context.getString(R.string.downloads_chooser_share, item.title))
+        if (!context.safeStartActivity(chooser)) {
+            Toast.makeText(context, context.getString(R.string.downloads_toast_share_failed), Toast.LENGTH_SHORT).show()
         }
-        context.startActivity(chooser)
     } catch (_: Exception) {
         Toast.makeText(context, context.getString(R.string.downloads_toast_share_failed), Toast.LENGTH_SHORT).show()
     }

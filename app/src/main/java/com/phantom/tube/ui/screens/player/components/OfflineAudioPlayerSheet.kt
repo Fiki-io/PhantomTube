@@ -73,6 +73,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.GlassBorderLight
@@ -186,8 +188,17 @@ fun OfflineAudioPlayerSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     if (track.thumbnailUrl.isNotBlank()) {
+                        val coverRequest = remember(track.thumbnailUrl, context) {
+                            ImageRequest.Builder(context)
+                                .data(track.thumbnailUrl)
+                                .size(512, 512)
+                                .precision(Precision.INEXACT)
+                                .allowRgb565(true)
+                                .allowHardware(false)
+                                .build()
+                        }
                         AsyncImage(
-                            model = track.thumbnailUrl,
+                            model = coverRequest,
                             contentDescription = track.title,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
@@ -403,8 +414,17 @@ fun OfflineAudioPlayerSheet(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (item.thumbnailUrl.isNotBlank()) {
+                                        val itemThumbRequest = remember(item.thumbnailUrl, context) {
+                                            ImageRequest.Builder(context)
+                                                .data(item.thumbnailUrl)
+                                                .size(96, 96)
+                                                .precision(Precision.INEXACT)
+                                                .allowRgb565(true)
+                                                .allowHardware(false)
+                                                .build()
+                                        }
                                         AsyncImage(
-                                            model = item.thumbnailUrl,
+                                            model = itemThumbRequest,
                                             contentDescription = null,
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize()
@@ -468,5 +488,5 @@ private fun formatTime(millis: Long): String {
     val totalSeconds = (millis / 1000).coerceAtLeast(0)
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return String.format(Locale.US, "%02d:%02d", minutes, seconds)
+    return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
 }

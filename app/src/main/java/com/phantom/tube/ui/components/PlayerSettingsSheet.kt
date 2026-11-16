@@ -46,12 +46,14 @@ import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -79,6 +81,7 @@ import com.phantom.tube.core.theme.GlassBorderLight
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.YouTubeSurface
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -119,12 +122,17 @@ fun PlayerSettingsSheet(
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val dismissThresholdPx = with(density) { PhantomMotion.SheetDismissThresholdDp.toPx() }
+    var rawDragOffsetY by remember { mutableFloatStateOf(0f) }
     val dragOffsetY = remember { Animatable(0f) }
+
+    fun currentOffset(): Float = (dragOffsetY.value + rawDragOffsetY).coerceAtLeast(0f)
 
     LaunchedEffect(visible) {
         if (!visible) {
             currentPage = PlayerSheetPage.MAIN
+            rawDragOffsetY = 0f
         } else {
+            rawDragOffsetY = 0f
             dragOffsetY.snapTo(0f)
         }
     }
@@ -138,10 +146,14 @@ fun PlayerSettingsSheet(
     }
 
     fun settleOrDismiss(velocityY: Float = 0f) {
-        if (dragOffsetY.value > dismissThresholdPx || velocityY > 1100f) {
+        val total = currentOffset()
+        if (total > dismissThresholdPx || velocityY > 1100f) {
+            rawDragOffsetY = 0f
             onDismiss()
         } else {
-            scope.launch {
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                rawDragOffsetY = 0f
+                dragOffsetY.snapTo(total)
                 dragOffsetY.animateTo(
                     targetValue = 0f,
                     animationSpec = IosSpringSpecs.Gentle
@@ -153,11 +165,10 @@ fun PlayerSettingsSheet(
     val nestedScrollConnection = remember(dismissThresholdPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.Drag && available.y < 0f && dragOffsetY.value > 0f) {
-                    val consumedY = available.y.coerceAtLeast(-dragOffsetY.value)
-                    scope.launch {
-                        dragOffsetY.snapTo((dragOffsetY.value + consumedY).coerceAtLeast(0f))
-                    }
+                val cur = currentOffset()
+                if (source == NestedScrollSource.Drag && available.y < 0f && cur > 0f) {
+                    val consumedY = available.y.coerceAtLeast(-cur)
+                    rawDragOffsetY = (cur + consumedY).coerceAtLeast(0f) - dragOffsetY.value
                     return Offset(0f, consumedY)
                 }
                 return Offset.Zero
@@ -169,16 +180,15 @@ fun PlayerSettingsSheet(
                 source: NestedScrollSource
             ): Offset {
                 if (source == NestedScrollSource.Drag && available.y > 0f) {
-                    scope.launch {
-                        dragOffsetY.snapTo((dragOffsetY.value + available.y).coerceAtLeast(0f))
-                    }
+                    val next = (currentOffset() + available.y).coerceAtLeast(0f)
+                    rawDragOffsetY = next - dragOffsetY.value
                     return Offset(0f, available.y)
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (dragOffsetY.value > 0f) {
+                if (currentOffset() > 0f) {
                     settleOrDismiss(velocityY = available.y)
                     return available
                 }
@@ -191,15 +201,17 @@ fun PlayerSettingsSheet(
         detectVerticalDragGestures(
             onVerticalDrag = { change, dragAmount ->
                 change.consume()
-                scope.launch {
-                    dragOffsetY.snapTo((dragOffsetY.value + dragAmount).coerceAtLeast(0f))
-                }
+                val next = (currentOffset() + dragAmount).coerceAtLeast(0f)
+                rawDragOffsetY = next - dragOffsetY.value
             },
             onDragEnd = {
                 settleOrDismiss()
             },
             onDragCancel = {
-                scope.launch {
+                val total = currentOffset()
+                scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    rawDragOffsetY = 0f
+                    dragOffsetY.snapTo(total)
                     dragOffsetY.animateTo(0f, IosSpringSpecs.Gentle)
                 }
             }
@@ -254,7 +266,7 @@ fun PlayerSettingsSheet(
 
             Surface(
                 modifier = Modifier
-                    .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
+                    .offset { IntOffset(0, currentOffset().roundToInt()) }
                     .then(
                         if (isFullscreen) {
                             Modifier
@@ -411,16 +423,15 @@ private fun PlayerSettingsMainPage(
     val speedLabel = if (kotlin.math.abs(currentSpeed - 1.0f) < 0.01f) {
         stringResource(R.string.settings_speed_normal)
     } else {
-        String.format(Locale.US, "%.2fx", currentSpeed)
+        String.format(Locale.getDefault(), "%.2f", currentSpeed)
             .trimEnd('0')
-            .trimEnd('.')
-            .let { if (!it.endsWith("x")) "${it}x" else it }
+            .trimEnd('.', ',') + "x"
     }
 
     val sleepValueLabel = if (sleepTimerRemainingSec != null && sleepTimerRemainingSec > 0) {
         val mins = sleepTimerRemainingSec / 60
         val secs = sleepTimerRemainingSec % 60
-        String.format(Locale.US, "%02d:%02d", mins, secs)
+        String.format(Locale.getDefault(), "%02d:%02d", mins, secs)
     } else {
         stringResource(sleepTimerOption.labelRes)
     }
@@ -436,7 +447,7 @@ private fun PlayerSettingsMainPage(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(headerDragModifier)
-                .padding(horizontal = 22.dp, vertical = 14.dp)
+                .padding(start = 22.dp, end = 8.dp, top = 6.dp, bottom = 6.dp)
         ) {
             Text(
                 text = stringResource(R.string.settings_player_title),
@@ -447,19 +458,19 @@ private fun PlayerSettingsMainPage(
                 color = TextPrimary,
                 modifier = Modifier.align(Alignment.Center)
             )
-            Icon(
-                imageVector = Icons.Rounded.Close,
-                contentDescription = stringResource(R.string.action_close),
-                tint = TextPrimary,
+            IconButton(
+                onClick = onDismiss,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .size(22.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onDismiss
-                    )
-            )
+                    .size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = stringResource(R.string.action_close),
+                    tint = TextPrimary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
 
         HorizontalDivider(

@@ -19,11 +19,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.phantom.tube.R
 import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomScrubber
+import java.util.Locale
 
 fun getShortQualityBadge(code: String): String {
     return when (code.lowercase()) {
@@ -46,9 +49,9 @@ fun formatPlayerSeconds(totalSec: Long): String {
     val minutes = (totalSec % 3600) / 60
     val seconds = totalSec % 60
     return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, seconds)
+        String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
     } else {
-        String.format("%02d:%02d", minutes, seconds)
+        String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
     }
 }
 
@@ -100,8 +103,10 @@ fun PlayerScrubberControls(
 
             PhantomIconButton(
                 icon = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                contentDescription = "Fullscreen",
-                size = 36.dp,
+                contentDescription = stringResource(
+                    if (isFullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen
+                ),
+                size = 48.dp,
                 iconSize = 20.dp,
                 onClick = onToggleFullscreen
             )

@@ -1,5 +1,6 @@
 package coil
 
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -12,14 +13,20 @@ import coil.request.ErrorResult
 import coil.request.ImageRequest
 import coil.request.ImageResult
 import coil.request.SuccessResult
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.io.FileOutputStream
 import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 interface ImageLoaderFactory {
     fun newImageLoader(): ImageLoader
@@ -33,14 +40,17 @@ class ImageLoader internal constructor(
     private val defaultConfig: Bitmap.Config,
     maxParallelism: Int
 ) {
-    private val decodeSemaphore = Semaphore(maxParallelism.coerceIn(1, 2))
+    private val decodeSemaphore = Semaphore(maxParallelism.coerceIn(1, 3))
+    private val diskPruneScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val isPruningDisk = AtomicBoolean(false)
+    private val diskWriteCount = AtomicInteger(0)
 
     private val decodeTempBuffer = object : ThreadLocal<ByteArray>() {
         override fun initialValue(): ByteArray = ByteArray(16 * 1024)
     }
 
     private val bitmapRamCache = object : LruCache<String, Bitmap>(
-        (memoryCache?.maxSizeBytes ?: (2 * 1024 * 1024)).coerceIn(1024 * 1024, 2560 * 1024)
+        (memoryCache?.maxSizeBytes ?: (8 * 1024 * 1024)).coerceIn(1024 * 1024, 32 * 1024 * 1024)
     ) {
         override fun sizeOf(key: String, value: Bitmap): Int {
             return value.allocationByteCount.coerceAtLeast(1)
@@ -54,15 +64,24 @@ class ImageLoader internal constructor(
     }
 
     fun trimMemory(level: Int) {
-        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ||
-            level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
-        ) {
-            bitmapRamCache.evictAll()
-            val cacheDir = diskCache?.directory ?: File(context.cacheDir, "image_cache")
-            val maxBytes = diskCache?.maxSizeBytes ?: (16L * 1024 * 1024)
-            pruneDiskCache(cacheDir, maxBytes)
-        } else if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE) {
-            bitmapRamCache.trimToSize(bitmapRamCache.maxSize() / 2)
+        when {
+            level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE ||
+                level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND ||
+                level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
+                bitmapRamCache.evictAll()
+                val cacheDir = diskCache?.directory ?: File(context.cacheDir, "image_cache")
+                val maxBytes = diskCache?.maxSizeBytes ?: (16L * 1024 * 1024)
+                pruneDiskCacheAsync(cacheDir, maxBytes)
+            }
+            level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> {
+                bitmapRamCache.trimToSize((bitmapRamCache.maxSize() / 4).coerceAtLeast(1))
+            }
+            level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> {
+                bitmapRamCache.trimToSize((bitmapRamCache.maxSize() / 2).coerceAtLeast(1))
+            }
+            level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> {
+                bitmapRamCache.trimToSize(((bitmapRamCache.maxSize() * 3) / 4).coerceAtLeast(1))
+            }
         }
     }
 
@@ -84,8 +103,8 @@ class ImageLoader internal constructor(
         }
 
         try {
-            val rawBytes = readFromDiskOrNetwork(url) ?: return@withContext ErrorResult(
-                throwable = IllegalStateException("Empty image bytes")
+            val diskFile = resolveDiskFile(url) ?: return@withContext ErrorResult(
+                throwable = IllegalStateException("Empty image stream")
             )
 
             val isAvatarUrl = (url.contains("ggpht.com") || url.contains("googleusercontent.com")) && !url.contains("=w")
@@ -101,11 +120,11 @@ class ImageLoader internal constructor(
             }
 
             val bitmap = decodeSemaphore.withPermit {
-                decodeBitmap(
-                    bytes = rawBytes,
+                decodeBitmapFromFile(
+                    file = diskFile,
                     targetWidth = maxW,
                     targetHeight = maxH,
-                    config = Bitmap.Config.RGB_565
+                    request = request
                 )
             } ?: return@withContext ErrorResult(throwable = IllegalStateException("Decode failed"))
 
@@ -118,20 +137,15 @@ class ImageLoader internal constructor(
         }
     }
 
-    private val diskWriteCount = java.util.concurrent.atomic.AtomicInteger(0)
-
-    private fun readFromDiskOrNetwork(url: String): ByteArray? {
+    private fun resolveDiskFile(url: String): File? {
         val cacheDir = diskCache?.directory ?: File(context.cacheDir, "image_cache")
         if (!cacheDir.exists()) {
             cacheDir.mkdirs()
         }
-        val diskFile = File(cacheDir, sha256Hex(url))
+        val hash = sha256Hex(url)
+        val diskFile = File(cacheDir, hash)
         if (diskFile.exists() && diskFile.length() > 64L) {
-            try {
-                diskFile.setLastModified(System.currentTimeMillis())
-                return diskFile.readBytes()
-            } catch (_: Exception) {
-            }
+            return diskFile
         }
 
         val req = Request.Builder()
@@ -140,28 +154,61 @@ class ImageLoader internal constructor(
             .get()
             .build()
 
-        return httpClient.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) return null
-            val bytes = resp.body?.bytes() ?: return null
-            if (bytes.isEmpty()) return null
-            try {
-                diskFile.writeBytes(bytes)
-                val maxBytes = diskCache?.maxSizeBytes ?: (16L * 1024 * 1024)
-                pruneDiskCacheIfNeeded(cacheDir, maxBytes)
-            } catch (_: Exception) {
+        val tempFile = File(cacheDir, "$hash.${Thread.currentThread().id}.tmp")
+        var completed = false
+        try {
+            httpClient.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) return null
+                val stream = resp.body?.byteStream() ?: return null
+                var totalWritten = 0L
+                FileOutputStream(tempFile).use { out ->
+                    val buf = ByteArray(16 * 1024)
+                    var read: Int
+                    while (stream.read(buf).also { read = it } != -1) {
+                        out.write(buf, 0, read)
+                        totalWritten += read
+                    }
+                    out.flush()
+                }
+                if (totalWritten <= 0L) return null
+                if (!tempFile.renameTo(diskFile)) {
+                    tempFile.copyTo(diskFile, overwrite = true)
+                    tempFile.delete()
+                }
+                completed = diskFile.exists() && diskFile.length() > 0L
+                if (completed) {
+                    val maxBytes = diskCache?.maxSizeBytes ?: (16L * 1024 * 1024)
+                    pruneDiskCacheIfNeeded(cacheDir, maxBytes)
+                    return diskFile
+                }
             }
-            bytes
+        } finally {
+            if (!completed && tempFile.exists()) {
+                tempFile.delete()
+            }
         }
+        return null
     }
 
     private fun pruneDiskCacheIfNeeded(cacheDir: File, maxSizeBytes: Long) {
         if (diskWriteCount.incrementAndGet() % 25 != 0) return
-        pruneDiskCache(cacheDir, maxSizeBytes)
+        pruneDiskCacheAsync(cacheDir, maxSizeBytes)
+    }
+
+    private fun pruneDiskCacheAsync(cacheDir: File, maxSizeBytes: Long) {
+        if (!isPruningDisk.compareAndSet(false, true)) return
+        diskPruneScope.launch {
+            try {
+                pruneDiskCache(cacheDir, maxSizeBytes)
+            } finally {
+                isPruningDisk.set(false)
+            }
+        }
     }
 
     private fun pruneDiskCache(cacheDir: File, maxSizeBytes: Long) {
         try {
-            val files = cacheDir.listFiles() ?: return
+            val files = cacheDir.listFiles()?.filter { !it.name.endsWith(".tmp") } ?: return
             var totalSize = files.sumOf { it.length() }
             if (totalSize <= maxSizeBytes) return
 
@@ -179,18 +226,19 @@ class ImageLoader internal constructor(
         }
     }
 
-    private fun decodeBitmap(
-        bytes: ByteArray,
+    private fun decodeBitmapFromFile(
+        file: File,
         targetWidth: Int,
         targetHeight: Int,
-        config: Bitmap.Config
+        request: ImageRequest
     ): Bitmap? {
         val tempBuf = decodeTempBuffer.get()
+        val path = file.absolutePath
         val boundsOpts = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
             inTempStorage = tempBuf
         }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOpts)
+        BitmapFactory.decodeFile(path, boundsOpts)
         val srcW = boundsOpts.outWidth
         val srcH = boundsOpts.outHeight
         if (srcW <= 0 || srcH <= 0) return null
@@ -207,13 +255,20 @@ class ImageLoader internal constructor(
             }
         }
 
+        val mime = boundsOpts.outMimeType?.lowercase().orEmpty()
+        val needsAlpha = !request.allowRgb565 ||
+            request.bitmapConfig == Bitmap.Config.ARGB_8888 ||
+            mime == "image/png" ||
+            mime == "image/webp"
+        val resolvedConfig = if (needsAlpha) Bitmap.Config.ARGB_8888 else defaultConfig
+
         val decodeOpts = BitmapFactory.Options().apply {
             inSampleSize = sampleSize
-            inPreferredConfig = config
+            inPreferredConfig = resolvedConfig
             inTempStorage = tempBuf
-            inDither = true
+            inDither = resolvedConfig == Bitmap.Config.RGB_565
         }
-        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOpts) ?: return null
+        val decoded = BitmapFactory.decodeFile(path, decodeOpts) ?: return null
 
         if (decoded.width > (effW * 1.25f).toInt() && decoded.height > (effH * 1.25f).toInt()) {
             val scale = minOf(effW.toFloat() / decoded.width.toFloat(), effH.toFloat() / decoded.height.toFloat())

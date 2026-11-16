@@ -8,7 +8,10 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.GZIPInputStream
 
 class MediaType internal constructor(val value: String) {
@@ -75,6 +78,30 @@ class ConnectionPool(
 class Dispatcher {
     var maxRequests: Int = 64
     var maxRequestsPerHost: Int = 5
+
+    private val globalSemaphore by lazy { Semaphore(maxRequests.coerceAtLeast(1)) }
+    private val hostSemaphores = ConcurrentHashMap<String, Semaphore>()
+
+    internal fun acquireGlobal() {
+        globalSemaphore.acquire()
+    }
+
+    internal fun releaseGlobal() {
+        globalSemaphore.release()
+    }
+
+    internal fun acquireHost(host: String) {
+        if (host.isBlank()) return
+        val sem = hostSemaphores.getOrPut(host.lowercase()) {
+            Semaphore(maxRequestsPerHost.coerceAtLeast(1))
+        }
+        sem.acquire()
+    }
+
+    internal fun releaseHost(host: String) {
+        if (host.isBlank()) return
+        hostSemaphores[host.lowercase()]?.release()
+    }
 }
 
 class Request internal constructor(
@@ -172,117 +199,156 @@ class Call internal constructor(
 ) {
     fun execute(): Response {
         var currentUrl = request.url
+        var currentMethod = request.method
+        var currentBody = request.body
+        val initialHost = runCatching { URL(request.url).host }.getOrDefault("")
+        var currentHost = initialHost
         var redirectCount = 0
-        var conn: HttpURLConnection? = null
 
-        while (redirectCount < 8) {
-            val targetUrl = URL(currentUrl)
-            conn = (targetUrl.openConnection() as HttpURLConnection).apply {
-                connectTimeout = client.connectTimeoutMs
-                readTimeout = client.readTimeoutMs
-                instanceFollowRedirects = client.followRedirects
-                useCaches = !request.forceNetwork
-                requestMethod = if (redirectCount > 0 && request.method == "POST") "GET" else request.method
+        client.dispatcher.acquireGlobal()
+        client.dispatcher.acquireHost(currentHost)
+        val released = AtomicBoolean(false)
+        val releasePermits = {
+            if (released.compareAndSet(false, true)) {
+                client.dispatcher.releaseHost(currentHost)
+                client.dispatcher.releaseGlobal()
             }
+        }
 
-            var hasAcceptEncoding = false
-            var hasContentType = false
-            for ((k, v) in request.headers) {
-                conn.setRequestProperty(k, v)
-                if (k.equals("Accept-Encoding", ignoreCase = true)) hasAcceptEncoding = true
-                if (k.equals("Content-Type", ignoreCase = true)) hasContentType = true
-            }
-            if (!hasAcceptEncoding) {
-                conn.setRequestProperty("Accept-Encoding", "gzip")
-            }
-
-            val reqBody = if (redirectCount == 0) request.body else null
-            if (reqBody != null && conn.requestMethod == "POST") {
-                if (!hasContentType && reqBody.contentType != null) {
-                    conn.setRequestProperty("Content-Type", reqBody.contentType.value)
+        try {
+            while (redirectCount < 8) {
+                val targetUrl = URL(currentUrl)
+                val targetHost = targetUrl.host.orEmpty()
+                if (!targetHost.equals(currentHost, ignoreCase = true)) {
+                    client.dispatcher.releaseHost(currentHost)
+                    currentHost = targetHost
+                    client.dispatcher.acquireHost(currentHost)
                 }
-                conn.doOutput = true
-                conn.setFixedLengthStreamingMode(reqBody.bytes.size)
-                conn.outputStream.use { out ->
-                    out.write(reqBody.bytes)
-                    out.flush()
-                }
-            }
 
-            val status = conn.responseCode
-            if (client.followRedirects && status in listOf(301, 302, 303, 307, 308)) {
-                val location = conn.getHeaderField("Location")
-                if (!location.isNullOrBlank()) {
-                    conn.disconnect()
-                    currentUrl = URL(targetUrl, location).toString()
-                    redirectCount++
-                    continue
+                val conn = (targetUrl.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = client.connectTimeoutMs
+                    readTimeout = client.readTimeoutMs
+                    instanceFollowRedirects = false
+                    useCaches = !request.forceNetwork
+                    requestMethod = currentMethod
                 }
-            }
 
-            val headerPairs = ArrayList<Pair<String, String>>()
-            val headerMap = conn.headerFields
-            if (headerMap != null) {
-                for ((k, values) in headerMap) {
-                    if (k != null && values != null) {
-                        for (v in values) {
-                            if (v != null) {
-                                headerPairs.add(k to v)
+                val isCrossHost = !targetHost.equals(initialHost, ignoreCase = true)
+                var hasAcceptEncoding = false
+                var hasContentType = false
+                for ((k, v) in request.headers) {
+                    if (isCrossHost && (k.equals("Authorization", ignoreCase = true) || k.equals("Cookie", ignoreCase = true))) {
+                        continue
+                    }
+                    conn.setRequestProperty(k, v)
+                    if (k.equals("Accept-Encoding", ignoreCase = true)) hasAcceptEncoding = true
+                    if (k.equals("Content-Type", ignoreCase = true)) hasContentType = true
+                }
+                if (!hasAcceptEncoding) {
+                    conn.setRequestProperty("Accept-Encoding", "gzip")
+                }
+
+                val reqBody = currentBody
+                if (reqBody != null && (currentMethod == "POST" || currentMethod == "PUT" || currentMethod == "PATCH")) {
+                    if (!hasContentType && reqBody.contentType != null) {
+                        conn.setRequestProperty("Content-Type", reqBody.contentType.value)
+                    }
+                    conn.doOutput = true
+                    conn.setFixedLengthStreamingMode(reqBody.bytes.size)
+                    conn.outputStream.use { out ->
+                        out.write(reqBody.bytes)
+                        out.flush()
+                    }
+                }
+
+                val status = conn.responseCode
+                if (client.followRedirects && status in listOf(301, 302, 303, 307, 308)) {
+                    val location = conn.getHeaderField("Location")
+                    if (!location.isNullOrBlank()) {
+                        val nextUrl = URL(targetUrl, location)
+                        val schemeChanged = !nextUrl.protocol.equals(targetUrl.protocol, ignoreCase = true)
+                        if (schemeChanged && !client.followSslRedirects) {
+                            // Do not follow protocol-changing redirects when followSslRedirects is false
+                        } else {
+                            conn.disconnect()
+                            if (status in 301..303 && currentMethod == "POST") {
+                                currentMethod = "GET"
+                                currentBody = null
+                            }
+                            currentUrl = nextUrl.toString()
+                            redirectCount++
+                            continue
+                        }
+                    }
+                }
+
+                val headerPairs = ArrayList<Pair<String, String>>()
+                val headerMap = conn.headerFields
+                if (headerMap != null) {
+                    for ((k, values) in headerMap) {
+                        if (k != null && values != null) {
+                            for (v in values) {
+                                if (v != null) {
+                                    headerPairs.add(k to v)
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            val encoding = conn.contentEncoding ?: ""
-            val isGzip = encoding.contains("gzip", ignoreCase = true)
-            val contentLength = if (isGzip) -1L else conn.contentLengthLong
+                val encoding = conn.contentEncoding ?: ""
+                val isGzip = encoding.contains("gzip", ignoreCase = true)
+                val contentLength = if (isGzip) -1L else conn.contentLengthLong
 
-            val rawStream: InputStream = try {
-                if (status >= 400) {
-                    conn.errorStream ?: ByteArrayInputStream(ByteArray(0))
-                } else {
-                    conn.inputStream
-                }
-            } catch (_: Exception) {
-                conn.errorStream ?: ByteArrayInputStream(ByteArray(0))
-            }
-
-            val decodedStream = if (isGzip) {
-                try {
-                    GZIPInputStream(rawStream)
+                val rawStream: InputStream = try {
+                    if (status >= 400) {
+                        conn.errorStream ?: ByteArrayInputStream(ByteArray(0))
+                    } else {
+                        conn.inputStream
+                    }
                 } catch (_: Exception) {
+                    conn.errorStream ?: ByteArrayInputStream(ByteArray(0))
+                }
+
+                val decodedStream = if (isGzip) {
+                    try {
+                        GZIPInputStream(rawStream)
+                    } catch (_: Exception) {
+                        rawStream
+                    }
+                } else {
                     rawStream
                 }
-            } else {
-                rawStream
+
+                val responseBody = ResponseBody(
+                    streamProvider = { decodedStream },
+                    length = contentLength,
+                    onClose = {
+                        try {
+                            decodedStream.close()
+                        } catch (_: Exception) {
+                        }
+                        try {
+                            conn.disconnect()
+                        } catch (_: Exception) {
+                        }
+                        releasePermits()
+                    }
+                )
+
+                return Response(
+                    code = status,
+                    headers = headerPairs,
+                    body = responseBody,
+                    connection = conn
+                )
             }
 
-            val finalConn = conn
-            val responseBody = ResponseBody(
-                streamProvider = { decodedStream },
-                length = contentLength,
-                onClose = {
-                    try {
-                        decodedStream.close()
-                    } catch (_: Exception) {
-                    }
-                    try {
-                        finalConn.disconnect()
-                    } catch (_: Exception) {
-                    }
-                }
-            )
-
-            return Response(
-                code = status,
-                headers = headerPairs,
-                body = responseBody,
-                connection = finalConn
-            )
+            throw java.io.IOException("Too many redirects for ${request.url}")
+        } catch (t: Throwable) {
+            releasePermits()
+            throw t
         }
-
-        throw java.io.IOException("Too many redirects for ${request.url}")
     }
 }
 

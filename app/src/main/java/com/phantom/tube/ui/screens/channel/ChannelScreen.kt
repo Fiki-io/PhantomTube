@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -35,6 +37,7 @@ import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +50,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,6 +74,7 @@ import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.util.safeStartActivity
 import com.phantom.tube.data.model.ChannelProfile
+import com.phantom.tube.data.model.ChannelSortChip
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.ChannelScreenSkeleton
@@ -84,8 +89,14 @@ import com.phantom.tube.ui.screens.channel.components.ChannelSortOrder
 import com.phantom.tube.ui.screens.channel.components.ChannelTabBar
 import com.phantom.tube.ui.screens.channel.components.ChannelTabType
 import com.phantom.tube.ui.screens.channel.components.ChannelTopBar
+import com.phantom.tube.ui.screens.player.components.DownloadFormatSheet
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChannelScreen(
     channelId: String,
@@ -94,13 +105,13 @@ fun ChannelScreen(
     onVideoClick: (VideoItem) -> Unit,
     onChannelClick: (channelId: String, channelTitle: String) -> Unit = { _, _ -> },
     onBackClick: () -> Unit,
-    onSearchClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
+    val channelListState = rememberLazyListState()
 
     var profile by remember(channelId) { mutableStateOf<ChannelProfile?>(null) }
     var isLoading by remember(channelId) { mutableStateOf(true) }
@@ -111,16 +122,31 @@ fun ChannelScreen(
     var isSearchActive by remember(channelId) { mutableStateOf(false) }
     var searchQuery by remember(channelId) { mutableStateOf("") }
     var showAboutSheet by remember { mutableStateOf(false) }
-    var isLoadingMore by remember { mutableStateOf(false) }
+    var videoToDownload by remember { mutableStateOf<VideoItem?>(null) }
+    var isLoadingMore by remember(channelId) { mutableStateOf(false) }
     var isLoadingVideosTab by remember(channelId) { mutableStateOf(false) }
     var hasFetchedVideosTab by remember(channelId) { mutableStateOf(false) }
+
+    var sortVideosCache by remember(channelId) { mutableStateOf<Map<ChannelSortOrder, List<VideoItem>>>(emptyMap()) }
+    var sortContinuationCache by remember(channelId) { mutableStateOf<Map<ChannelSortOrder, String?>>(emptyMap()) }
+
+    var loadChannelJob by remember(channelId) { mutableStateOf<Job?>(null) }
+    var loadVideosTabJob by remember(channelId) { mutableStateOf<Job?>(null) }
+    var loadSortJob by remember(channelId) { mutableStateOf<Job?>(null) }
+    var loadMoreJob by remember(channelId) { mutableStateOf<Job?>(null) }
 
     val resolvedChannelId = profile?.id?.ifBlank { channelId } ?: channelId
     val isSubscribed by repository.isSubscribed(resolvedChannelId).collectAsState(initial = false)
 
     fun loadChannel() {
         if (channelId.isBlank()) return
-        scope.launch {
+        loadChannelJob?.cancel()
+        loadVideosTabJob?.cancel()
+        loadSortJob?.cancel()
+        loadMoreJob?.cancel()
+        isLoadingMore = false
+        isLoadingVideosTab = false
+        loadChannelJob = scope.launch {
             isLoading = true
             errorMessage = null
             try {
@@ -130,6 +156,8 @@ fun ChannelScreen(
                 } else {
                     errorMessage = context.getString(R.string.channel_load_failed)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 errorMessage = e.message ?: context.getString(R.string.channel_load_failed)
             } finally {
@@ -149,25 +177,120 @@ fun ChannelScreen(
             !hasFetchedVideosTab &&
             !prof.videoTabParams.isNullOrBlank()
         ) {
-            isLoadingVideosTab = true
-            try {
-                val vTab = repository.getChannel(
-                    channelId = resolvedChannelId,
-                    params = prof.videoTabParams
-                )
-                if (vTab != null) {
-                    profile = prof.copy(
-                        videos = if (vTab.videos.isNotEmpty()) vTab.videos else prof.videos,
-                        continuationToken = vTab.continuationToken ?: prof.continuationToken,
-                        sortChips = if (vTab.sortChips.isNotEmpty()) vTab.sortChips else prof.sortChips
+            loadVideosTabJob?.cancel()
+            loadVideosTabJob = scope.launch {
+                isLoadingVideosTab = true
+                try {
+                    val vTab = repository.getChannel(
+                        channelId = resolvedChannelId,
+                        params = prof.videoTabParams
                     )
+                    if (vTab != null) {
+                        val base = profile ?: prof
+                        profile = base.copy(
+                            videos = if (vTab.videos.isNotEmpty()) vTab.videos else base.videos,
+                            continuationToken = vTab.continuationToken ?: base.continuationToken,
+                            sortChips = if (vTab.sortChips.isNotEmpty()) vTab.sortChips else base.sortChips
+                        )
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                } finally {
+                    hasFetchedVideosTab = true
+                    isLoadingVideosTab = false
                 }
-            } catch (_: Exception) {
-            } finally {
-                hasFetchedVideosTab = true
-                isLoadingVideosTab = false
             }
         }
+    }
+
+    fun selectSortOrder(sort: ChannelSortOrder) {
+        if (selectedSort == sort) return
+        selectedSort = sort
+        if (sort == ChannelSortOrder.LATEST || sortVideosCache.containsKey(sort)) {
+            loadSortJob?.cancel()
+            isLoadingVideosTab = false
+            return
+        }
+        val chips = profile?.sortChips.orEmpty()
+        val matchedChip = findSortChip(chips, sort)
+        if (matchedChip != null && matchedChip.continuationToken.isNotBlank()) {
+            loadSortJob?.cancel()
+            loadMoreJob?.cancel()
+            isLoadingMore = false
+            loadSortJob = scope.launch {
+                isLoadingVideosTab = true
+                try {
+                    val page = repository.getChannelVideosContinuation(matchedChip.continuationToken)
+                    if (page.videos.isNotEmpty()) {
+                        sortVideosCache = sortVideosCache + (sort to page.videos)
+                        sortContinuationCache = sortContinuationCache + (sort to page.continuationToken)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                } finally {
+                    isLoadingVideosTab = false
+                }
+            }
+        }
+    }
+
+    fun loadMoreChannelVideos() {
+        val currentProf = profile ?: return
+        if (isLoadingMore || isLoadingVideosTab || searchQuery.isNotBlank()) return
+        val isServerSortActive = selectedSort != ChannelSortOrder.LATEST && sortVideosCache.containsKey(selectedSort)
+        val token = if (isServerSortActive) {
+            sortContinuationCache[selectedSort]
+        } else {
+            currentProf.continuationToken
+        } ?: return
+        if (token.isBlank()) return
+
+        loadMoreJob?.cancel()
+        loadMoreJob = scope.launch {
+            isLoadingMore = true
+            try {
+                val page = repository.getChannelVideosContinuation(token)
+                if (isServerSortActive) {
+                    val existing = sortVideosCache[selectedSort].orEmpty()
+                    val existingIds = existing.map { it.id }.toSet()
+                    val newVideos = page.videos.filter { it.id !in existingIds }
+                    sortVideosCache = sortVideosCache + (selectedSort to (existing + newVideos))
+                    sortContinuationCache = sortContinuationCache + (
+                        selectedSort to if (newVideos.isEmpty()) null else page.continuationToken
+                    )
+                } else {
+                    val base = profile ?: currentProf
+                    val existingIds = base.videos.map { it.id }.toSet()
+                    val newVideos = page.videos.filter { it.id !in existingIds }
+                    profile = base.copy(
+                        videos = base.videos + newVideos,
+                        continuationToken = if (newVideos.isEmpty()) null else page.continuationToken
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+            } finally {
+                isLoadingMore = false
+            }
+        }
+    }
+
+    LaunchedEffect(channelListState, selectedTab, selectedSort, searchQuery) {
+        if (selectedTab != ChannelTabType.VIDEOS || searchQuery.isNotBlank()) return@LaunchedEffect
+        snapshotFlow {
+            val info = channelListState.layoutInfo
+            val total = info.totalItemsCount
+            val last = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && last >= total - 3
+        }
+            .distinctUntilChanged()
+            .filter { it }
+            .collect {
+                loadMoreChannelVideos()
+            }
     }
 
     BackHandler {
@@ -195,16 +318,31 @@ fun ChannelScreen(
         if (base.isNotEmpty()) base else currentProfile?.homeVideos.orEmpty()
     }
 
-    val filteredVideos = remember(allChannelVideos, selectedSort, searchQuery) {
-        val queried = if (searchQuery.isBlank()) {
-            allChannelVideos
+    val filteredVideos = remember(allChannelVideos, selectedTab, selectedSort, sortVideosCache, searchQuery) {
+        val sourceList = if (selectedTab == ChannelTabType.VIDEOS &&
+            selectedSort != ChannelSortOrder.LATEST &&
+            sortVideosCache.containsKey(selectedSort)
+        ) {
+            sortVideosCache[selectedSort].orEmpty()
         } else {
-            allChannelVideos.filter { it.title.contains(searchQuery, ignoreCase = true) }
+            allChannelVideos
         }
-        when (selectedSort) {
-            ChannelSortOrder.LATEST -> queried
-            ChannelSortOrder.POPULAR -> queried.sortedByDescending { parseViewsEstimate(it.viewCountText) }
-            ChannelSortOrder.OLDEST -> queried.asReversed()
+        val queried = if (searchQuery.isBlank()) {
+            sourceList
+        } else {
+            sourceList.filter { it.title.contains(searchQuery, ignoreCase = true) }
+        }
+        if (selectedTab == ChannelTabType.VIDEOS &&
+            selectedSort != ChannelSortOrder.LATEST &&
+            sortVideosCache.containsKey(selectedSort)
+        ) {
+            queried
+        } else {
+            when (selectedSort) {
+                ChannelSortOrder.LATEST -> queried
+                ChannelSortOrder.POPULAR -> queried.sortedByDescending { parseViewsEstimate(it.viewCountText) }
+                ChannelSortOrder.OLDEST -> queried.asReversed()
+            }
         }
     }
 
@@ -251,11 +389,11 @@ fun ChannelScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp)
-                    .height(42.dp)
+                    .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(GlassSurface)
                     .border(1.dp, GlassBorderLight, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 12.dp),
+                    .padding(start = 12.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -287,13 +425,13 @@ fun ChannelScreen(
                 if (searchQuery.isNotEmpty()) {
                     IconButton(
                         onClick = { searchQuery = "" },
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Clear,
                             contentDescription = stringResource(R.string.search_clear_query),
                             tint = TextSecondary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -353,6 +491,7 @@ fun ChannelScreen(
 
             currentProfile != null -> {
                 LazyColumn(
+                    state = channelListState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = navBarPadding + 110.dp)
                 ) {
@@ -406,6 +545,7 @@ fun ChannelScreen(
                                         )
                                         PhantomVideoCard(
                                             video = featured,
+                                            onDownloadClick = { videoToDownload = it },
                                             onClick = { onVideoClick(featured) }
                                         )
                                     }
@@ -435,14 +575,22 @@ fun ChannelScreen(
                                             ),
                                             color = TextPrimary
                                         )
-                                        Text(
-                                            text = stringResource(R.string.channel_tab_videos),
-                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = YouTubeRed,
-                                            modifier = Modifier.clickable {
-                                                selectedTab = ChannelTabType.VIDEOS
-                                            }
-                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .heightIn(min = 48.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .clickable {
+                                                    selectedTab = ChannelTabType.VIDEOS
+                                                }
+                                                .padding(horizontal = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.channel_tab_videos),
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = YouTubeRed
+                                            )
+                                        }
                                     }
                                 }
                                 itemsIndexed(
@@ -465,7 +613,7 @@ fun ChannelScreen(
                             item(key = "videos_sort_bar") {
                                 ChannelSortFilterBar(
                                     selectedSort = selectedSort,
-                                    onSelectSort = { selectedSort = it }
+                                    onSelectSort = { selectSortOrder(it) }
                                 )
                             }
                             if (isLoadingVideosTab && filteredVideos.isEmpty()) {
@@ -490,35 +638,12 @@ fun ChannelScreen(
                             } else {
                                 itemsIndexed(
                                     items = filteredVideos,
-                                    key = { idx: Int, v: VideoItem -> "tab_v_${v.id}_$idx" }
-                                ) { idx: Int, video: VideoItem ->
+                                    key = { idx: Int, v: VideoItem -> "tab_v_${selectedSort.name}_${v.id}_$idx" }
+                                ) { _: Int, video: VideoItem ->
                                     ChannelCompactVideoRow(
                                         video = video,
                                         onClick = { onVideoClick(video) }
                                     )
-
-                                    if (idx >= filteredVideos.size - 3 &&
-                                        !isLoadingMore &&
-                                        !currentProfile.continuationToken.isNullOrBlank() &&
-                                        searchQuery.isBlank()
-                                    ) {
-                                        LaunchedEffect(currentProfile.continuationToken) {
-                                            val token = currentProfile.continuationToken ?: return@LaunchedEffect
-                                            isLoadingMore = true
-                                            try {
-                                                val page = repository.getChannelVideosContinuation(token)
-                                                val existingIds = currentProfile.videos.map { it.id }.toSet()
-                                                val newVideos = page.videos.filter { it.id !in existingIds }
-                                                profile = currentProfile.copy(
-                                                    videos = currentProfile.videos + newVideos,
-                                                    continuationToken = if (newVideos.isEmpty()) null else page.continuationToken
-                                                )
-                                            } catch (_: Exception) {
-                                            } finally {
-                                                isLoadingMore = false
-                                            }
-                                        }
-                                    }
                                 }
                                 if (isLoadingMore || isLoadingVideosTab) {
                                     item {
@@ -567,6 +692,36 @@ fun ChannelScreen(
             },
             onDismiss = { showAboutSheet = false }
         )
+    }
+
+    videoToDownload?.let { targetVideo ->
+        DownloadFormatSheet(
+            video = targetVideo,
+            repository = repository,
+            onDismiss = { videoToDownload = null }
+        )
+    }
+}
+
+private fun findSortChip(
+    chips: List<ChannelSortChip>,
+    sort: ChannelSortOrder
+): ChannelSortChip? {
+    if (chips.isEmpty()) return null
+    val keywords = when (sort) {
+        ChannelSortOrder.LATEST -> listOf("latest", "terbaru", "newest", "reciente", "новые", "最新")
+        ChannelSortOrder.POPULAR -> listOf("popular", "populer", "most viewed", "популяр", "人気")
+        ChannelSortOrder.OLDEST -> listOf("oldest", "terlama", "antiguo", "старые", "古い")
+    }
+    val matchedByName = chips.firstOrNull { chip ->
+        val title = chip.title.lowercase()
+        keywords.any { title.contains(it) }
+    }
+    if (matchedByName != null) return matchedByName
+    return when (sort) {
+        ChannelSortOrder.LATEST -> chips.getOrNull(0)
+        ChannelSortOrder.POPULAR -> chips.getOrNull(1)
+        ChannelSortOrder.OLDEST -> chips.getOrNull(2)
     }
 }
 

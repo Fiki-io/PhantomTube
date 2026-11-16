@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,11 +33,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
+import com.phantom.tube.R
 import com.phantom.tube.core.database.SubscriptionEntity
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBackgroundAlt
@@ -57,6 +63,7 @@ fun SearchChannelCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val isSubscribed by repository.isSubscribed(channel.id).collectAsState(initial = false)
 
@@ -97,8 +104,17 @@ fun SearchChannelCard(
                     contentAlignment = Alignment.Center
                 ) {
                     if (avatarUrl.isNotBlank()) {
+                        val avatarRequest = remember(avatarUrl, context) {
+                            ImageRequest.Builder(context)
+                                .data(avatarUrl)
+                                .size(144, 144)
+                                .precision(Precision.INEXACT)
+                                .allowRgb565(true)
+                                .allowHardware(false)
+                                .build()
+                        }
                         AsyncImage(
-                            model = avatarUrl,
+                            model = avatarRequest,
                             contentDescription = channel.title,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
@@ -137,7 +153,7 @@ fun SearchChannelCard(
                             Spacer(modifier = Modifier.width(5.dp))
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Terverifikasi",
+                                contentDescription = stringResource(R.string.channel_verified),
                                 tint = Color(0xFFAAAAAA),
                                 modifier = Modifier.size(15.dp)
                             )
@@ -192,8 +208,8 @@ fun SearchChannelCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(38.dp)
-                    .clip(RoundedCornerShape(19.dp))
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(24.dp))
                     .background(
                         if (isSubscribed) Color(0xFF272727) else Color.White
                     )
@@ -226,14 +242,14 @@ fun SearchChannelCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Disubscribe",
+                            text = stringResource(R.string.channel_subscribed),
                             color = Color.White,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     } else {
                         Text(
-                            text = "Subscribe",
+                            text = stringResource(R.string.channel_subscribe),
                             color = Color.Black,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold

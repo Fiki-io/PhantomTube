@@ -424,4 +424,19 @@
     <string name="download_storage_permission_desc">Android 8〜9でダウンロードを保存するには、設定でストレージへのアクセスを許可してください。</string>
     <string name="download_storage_permission_denied">このAndroidバージョンで保存するにはストレージ権限が必要です</string>
     <string name="action_open_settings">設定を開く</string>
+    <string name="action_more_options">その他のオプション</string>
+    <string name="update_dialog_install_failed">インストーラーを開けません</string>
+    <string name="channel_verified">認証済み</string>
+    <string name="channel_handle_label">ハンドル</string>
+    <string name="channel_subscribers_label">チャンネル登録者</string>
+    <string name="channel_videos_label">動画</string>
+    <string name="channel_id_label">チャンネルID</string>
+    <string name="player_channel_label">チャンネル</string>
+    <string name="player_scrub_preview">シーンのプレビュー</string>
+    <string name="crash_detail_error">エラー詳細</string>
+    <string name="crash_log_label">エラーログ</string>
+    <string name="crash_icon_desc">エラーアイコン</string>
+    <string name="app_logo_desc">Phantom ロゴ</string>
+    <string name="player_playlist_badge">再生リスト</string>
+    <string name="player_mix_badge">ミックス</string>
 </resources>

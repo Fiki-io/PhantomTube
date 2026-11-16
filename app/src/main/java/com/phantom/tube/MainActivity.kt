@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import com.phantom.tube.core.util.LocaleHelper
+import com.phantom.tube.core.util.LocalNotificationPermissionRequester
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.PhantomTheme
 import com.phantom.tube.data.model.VideoItem
@@ -75,6 +76,7 @@ class MainActivity : ComponentActivity() {
     private var activeVideo by mutableStateOf<VideoItem?>(null)
     private var isPlayerMinimized by mutableStateOf(false)
     private var pendingDeepLinkChannelId by mutableStateOf<String?>(null)
+    private var hasRequestedNotificationThisSession = false
     private val playbackBackStack = mutableListOf<VideoItem>()
     private val playbackForwardStack = mutableListOf<VideoItem>()
 
@@ -113,7 +115,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        requestNotificationPermission()
         handleIncomingIntent(intent)
 
         val app = application as PhantomApp
@@ -121,7 +122,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val preferences = app.preferences
-            val appLanguage by (preferences?.appLanguage ?: kotlinx.coroutines.flow.MutableStateFlow("id")).collectAsState()
+            val defaultLanguage = remember { LocaleHelper.resolveDefaultLanguage() }
+            val appLanguage by (preferences?.appLanguage ?: kotlinx.coroutines.flow.MutableStateFlow(defaultLanguage)).collectAsState()
             val baseContext = LocalContext.current
             val currentConfig = LocalConfiguration.current
 
@@ -152,7 +154,8 @@ class MainActivity : ComponentActivity() {
 
             CompositionLocalProvider(
                 LocalContext provides localizedContext,
-                LocalConfiguration provides localizedConfig
+                LocalConfiguration provides localizedConfig,
+                LocalNotificationPermissionRequester provides { requestNotificationPermission() }
             ) {
                 PhantomTheme {
                 val navTabs = remember { NavTab.values() }
@@ -189,13 +192,6 @@ class MainActivity : ComponentActivity() {
                     if (!activeChannelId.isNullOrBlank()) {
                         rememberedChannelId = activeChannelId!!
                     }
-                }
-
-                LaunchedEffect(currentTab, activeChannelId, isSettingsOpen, isDownloadsOpen) {
-                    com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
-                        context = this@MainActivity,
-                        aggressiveGraphicsPurge = false
-                    )
                 }
 
                 val updateManager = app.updateManager
@@ -393,10 +389,6 @@ class MainActivity : ComponentActivity() {
                                     activeChannelTitle = chTitle
                                 },
                                 onBackClick = { activeChannelId = null },
-                                onSearchClick = {
-                                    activeChannelId = null
-                                    navigateToTab(NavTab.SEARCH)
-                                },
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -573,7 +565,13 @@ class MainActivity : ComponentActivity() {
                                             )
                                         } else {
                                             updateDialogState = null
-                                            updateManager.promptInstall(file)
+                                            if (!updateManager.promptInstall(file)) {
+                                                Toast.makeText(
+                                                    this@MainActivity,
+                                                    localizedContext.getString(R.string.update_dialog_install_failed),
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
                                         }
                                     } else {
                                         updateDialogState = UpdateDialogState.Error(
@@ -641,12 +639,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestNotificationPermission() {
+        if (hasRequestedNotificationThisSession) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.POST_NOTIFICATIONS
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
+                hasRequestedNotificationThisSession = true
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }

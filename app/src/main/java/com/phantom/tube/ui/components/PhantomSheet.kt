@@ -4,10 +4,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,8 +32,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +60,7 @@ import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeSurface
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -83,19 +85,27 @@ fun PhantomAnchoredPlayerSheet(
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val dismissThresholdPx = with(density) { PhantomMotion.SheetDismissThresholdDp.toPx() }
+    var rawDragOffsetY by remember { mutableFloatStateOf(0f) }
     val dragOffsetY = remember { Animatable(0f) }
+
+    fun currentOffset(): Float = (dragOffsetY.value + rawDragOffsetY).coerceAtLeast(0f)
 
     LaunchedEffect(visible) {
         if (visible) {
+            rawDragOffsetY = 0f
             dragOffsetY.snapTo(0f)
         }
     }
 
     fun settleOrDismiss(velocityY: Float = 0f) {
-        if (dragOffsetY.value > dismissThresholdPx || velocityY > 1100f) {
+        val total = currentOffset()
+        if (total > dismissThresholdPx || velocityY > 1100f) {
+            rawDragOffsetY = 0f
             onDismiss()
         } else {
-            scope.launch {
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                rawDragOffsetY = 0f
+                dragOffsetY.snapTo(total)
                 dragOffsetY.animateTo(
                     targetValue = 0f,
                     animationSpec = IosSpringSpecs.Gentle
@@ -107,11 +117,10 @@ fun PhantomAnchoredPlayerSheet(
     val nestedScrollConnection = remember(dismissThresholdPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.Drag && available.y < 0f && dragOffsetY.value > 0f) {
-                    val consumedY = available.y.coerceAtLeast(-dragOffsetY.value)
-                    scope.launch {
-                        dragOffsetY.snapTo((dragOffsetY.value + consumedY).coerceAtLeast(0f))
-                    }
+                val cur = currentOffset()
+                if (source == NestedScrollSource.Drag && available.y < 0f && cur > 0f) {
+                    val consumedY = available.y.coerceAtLeast(-cur)
+                    rawDragOffsetY = (cur + consumedY).coerceAtLeast(0f) - dragOffsetY.value
                     return Offset(0f, consumedY)
                 }
                 return Offset.Zero
@@ -123,16 +132,15 @@ fun PhantomAnchoredPlayerSheet(
                 source: NestedScrollSource
             ): Offset {
                 if (source == NestedScrollSource.Drag && available.y > 0f) {
-                    scope.launch {
-                        dragOffsetY.snapTo((dragOffsetY.value + available.y).coerceAtLeast(0f))
-                    }
+                    val next = (currentOffset() + available.y).coerceAtLeast(0f)
+                    rawDragOffsetY = next - dragOffsetY.value
                     return Offset(0f, available.y)
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (dragOffsetY.value > 0f) {
+                if (currentOffset() > 0f) {
                     settleOrDismiss(velocityY = available.y)
                     return available
                 }
@@ -145,15 +153,17 @@ fun PhantomAnchoredPlayerSheet(
         detectVerticalDragGestures(
             onVerticalDrag = { change, dragAmount ->
                 change.consume()
-                scope.launch {
-                    dragOffsetY.snapTo((dragOffsetY.value + dragAmount).coerceAtLeast(0f))
-                }
+                val next = (currentOffset() + dragAmount).coerceAtLeast(0f)
+                rawDragOffsetY = next - dragOffsetY.value
             },
             onDragEnd = {
                 settleOrDismiss()
             },
             onDragCancel = {
-                scope.launch {
+                val total = currentOffset()
+                scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    rawDragOffsetY = 0f
+                    dragOffsetY.snapTo(total)
                     dragOffsetY.animateTo(0f, IosSpringSpecs.Gentle)
                 }
             }
@@ -166,15 +176,7 @@ fun PhantomAnchoredPlayerSheet(
         exit = PhantomMotion.SheetSlideExit,
         modifier = modifier
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss
-                )
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
             Spacer(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -188,7 +190,7 @@ fun PhantomAnchoredPlayerSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
+                    .offset { IntOffset(0, currentOffset().roundToInt()) }
                     .clip(sheetShape)
                     .background(YouTubeSurface)
                     .border(0.75.dp, GlassBorderLight, sheetShape)
@@ -262,7 +264,7 @@ fun PhantomAnchoredPlayerSheet(
 
                             IconButton(
                                 onClick = onDismiss,
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Close,

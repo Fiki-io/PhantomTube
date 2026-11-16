@@ -6,6 +6,7 @@ data class FavoriteEntity(
     val videoId: String,
     val title: String,
     val channelTitle: String,
+    val channelId: String = "",
     val thumbnailUrl: String,
     val durationText: String = "",
     val savedAt: Long = System.currentTimeMillis()

@@ -66,6 +66,8 @@ import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomTopBar
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.VideoFeedSkeleton
+import com.phantom.tube.ui.screens.player.components.DownloadFormatSheet
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,9 +89,12 @@ fun HomeScreen(
     var isLoadingMore by remember { mutableStateOf(false) }
     var hasError by remember { mutableStateOf(false) }
     var isTopBarVisible by remember { mutableStateOf(true) }
+    var videoToDownload by remember { mutableStateOf<VideoItem?>(null) }
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    var feedJob by remember { mutableStateOf<Job?>(null) }
+    var loadMoreJob by remember { mutableStateOf<Job?>(null) }
     val pullRefreshState = rememberPullToRefreshState()
 
     val homeScrollConnection = remember {
@@ -130,8 +135,10 @@ fun HomeScreen(
             }
             .distinctUntilChanged()
     }.collectAsState(initial = emptyMap())
-    val contentCountry by (repository.preferences?.contentCountry ?: kotlinx.coroutines.flow.MutableStateFlow("ID")).collectAsState()
-    val appLanguage by (repository.preferences?.appLanguage ?: kotlinx.coroutines.flow.MutableStateFlow("id")).collectAsState()
+    val defaultCountry = remember { com.phantom.tube.core.util.RegionHelper.resolveDefaultCountry() }
+    val defaultLanguage = remember { com.phantom.tube.core.util.LocaleHelper.resolveDefaultLanguage() }
+    val contentCountry by (repository.preferences?.contentCountry ?: kotlinx.coroutines.flow.MutableStateFlow(defaultCountry)).collectAsState()
+    val appLanguage by (repository.preferences?.appLanguage ?: kotlinx.coroutines.flow.MutableStateFlow(defaultLanguage)).collectAsState()
 
     fun categoryToQuery(category: String, country: String): String {
         val suffix = when (country) {
@@ -196,7 +203,10 @@ fun HomeScreen(
     }
 
     fun loadFeed(category: String, isRefresh: Boolean = false) {
-        scope.launch {
+        feedJob?.cancel()
+        loadMoreJob?.cancel()
+        isLoadingMore = false
+        feedJob = scope.launch {
             if (isRefresh) {
                 isRefreshing = true
                 isTopBarVisible = true
@@ -220,6 +230,8 @@ fun HomeScreen(
                 if (isRefresh) {
                     listState.scrollToItem(0)
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 if (!isRefresh) {
                     hasError = true
@@ -234,7 +246,8 @@ fun HomeScreen(
     fun loadMore() {
         val token = continuationToken ?: return
         if (isLoadingMore || isLoading || isRefreshing) return
-        scope.launch {
+        loadMoreJob?.cancel()
+        loadMoreJob = scope.launch {
             isLoadingMore = true
             try {
                 val result = if (selectedCategory == "Semua") {
@@ -256,6 +269,8 @@ fun HomeScreen(
                     videos = videos + newVideos
                 }
                 continuationToken = if (result.videos.isEmpty()) null else result.continuationToken
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -377,6 +392,7 @@ fun HomeScreen(
                                 onChannelClick = { chId ->
                                     onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
                                 },
+                                onDownloadClick = { videoToDownload = it },
                                 onClick = { onVideoClick(video) }
                             )
                         }
@@ -431,6 +447,14 @@ fun HomeScreen(
                 )
             }
         }
+    }
+
+    videoToDownload?.let { targetVideo ->
+        DownloadFormatSheet(
+            video = targetVideo,
+            repository = repository,
+            onDismiss = { videoToDownload = null }
+        )
     }
 }
 

@@ -57,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,6 +65,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
@@ -77,11 +80,10 @@ import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.VideoCardSkeleton
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import com.phantom.tube.ui.screens.player.components.DownloadFormatSheet
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,73 +95,41 @@ fun SubscriptionScreen(
     onDownloadsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val subscriptions by repository.getSubscriptions().collectAsState(initial = emptyList())
     val favorites by repository.getFavorites().collectAsState(initial = emptyList())
     val downloadsList by repository.getDownloads().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
+    var feedJob by remember { mutableStateOf<Job?>(null) }
     var feedVideos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var isLoadingFeed by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var videoToDownload by remember { mutableStateOf<VideoItem?>(null) }
 
     val pullRefreshState = rememberPullToRefreshState()
 
-    fun refreshFeed() {
-        if (subscriptions.isNotEmpty()) {
-            scope.launch {
-                isRefreshing = true
-                isLoadingFeed = true
-                val allChannels = subscriptions.take(12)
-                val results = withContext(Dispatchers.IO) {
-                    allChannels.map { sub ->
-                        async {
-                            val channelVideos = mutableListOf<VideoItem>()
-                            try {
-                                val targetId = sub.channelId.ifBlank { sub.channelTitle }
-                                val chanProfile = repository.getChannel(targetId)
-                                if (chanProfile != null) {
-                                    if (chanProfile.videos.isNotEmpty()) {
-                                        channelVideos.addAll(chanProfile.videos)
-                                    }
-                                    if (chanProfile.homeVideos.isNotEmpty()) {
-                                        channelVideos.addAll(chanProfile.homeVideos)
-                                    }
-                                    if (chanProfile.featuredVideo != null) {
-                                        channelVideos.add(chanProfile.featuredVideo)
-                                    }
-                                    // If still empty, fetch the Video tab explicitly with params
-                                    if (channelVideos.isEmpty() && !chanProfile.videoTabParams.isNullOrBlank()) {
-                                        val vTabRes = repository.getChannel(targetId, params = chanProfile.videoTabParams)
-                                        if (vTabRes != null && vTabRes.videos.isNotEmpty()) {
-                                            channelVideos.addAll(vTabRes.videos)
-                                        }
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                            // Enrich each video with channel avatar, name, and id
-                            channelVideos.map { v ->
-                                v.copy(
-                                    channelTitle = v.channelTitle.ifBlank { sub.channelTitle },
-                                    channelAvatarUrl = v.channelAvatarUrl.ifBlank { sub.channelAvatarUrl },
-                                    channelId = v.channelId.ifBlank { sub.channelId }
-                                )
-                            }.take(6)
-                        }
-                    }.awaitAll()
-                }
-
-                // Interleave and deduplicate videos so feed feels diverse and fresh
-                val maxPerChan = results.maxOfOrNull { it.size } ?: 0
-                val interleaved = mutableListOf<VideoItem>()
-                for (i in 0 until maxPerChan) {
-                    for (chanList in results) {
-                        if (i < chanList.size) {
-                            interleaved.add(chanList[i])
-                        }
-                    }
-                }
-                feedVideos = interleaved.distinctBy { it.id }
+    fun refreshFeed(forceRefresh: Boolean = false) {
+        if (subscriptions.isEmpty()) {
+            feedJob?.cancel()
+            feedVideos = emptyList()
+            isLoadingFeed = false
+            isRefreshing = false
+            return
+        }
+        feedJob?.cancel()
+        feedJob = scope.launch {
+            isRefreshing = forceRefresh
+            isLoadingFeed = true
+            try {
+                feedVideos = repository.getSubscriptionFeed(
+                    subscriptions = subscriptions,
+                    forceRefresh = forceRefresh
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
                 isRefreshing = false
                 isLoadingFeed = false
             }
@@ -168,7 +138,7 @@ fun SubscriptionScreen(
 
     if (pullRefreshState.isRefreshing) {
         LaunchedEffect(true) {
-            refreshFeed()
+            refreshFeed(forceRefresh = true)
         }
     }
 
@@ -182,16 +152,17 @@ fun SubscriptionScreen(
 
     val totalMb = remember(downloadsList) {
         val totalBytes = downloadsList.sumOf { it.fileSize }
-        String.format(java.util.Locale.US, "%.1f MB", totalBytes / (1024f * 1024f))
+        String.format(java.util.Locale.getDefault(), "%.1f MB", totalBytes / (1024f * 1024f))
     }
 
-    // Fetch latest videos from subscribed channels
+    // Fetch latest videos from subscribed channels (uses repository 5-minute cache when available)
     LaunchedEffect(subscriptions) {
         if (subscriptions.isNotEmpty()) {
-            isLoadingFeed = true
-            refreshFeed()
+            refreshFeed(forceRefresh = false)
         } else {
+            feedJob?.cancel()
             feedVideos = emptyList()
+            isLoadingFeed = false
         }
     }
 
@@ -385,8 +356,17 @@ fun SubscriptionScreen(
                                                 .background(Color(0xFF222222))
                                                 .border(1.dp, Color(0x33FFFFFF), CircleShape)
                                         ) {
+                                            val avatarRequest = remember(sub.channelAvatarUrl, context) {
+                                                ImageRequest.Builder(context)
+                                                    .data(sub.channelAvatarUrl)
+                                                    .size(128, 128)
+                                                    .precision(Precision.INEXACT)
+                                                    .allowRgb565(true)
+                                                    .allowHardware(false)
+                                                    .build()
+                                            }
                                             AsyncImage(
-                                                model = sub.channelAvatarUrl,
+                                                model = avatarRequest,
                                                 contentDescription = sub.channelTitle,
                                                 contentScale = ContentScale.Crop,
                                                 modifier = Modifier.matchParentSize()
@@ -425,6 +405,7 @@ fun SubscriptionScreen(
                                 id = fav.videoId,
                                 title = fav.title,
                                 channelTitle = fav.channelTitle,
+                                channelId = fav.channelId,
                                 thumbnailUrl = fav.thumbnailUrl,
                                 durationText = fav.durationText
                             )
@@ -437,6 +418,7 @@ fun SubscriptionScreen(
                                             onChannelClick(target, fav.channelTitle)
                                         }
                                     },
+                                    onDownloadClick = { videoToDownload = it },
                                     onClick = { onVideoClick(favVideo) }
                                 )
                             }
@@ -484,7 +466,7 @@ fun SubscriptionScreen(
                                         textAlign = TextAlign.Center
                                     )
                                     Button(
-                                        onClick = { refreshFeed() },
+                                        onClick = { refreshFeed(forceRefresh = true) },
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = Color(0xFF272727),
                                             contentColor = Color.White
@@ -504,6 +486,7 @@ fun SubscriptionScreen(
                                     onChannelClick = { chId ->
                                         onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
                                     },
+                                    onDownloadClick = { videoToDownload = it },
                                     onClick = { onVideoClick(video) }
                                 )
                             }
@@ -521,5 +504,13 @@ fun SubscriptionScreen(
                 }
             }
         }
+    }
+
+    videoToDownload?.let { targetVideo ->
+        DownloadFormatSheet(
+            video = targetVideo,
+            repository = repository,
+            onDismiss = { videoToDownload = null }
+        )
     }
 }
