@@ -48,9 +48,42 @@ class PhantomRepository(
             preferences?.appLanguage?.value ?: LocaleHelper.resolveDefaultLanguage()
         }
     }
+    private fun reorderForRefresh(
+        videos: List<VideoItem>,
+        refreshNonce: Int,
+        excludeLeadIds: Set<String>
+    ): List<VideoItem> {
+        if (videos.size <= 1 || (refreshNonce <= 0 && excludeLeadIds.isEmpty())) {
+            return videos
+        }
+        val fresh = if (excludeLeadIds.isNotEmpty()) {
+            videos.filterNot { it.id in excludeLeadIds }
+        } else {
+            videos
+        }
+        val repeated = if (excludeLeadIds.isNotEmpty()) {
+            videos.filter { it.id in excludeLeadIds }
+        } else {
+            emptyList()
+        }
+        if (refreshNonce <= 0) {
+            return fresh + repeated
+        }
+        val rng = kotlin.random.Random(refreshNonce.toLong() * 7919L + videos.size)
+        return if (fresh.isNotEmpty()) {
+            val orderedFresh = if (fresh.size > 1) fresh.shuffled(rng) else fresh
+            orderedFresh + repeated
+        } else {
+            val shift = (refreshNonce % videos.size).let { if (it == 0) 1 else it }
+            videos.drop(shift) + videos.take(shift)
+        }
+    }
+
     suspend fun getHomeRecommendations(
         historyIndex: Int = 0,
-        continuation: String? = null
+        continuation: String? = null,
+        refreshNonce: Int = 0,
+        excludeLeadIds: Set<String> = emptySet()
     ): FeedResult {
         // If we have a direct continuation token from YouTube, load next page
         if (!continuation.isNullOrBlank() && !continuation.startsWith("history_") && !continuation.startsWith("smart_")) {
@@ -73,7 +106,12 @@ class PhantomRepository(
         // 1. Check local watch history for smart weighted recommendation
         val recentWatched = watchHistoryDao.getRecentWatched(limit = 30)
         if (recentWatched.isEmpty()) {
-            return innerTubeClient.fetchFeedPage(query = defaultQuery, continuation = continuation)
+            return getFeedPage(
+                query = defaultQuery,
+                continuation = continuation,
+                refreshNonce = refreshNonce,
+                excludeLeadIds = excludeLeadIds
+            )
         }
 
         // 2. Compute affinity clusters based on channel frequency, recency decay, and watch duration
@@ -127,34 +165,63 @@ class PhantomRepository(
 
         val sortedClusters = clusters.values.sortedByDescending { it.score }
         if (sortedClusters.isEmpty()) {
-            return innerTubeClient.fetchFeedPage(query = defaultQuery, continuation = continuation)
+            return getFeedPage(
+                query = defaultQuery,
+                continuation = continuation,
+                refreshNonce = refreshNonce,
+                excludeLeadIds = excludeLeadIds
+            )
         }
 
-        // If the user scrolled past all available history clusters, fallback to trending
-        if (historyIndex >= sortedClusters.size) {
-            return innerTubeClient.fetchFeedPage(query = defaultQuery, continuation = continuation)
+        val seedPool = buildList {
+            val seenSeedIds = mutableSetOf<String>()
+            sortedClusters.forEach { cluster ->
+                if (seenSeedIds.add(cluster.bestVideo.videoId)) {
+                    add(cluster.bestVideo)
+                }
+            }
+            recentWatched.forEach { item ->
+                if (seenSeedIds.add(item.videoId)) {
+                    add(item)
+                }
+            }
+        }
+        val maxHistoryPages = seedPool.size.coerceAtMost(10)
+
+        // If the user scrolled past all available history seeds, fallback to trending
+        if (historyIndex >= maxHistoryPages) {
+            return getFeedPage(
+                query = defaultQuery,
+                continuation = continuation,
+                refreshNonce = refreshNonce,
+                excludeLeadIds = excludeLeadIds
+            )
         }
 
-        // 3. Determine Seed Targets for this page:
-        // Target A: The primary affinity cluster for this page slot
-        val primaryCluster = sortedClusters[historyIndex]
-        val targetA = primaryCluster.bestVideo
+        // 3. Determine Seed Targets for this page, rotating on pull-to-refresh
+        val effectiveIndex = if (refreshNonce > 0) {
+            (historyIndex + refreshNonce) % seedPool.size
+        } else {
+            historyIndex
+        }
+        val targetA = seedPool[effectiveIndex]
 
         // Target B: Exploration or Secondary cluster
         val latestVideo = recentWatched.first()
-        val targetB: WatchHistoryEntity? = if (historyIndex == 0) {
-            // On page 0: if latest watched video is from a different channel/topic, blend it as exploration!
+        val targetB: WatchHistoryEntity? = if (historyIndex == 0 && refreshNonce == 0) {
             if (!latestVideo.channelTitle.equals(targetA.channelTitle, ignoreCase = true) &&
                 latestVideo.videoId != targetA.videoId
             ) {
                 latestVideo
             } else {
-                // Otherwise pick the #2 affinity cluster if exists
-                sortedClusters.getOrNull(1)?.bestVideo
+                seedPool.getOrNull(1)
             }
         } else {
-            // On subsequent scroll pages: pick next cluster
-            sortedClusters.getOrNull(historyIndex + 1)?.bestVideo
+            val otherSeeds = (1 until seedPool.size).map { offset ->
+                seedPool[(effectiveIndex + offset) % seedPool.size]
+            }.filter { it.videoId != targetA.videoId }
+            otherSeeds.firstOrNull { !it.channelTitle.equals(targetA.channelTitle, ignoreCase = true) }
+                ?: otherSeeds.firstOrNull()
         }
 
         // 4. Fetch recommendations in parallel
@@ -167,102 +234,133 @@ class PhantomRepository(
             Pair(jobA.await(), jobB?.await())
         }
 
-        val listA = nextQueueA?.recommendations ?: emptyList()
-        val listB = nextQueueB?.recommendations ?: emptyList()
+        val rawListA = nextQueueA?.recommendations ?: emptyList()
+        val rawListB = nextQueueB?.recommendations ?: emptyList()
 
-        if (listA.isEmpty() && listB.isEmpty()) {
-            return innerTubeClient.fetchFeedPage(query = defaultQuery, continuation = continuation)
+        if (rawListA.isEmpty() && rawListB.isEmpty()) {
+            return getFeedPage(
+                query = defaultQuery,
+                continuation = continuation,
+                refreshNonce = refreshNonce,
+                excludeLeadIds = excludeLeadIds
+            )
         }
 
         // Cache extracted avatars
-        listA.forEach { v ->
+        rawListA.forEach { v ->
             if (v.channelAvatarUrl.isNotBlank()) ChannelAvatarCache.put(v.channelId, v.channelTitle, v.channelAvatarUrl)
         }
-        listB.forEach { v ->
+        rawListB.forEach { v ->
             if (v.channelAvatarUrl.isNotBlank()) ChannelAvatarCache.put(v.channelId, v.channelTitle, v.channelAvatarUrl)
         }
 
-        val blendedVideos = mutableListOf<VideoItem>()
+        val listA = if (refreshNonce > 0 && rawListA.size > 1) {
+            rawListA.shuffled(kotlin.random.Random(refreshNonce.toLong() * 131L + historyIndex))
+        } else {
+            rawListA
+        }
+        val listB = if (refreshNonce > 0 && rawListB.size > 1) {
+            rawListB.shuffled(kotlin.random.Random(refreshNonce.toLong() * 257L + historyIndex))
+        } else {
+            rawListB
+        }
+
+        val regularVideos = mutableListOf<VideoItem>()
         val seenIds = mutableSetOf<String>()
 
-        // 5. If this is page 0 and Target A has an official YouTube Mix, feature the Mix Card!
+        // 5. Prepare optional Mix Card (pinned at #1 only on initial load, placed below top items on refresh)
+        var mixCardToInsert: VideoItem? = null
         if (historyIndex == 0 && nextQueueA != null && nextQueueA.mixPlaylist.isNotEmpty()) {
             val mixPlaylistId = nextQueueA.playlistId ?: "RD${targetA.videoId}"
-            val mixTitle = nextQueueA.playlistTitle.ifBlank { "Mix - ${targetA.title}" }
-            val otherArtists = nextQueueA.mixPlaylist
-                .map { it.channelTitle }
-                .filter { it.isNotBlank() && !it.equals(targetA.channelTitle, ignoreCase = true) }
-                .distinct()
-                .take(2)
-            val lang = preferences?.appLanguage?.value ?: LocaleHelper.resolveDefaultLanguage()
-            val andMoreText = when (lang) {
-                "en" -> "and more"
-                "es" -> "y más"
-                "ja" -> "ほか"
-                "ru" -> "и др."
-                else -> "dan lainnya"
+            val allowMixOnRefresh = refreshNonce == 0 ||
+                (targetA.videoId !in excludeLeadIds && mixPlaylistId !in excludeLeadIds)
+            if (allowMixOnRefresh) {
+                val mixTitle = nextQueueA.playlistTitle.ifBlank { "Mix - ${targetA.title}" }
+                val otherArtists = nextQueueA.mixPlaylist
+                    .map { it.channelTitle }
+                    .filter { it.isNotBlank() && !it.equals(targetA.channelTitle, ignoreCase = true) }
+                    .distinct()
+                    .take(2)
+                val lang = preferences?.appLanguage?.value ?: LocaleHelper.resolveDefaultLanguage()
+                val andMoreText = when (lang) {
+                    "en" -> "and more"
+                    "es" -> "y más"
+                    "ja" -> "ほか"
+                    "ru" -> "и др."
+                    else -> "dan lainnya"
+                }
+                val playlistBadgeText = when (lang) {
+                    "es" -> "Lista"
+                    "ja" -> "再生リスト"
+                    "ru" -> "Плейлист"
+                    else -> "Playlist"
+                }
+                val videosCountText = when (lang) {
+                    "en" -> "${nextQueueA.mixPlaylist.size} videos"
+                    "es" -> "${nextQueueA.mixPlaylist.size} videos"
+                    "ja" -> "${nextQueueA.mixPlaylist.size} 本の動画"
+                    "ru" -> "${nextQueueA.mixPlaylist.size} видео"
+                    else -> "${nextQueueA.mixPlaylist.size} video"
+                }
+                val mixSubtitle = if (otherArtists.isNotEmpty()) {
+                    "${targetA.channelTitle}, ${otherArtists.joinToString(", ")}, $andMoreText"
+                } else {
+                    targetA.channelTitle
+                }
+                val resolvedAvatar = nextQueueA.currentVideo.channelAvatarUrl.ifBlank {
+                    ChannelAvatarCache.get(targetA.channelId, targetA.channelTitle) ?: ""
+                }
+                mixCardToInsert = VideoItem(
+                    id = targetA.videoId,
+                    title = mixTitle,
+                    channelTitle = mixSubtitle,
+                    channelId = targetA.channelId,
+                    thumbnailUrl = targetA.thumbnailUrl,
+                    channelAvatarUrl = resolvedAvatar,
+                    durationText = playlistBadgeText,
+                    viewCountText = videosCountText,
+                    publishedTimeText = "YouTube Mix",
+                    playlistId = mixPlaylistId,
+                    isPlaylist = true
+                )
+                seenIds.add("playlist_$mixPlaylistId")
             }
-            val playlistBadgeText = when (lang) {
-                "es" -> "Lista"
-                "ja" -> "再生リスト"
-                "ru" -> "Плейлист"
-                else -> "Playlist"
-            }
-            val videosCountText = when (lang) {
-                "en" -> "${nextQueueA.mixPlaylist.size} videos"
-                "es" -> "${nextQueueA.mixPlaylist.size} videos"
-                "ja" -> "${nextQueueA.mixPlaylist.size} 本の動画"
-                "ru" -> "${nextQueueA.mixPlaylist.size} видео"
-                else -> "${nextQueueA.mixPlaylist.size} video"
-            }
-            val mixSubtitle = if (otherArtists.isNotEmpty()) {
-                "${targetA.channelTitle}, ${otherArtists.joinToString(", ")}, $andMoreText"
-            } else {
-                targetA.channelTitle
-            }
-            val resolvedAvatar = nextQueueA.currentVideo.channelAvatarUrl.ifBlank {
-                ChannelAvatarCache.get(targetA.channelId, targetA.channelTitle) ?: ""
-            }
-            val mixCard = VideoItem(
-                id = targetA.videoId,
-                title = mixTitle,
-                channelTitle = mixSubtitle,
-                channelId = targetA.channelId,
-                thumbnailUrl = targetA.thumbnailUrl,
-                channelAvatarUrl = resolvedAvatar,
-                durationText = playlistBadgeText,
-                viewCountText = videosCountText,
-                publishedTimeText = "YouTube Mix",
-                playlistId = mixPlaylistId,
-                isPlaylist = true
-            )
-            blendedVideos.add(mixCard)
-            seenIds.add("playlist_$mixPlaylistId")
         }
 
         // 6. Smart Interleaving (Weighted Blending: 65% Core Interest, 35% Exploration)
         var idxA = 0
         var idxB = 0
         while (idxA < listA.size || idxB < listB.size) {
-            // Push 2 items from Core Interest (listA)
             repeat(2) {
                 if (idxA < listA.size) {
                     val item = listA[idxA++]
                     if (seenIds.add(item.id)) {
-                        blendedVideos.add(item)
+                        regularVideos.add(item)
                     }
                 }
             }
-            // Push 1 item from Exploration / Secondary (listB)
             if (idxB < listB.size) {
                 val item = listB[idxB++]
                 if (seenIds.add(item.id)) {
-                    blendedVideos.add(item)
+                    regularVideos.add(item)
                 }
             }
         }
 
-        val nextToken = if (historyIndex + 1 < sortedClusters.size) {
+        val prioritizedVideos = if (excludeLeadIds.isNotEmpty()) {
+            regularVideos.filterNot { it.id in excludeLeadIds } +
+                regularVideos.filter { it.id in excludeLeadIds }
+        } else {
+            regularVideos
+        }
+
+        val blendedVideos = prioritizedVideos.toMutableList()
+        if (mixCardToInsert != null) {
+            val insertIndex = if (refreshNonce == 0) 0 else minOf(2, blendedVideos.size)
+            blendedVideos.add(insertIndex, mixCardToInsert)
+        }
+
+        val nextToken = if (historyIndex + 1 < maxHistoryPages) {
             "history_${historyIndex + 1}"
         } else {
             "feed_start"
@@ -271,8 +369,23 @@ class PhantomRepository(
         return FeedResult(videos = blendedVideos, continuationToken = nextToken)
     }
 
-    suspend fun getFeedPage(query: String? = null, continuation: String? = null): FeedResult {
-        return innerTubeClient.fetchFeedPage(query = query, continuation = continuation)
+    suspend fun getFeedPage(
+        query: String? = null,
+        continuation: String? = null,
+        refreshNonce: Int = 0,
+        excludeLeadIds: Set<String> = emptySet()
+    ): FeedResult {
+        val result = innerTubeClient.fetchFeedPage(query = query, continuation = continuation)
+        if (refreshNonce > 0 && continuation.isNullOrBlank() && result.videos.size > 1) {
+            return result.copy(
+                videos = reorderForRefresh(
+                    videos = result.videos,
+                    refreshNonce = refreshNonce,
+                    excludeLeadIds = excludeLeadIds
+                )
+            )
+        }
+        return result
     }
 
     suspend fun getFeed(query: String = "trending"): List<VideoItem> {

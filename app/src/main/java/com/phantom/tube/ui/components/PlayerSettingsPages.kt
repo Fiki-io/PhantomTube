@@ -107,10 +107,13 @@ internal fun buildQualityOptionList(availableQualities: List<String>): List<Vide
     val autoLabel = stringResource(R.string.settings_quality_auto)
     val highestLabel = stringResource(R.string.settings_quality_highest)
     val saverLabel = stringResource(R.string.settings_quality_saver)
+    val adaptiveBadge = stringResource(R.string.settings_quality_badge_adaptive)
+    val maxBadge = stringResource(R.string.settings_quality_badge_max)
+    val saverBadge = stringResource(R.string.settings_quality_badge_saver)
 
     val allPresets = listOf(
-        VideoQualityOption("auto", autoLabel, "Adaptive"),
-        VideoQualityOption("highres", highestLabel, "Max"),
+        VideoQualityOption("auto", autoLabel, adaptiveBadge),
+        VideoQualityOption("highres", highestLabel, maxBadge),
         VideoQualityOption("hd2160", "2160p", "4K UHD"),
         VideoQualityOption("hd1440", "1440p", "QHD"),
         VideoQualityOption("hd1080", "1080p", "Full HD"),
@@ -118,7 +121,7 @@ internal fun buildQualityOptionList(availableQualities: List<String>): List<Vide
         VideoQualityOption("large", "480p", null),
         VideoQualityOption("medium", "360p", null),
         VideoQualityOption("small", "240p", null),
-        VideoQualityOption("tiny", saverLabel, "Saver")
+        VideoQualityOption("tiny", saverLabel, saverBadge)
     )
 
     if (availableQualities.isEmpty()) return allPresets

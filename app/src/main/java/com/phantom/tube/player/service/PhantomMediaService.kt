@@ -100,6 +100,10 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         fun getService(): PhantomMediaService = this@PhantomMediaService
     }
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(com.phantom.tube.core.util.LocaleHelper.wrapWithSavedLocale(newBase))
+    }
+
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onCreate() {

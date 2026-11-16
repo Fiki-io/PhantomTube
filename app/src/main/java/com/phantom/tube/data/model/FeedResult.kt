@@ -6,5 +6,6 @@ import androidx.compose.runtime.Immutable
 data class FeedResult(
     val videos: List<VideoItem> = emptyList(),
     val channels: List<SearchChannelItem> = emptyList(),
-    val continuationToken: String? = null
+    val continuationToken: String? = null,
+    val errorMessage: String? = null
 )

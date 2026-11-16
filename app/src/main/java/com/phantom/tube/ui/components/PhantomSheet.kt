@@ -2,6 +2,7 @@ package com.phantom.tube.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -40,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -90,8 +92,17 @@ fun PhantomAnchoredPlayerSheet(
 
     fun currentOffset(): Float = (dragOffsetY.value + rawDragOffsetY).coerceAtLeast(0f)
 
-    LaunchedEffect(visible) {
-        if (visible) {
+    val targetVisible = visible && !isFullscreen
+    val transitionState = remember { MutableTransitionState(targetVisible) }
+    if (targetVisible && !transitionState.targetState) {
+        rawDragOffsetY = 0f
+    }
+    transitionState.targetState = targetVisible
+
+    LaunchedEffect(transitionState.currentState, transitionState.targetState) {
+        if (transitionState.targetState) {
+            dragOffsetY.snapTo(0f)
+        } else if (!transitionState.currentState && !transitionState.targetState) {
             rawDragOffsetY = 0f
             dragOffsetY.snapTo(0f)
         }
@@ -100,7 +111,6 @@ fun PhantomAnchoredPlayerSheet(
     fun settleOrDismiss(velocityY: Float = 0f) {
         val total = currentOffset()
         if (total > dismissThresholdPx || velocityY > 1100f) {
-            rawDragOffsetY = 0f
             onDismiss()
         } else {
             scope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -170,13 +180,8 @@ fun PhantomAnchoredPlayerSheet(
         )
     }
 
-    AnimatedVisibility(
-        visible = visible && !isFullscreen,
-        enter = PhantomMotion.SheetSlideEnter,
-        exit = PhantomMotion.SheetSlideExit,
-        modifier = modifier
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    if (transitionState.currentState || transitionState.targetState) {
+        Column(modifier = modifier.fillMaxSize()) {
             Spacer(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -184,105 +189,118 @@ fun PhantomAnchoredPlayerSheet(
                     .aspectRatio(16f / 9f)
             )
 
-            val sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .offset { IntOffset(0, currentOffset().roundToInt()) }
-                    .clip(sheetShape)
-                    .background(YouTubeSurface)
-                    .border(0.75.dp, GlassBorderLight, sheetShape)
-                    .pointerInput(Unit) {
-                        detectTapGestures { /* Consume tap on sheet surface */ }
-                    }
-                    .nestedScroll(nestedScrollConnection)
+                    .clipToBounds()
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp)
+                androidx.compose.animation.AnimatedVisibility(
+                    visibleState = transitionState,
+                    enter = PhantomMotion.SheetSlideEnter,
+                    exit = PhantomMotion.SheetSlideExit,
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    // Area Handle & Header yang dapat ditarik ke bawah
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(headerDragModifier)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 10.dp, bottom = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 38.dp, height = 4.dp)
-                                    .clip(CircleShape)
-                                    .background(TextMuted.copy(alpha = 0.45f))
-                            )
-                        }
+                    val sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
 
-                        Row(
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .offset { IntOffset(0, currentOffset().roundToInt()) }
+                            .clip(sheetShape)
+                            .background(YouTubeSurface)
+                            .border(0.75.dp, GlassBorderLight, sheetShape)
+                            .pointerInput(Unit) {
+                                detectTapGestures { /* Consume tap on sheet surface */ }
+                            }
+                            .nestedScroll(nestedScrollConnection)
+                    ) {
+                        Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = title,
-                                        color = TextPrimary,
-                                        fontSize = 17.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                            // Area Handle & Header yang dapat ditarik ke bawah
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(headerDragModifier)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 10.dp, bottom = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 38.dp, height = 4.dp)
+                                            .clip(CircleShape)
+                                            .background(TextMuted.copy(alpha = 0.45f))
                                     )
-                                    if (badgeText.isNotBlank()) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = badgeText,
-                                            color = TextMuted,
-                                            fontSize = 13.sp,
-                                            maxLines = 1
+                                }
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = title,
+                                                color = TextPrimary,
+                                                fontSize = 17.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            if (badgeText.isNotBlank()) {
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = badgeText,
+                                                    color = TextMuted,
+                                                    fontSize = 13.sp,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+                                        if (subtitleText.isNotBlank()) {
+                                            Text(
+                                                text = subtitleText,
+                                                color = TextSecondary,
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = onDismiss,
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Close,
+                                            contentDescription = stringResource(R.string.action_close),
+                                            tint = TextSecondary,
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }
-                                if (subtitleText.isNotBlank()) {
-                                    Text(
-                                        text = subtitleText,
-                                        color = TextSecondary,
-                                        fontSize = 12.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
 
-                            IconButton(
-                                onClick = onDismiss,
-                                modifier = Modifier.size(48.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.action_close),
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(20.dp)
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(bottom = 8.dp),
+                                    thickness = 0.5.dp,
+                                    color = GlassBorderDim
                                 )
                             }
+
+                            content()
                         }
-
-                        HorizontalDivider(
-                            modifier = Modifier.padding(bottom = 8.dp),
-                            thickness = 0.5.dp,
-                            color = GlassBorderDim
-                        )
                     }
-
-                    content()
                 }
             }
         }

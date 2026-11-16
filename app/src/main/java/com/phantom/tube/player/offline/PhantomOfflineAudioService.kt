@@ -94,6 +94,10 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         const val EXTRA_SHUFFLE_MODE = "extra_shuffle_mode"
     }
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(com.phantom.tube.core.util.LocaleHelper.wrapWithSavedLocale(newBase))
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {

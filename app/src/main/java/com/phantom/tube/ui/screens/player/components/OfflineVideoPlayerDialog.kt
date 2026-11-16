@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -39,12 +41,16 @@ import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Replay30
 import androidx.compose.material.icons.filled.Replay5
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -53,6 +59,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -123,6 +130,8 @@ fun OfflineVideoPlayerDialog(
     var isUserScrubbing by remember { mutableStateOf(false) }
     var scrubPositionMs by remember { mutableFloatStateOf(0f) }
     var seekNoticeText by remember { mutableStateOf<String?>(null) }
+    var playbackErrorMessage by remember { mutableStateOf<String?>(null) }
+    var retryNonce by remember { mutableIntStateOf(0) }
 
     // Isolasi Audio: Pastikan pemutar musik online & offline dihentikan
     LaunchedEffect(Unit) {
@@ -250,64 +259,75 @@ fun OfflineVideoPlayerDialog(
                 .background(Color.Black)
         ) {
             // Android VideoView Surface
-            AndroidView(
-                factory = { ctx ->
-                    VideoView(ctx).apply {
-                        videoViewRef = this
+            key(video.id, retryNonce) {
+                AndroidView(
+                    factory = { ctx ->
+                        VideoView(ctx).apply {
+                            videoViewRef = this
 
-                        var uriSet = false
-                        if (video.fileUri.isNotBlank()) {
-                            try {
+                            var uriSet = false
+                            if (video.fileUri.isNotBlank()) {
+                                try {
+                                    setVideoURI(Uri.parse(video.fileUri))
+                                    uriSet = true
+                                } catch (_: Exception) {}
+                            }
+                            if (!uriSet && video.filePath.isNotBlank()) {
+                                val f = File(video.filePath)
+                                if (f.exists()) {
+                                    setVideoPath(f.absolutePath)
+                                    uriSet = true
+                                }
+                            }
+                            if (!uriSet) {
                                 setVideoURI(Uri.parse(video.fileUri))
-                                uriSet = true
-                            } catch (_: Exception) {}
-                        }
-                        if (!uriSet && video.filePath.isNotBlank()) {
-                            val f = File(video.filePath)
-                            if (f.exists()) {
-                                setVideoPath(f.absolutePath)
-                                uriSet = true
+                            }
+
+                            setOnPreparedListener { mp ->
+                                // Pastikan tidak ada audio lain saat video mulai
+                                OfflineAudioPlayerManager.stop(ctx)
+                                playbackErrorMessage = null
+                                isBuffering = false
+                                durationMs = mp.duration
+                                mp.isLooping = false
+                                start()
+                                isPlaying = true
+                            }
+
+                            setOnCompletionListener {
+                                isPlaying = false
+                                showControls = true
+                            }
+
+                            setOnErrorListener { _, what, extra ->
+                                isBuffering = false
+                                isPlaying = false
+                                showControls = true
+                                playbackErrorMessage = ctx.getString(R.string.player_err_unsupported)
+                                android.util.Log.e(
+                                    "OfflineVideoPlayer",
+                                    "VideoView error what=$what extra=$extra uri=${video.fileUri}"
+                                )
+                                true
                             }
                         }
-                        if (!uriSet) {
-                            setVideoURI(Uri.parse(video.fileUri))
-                        }
-
-                        setOnPreparedListener { mp ->
-                            // Pastikan tidak ada audio lain saat video mulai
-                            OfflineAudioPlayerManager.stop(ctx)
-                            isBuffering = false
-                            durationMs = mp.duration
-                            mp.isLooping = false
-                            start()
-                            isPlaying = true
-                        }
-
-                        setOnCompletionListener {
-                            isPlaying = false
-                            showControls = true
-                        }
-
-                        setOnErrorListener { _, _, _ ->
-                            isBuffering = false
-                            isPlaying = false
-                            true
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .align(Alignment.Center)
-            )
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .align(Alignment.Center)
+                )
+            }
 
             // Touch Gestures: Single Tap (Controls) & Double Tap (Seek -N / +N seconds)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(doubleTapSeekSeconds, isBuffering, durationMs) {
+                    .pointerInput(doubleTapSeekSeconds, isBuffering, durationMs, playbackErrorMessage) {
                         detectTapGestures(
                             onTap = {
-                                showControls = !showControls
+                                if (playbackErrorMessage == null) {
+                                    showControls = !showControls
+                                }
                             },
                             onDoubleTap = { offset ->
                                 if (isBuffering || durationMs <= 0) return@detectTapGestures
@@ -334,7 +354,7 @@ fun OfflineVideoPlayerDialog(
             )
 
             // Buffering Indicator
-            if (isBuffering) {
+            if (isBuffering && playbackErrorMessage == null) {
                 CircularProgressIndicator(
                     color = YouTubeRed,
                     modifier = Modifier
@@ -366,7 +386,7 @@ fun OfflineVideoPlayerDialog(
 
             // Controls Overlay
             AnimatedVisibility(
-                visible = showControls,
+                visible = showControls || playbackErrorMessage != null,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier.fillMaxSize()
@@ -423,12 +443,79 @@ fun OfflineVideoPlayerDialog(
                         }
                     }
 
-                    // Center Control Row: Replay, Play/Pause, Forward
-                    Row(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalArrangement = Arrangement.spacedBy(24.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    // Center Control Row: Error Overlay or Replay, Play/Pause, Forward
+                    val currentError = playbackErrorMessage
+                    if (currentError != null) {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(horizontal = 24.dp)
+                                .background(Color(0xE6181818), RoundedCornerShape(16.dp))
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.player_error_load),
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = currentError,
+                                color = TextSecondary,
+                                fontSize = 13.sp
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Button(
+                                    onClick = {
+                                        playbackErrorMessage = null
+                                        isBuffering = true
+                                        isPlaying = false
+                                        durationMs = 0
+                                        currentPositionMs = 0
+                                        videoViewRef?.stopPlayback()
+                                        retryNonce++
+                                    },
+                                    modifier = Modifier.heightIn(min = 48.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = YouTubeRed)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = stringResource(R.string.action_retry),
+                                        color = Color.White
+                                    )
+                                }
+                                OutlinedButton(
+                                    onClick = onOpenExternal,
+                                    modifier = Modifier.heightIn(min = 48.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.OpenInNew,
+                                        contentDescription = null,
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = stringResource(R.string.downloads_play_external),
+                                        color = TextPrimary
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalArrangement = Arrangement.spacedBy(24.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                         val rewindIcon = when (doubleTapSeekSeconds) {
                             5 -> Icons.Default.Replay5
                             10 -> Icons.Default.Replay10
@@ -518,6 +605,7 @@ fun OfflineVideoPlayerDialog(
                                 modifier = Modifier.size(26.dp)
                             )
                         }
+                        }
                     }
 
                     // Bottom Bar Gradient & Scrubber + Fullscreen Toggle
@@ -584,7 +672,7 @@ fun OfflineVideoPlayerDialog(
                             // Fullscreen / Landscape Toggle Button
                             IconButton(
                                 onClick = toggleFullscreen,
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,

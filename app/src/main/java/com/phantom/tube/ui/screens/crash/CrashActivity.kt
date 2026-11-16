@@ -66,6 +66,10 @@ import com.phantom.tube.core.theme.phantomSurface
 
 class CrashActivity : ComponentActivity() {
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(com.phantom.tube.core.util.LocaleHelper.wrapWithSavedLocale(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

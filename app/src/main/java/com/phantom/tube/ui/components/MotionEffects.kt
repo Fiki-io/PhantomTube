@@ -71,13 +71,13 @@ object PhantomMotion {
         slideInVertically(
             animationSpec = tween(durationMillis = 230, easing = SmoothOutEasing),
             initialOffsetY = { fullHeight -> fullHeight }
-        ) + fadeIn(animationSpec = tween(durationMillis = 170))
+        )
 
     val SheetSlideExit: ExitTransition =
         slideOutVertically(
             animationSpec = tween(durationMillis = 180, easing = SmoothInEasing),
             targetOffsetY = { fullHeight -> fullHeight }
-        ) + fadeOut(animationSpec = tween(durationMillis = 140))
+        )
 
     val PopScaleEnter: EnterTransition =
         fadeIn(tween(140)) + scaleIn(

@@ -62,4 +62,24 @@ object LocaleHelper {
 
         return context.createConfigurationContext(config)
     }
+
+    fun getSavedLanguage(context: Context): String {
+        val prefs = context.getSharedPreferences(
+            com.phantom.tube.data.settings.PhantomPreferences.PREFS_NAME,
+            Context.MODE_PRIVATE
+        )
+        val saved = prefs.getString(
+            com.phantom.tube.data.settings.PhantomPreferences.KEY_APP_LANGUAGE,
+            null
+        )
+        return if (!saved.isNullOrBlank() && SUPPORTED_LANGUAGE_CODES.contains(saved)) {
+            saved
+        } else {
+            resolveDefaultLanguage()
+        }
+    }
+
+    fun wrapWithSavedLocale(context: Context): Context {
+        return applyLocale(context, getSavedLanguage(context))
+    }
 }

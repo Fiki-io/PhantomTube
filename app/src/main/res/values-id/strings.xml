@@ -439,4 +439,7 @@
     <string name="app_logo_desc">Logo Phantom</string>
     <string name="player_playlist_badge">Playlist</string>
     <string name="player_mix_badge">Mix</string>
+    <string name="settings_quality_badge_adaptive">Adaptif</string>
+    <string name="settings_quality_badge_max">Maks</string>
+    <string name="settings_quality_badge_saver">Hemat</string>
 </resources>

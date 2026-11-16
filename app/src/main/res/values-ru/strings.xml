@@ -439,4 +439,7 @@
     <string name="app_logo_desc">Логотип Phantom</string>
     <string name="player_playlist_badge">Плейлист</string>
     <string name="player_mix_badge">Микс</string>
+    <string name="settings_quality_badge_adaptive">Авто</string>
+    <string name="settings_quality_badge_max">Макс</string>
+    <string name="settings_quality_badge_saver">Экономия</string>
 </resources>

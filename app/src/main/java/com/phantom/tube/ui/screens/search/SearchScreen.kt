@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NorthWest
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -171,6 +172,7 @@ fun SearchScreen(
     var isLoadingMore by remember { mutableStateOf(false) }
     var isFetchingSuggestions by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
+    var searchError by remember { mutableStateOf<String?>(null) }
     var videoToDownload by remember { mutableStateOf<VideoItem?>(null) }
     val searchListState = remember(lastSearchQuery) { LazyListState() }
     val uniqueSearchChannels = remember(searchChannels) { searchChannels.distinctBy { it.id } }
@@ -368,6 +370,7 @@ fun SearchScreen(
             repository.saveSearchQuery(trimmed)
             isSearching = true
             hasSearched = true
+            searchError = null
             isFilterBarVisible = true
             detailedSuggestions = emptyList()
             searchContinuationToken = null
@@ -378,12 +381,18 @@ fun SearchScreen(
                 searchResults = pageResult.videos
                 searchChannels = pageResult.channels
                 searchContinuationToken = pageResult.continuationToken
+                searchError = if (pageResult.videos.isEmpty() && pageResult.channels.isEmpty()) {
+                    pageResult.errorMessage
+                } else {
+                    null
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 searchResults = emptyList()
                 searchChannels = emptyList()
                 searchContinuationToken = null
+                searchError = e.localizedMessage?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
             } finally {
                 isSearching = false
             }
@@ -460,6 +469,7 @@ fun SearchScreen(
             isLoadingMore = false
             searchTextFieldValue = androidx.compose.ui.text.input.TextFieldValue("")
             hasSearched = false
+            searchError = null
             searchResults = emptyList()
             searchChannels = emptyList()
             detailedSuggestions = emptyList()
@@ -564,6 +574,7 @@ fun SearchScreen(
                                 updateSearchInput("")
                                 detailedSuggestions = emptyList()
                                 hasSearched = false
+                                searchError = null
                                 searchResults = emptyList()
                                 searchChannels = emptyList()
                                 searchContinuationToken = null
@@ -909,6 +920,42 @@ fun SearchScreen(
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+                hasSearched && searchError != null && searchResults.isEmpty() && searchChannels.isEmpty() -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = stringResource(R.string.home_failed_load_video),
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            val detail = searchError
+                            if (!detail.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = detail,
+                                    color = TextSecondary,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            PhantomIconButton(
+                                icon = Icons.Default.Refresh,
+                                contentDescription = stringResource(R.string.common_retry),
+                                size = 48.dp,
+                                onClick = {
+                                    executeSearch(
+                                        query = lastSearchQuery.ifBlank { searchQuery },
+                                        filter = selectedFilter
+                                    )
+                                }
+                            )
                         }
                     }
                 }

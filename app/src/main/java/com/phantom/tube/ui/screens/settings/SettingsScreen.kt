@@ -551,7 +551,7 @@ fun SettingsScreen(
                     appendLine("Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
                 }
                 context.sendFeedbackEmail(
-                    recipient = "totoyu379@gmail.com",
+                    recipient = context.getString(R.string.developer_email),
                     subject = subject,
                     body = body
                 )

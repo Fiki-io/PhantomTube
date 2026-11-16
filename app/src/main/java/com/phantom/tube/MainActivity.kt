@@ -553,7 +553,10 @@ class MainActivity : ComponentActivity() {
                             onStartDownload = { info ->
                                 scope.launch {
                                     updateDialogState = UpdateDialogState.Downloading(info, 0f)
-                                    val file = updateManager.downloadApk(info.downloadUrl) { progress ->
+                                    val file = updateManager.downloadApk(
+                                        downloadUrl = info.downloadUrl,
+                                        expectedSha256 = info.sha256
+                                    ) { progress ->
                                         updateDialogState = UpdateDialogState.Downloading(info, progress)
                                     }
                                     if (file != null && file.exists()) {

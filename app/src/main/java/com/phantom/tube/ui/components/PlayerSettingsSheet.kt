@@ -3,7 +3,9 @@ package com.phantom.tube.ui.components
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -94,6 +96,7 @@ private enum class PlayerSheetPage(val depth: Int) {
     SLEEP_TIMER(1)
 }
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun PlayerSettingsSheet(
     visible: Boolean,
@@ -127,11 +130,18 @@ fun PlayerSettingsSheet(
 
     fun currentOffset(): Float = (dragOffsetY.value + rawDragOffsetY).coerceAtLeast(0f)
 
-    LaunchedEffect(visible) {
-        if (!visible) {
+    val transitionState = remember { MutableTransitionState(visible) }
+    if (visible && !transitionState.targetState) {
+        rawDragOffsetY = 0f
+        currentPage = PlayerSheetPage.MAIN
+    }
+    transitionState.targetState = visible
+
+    LaunchedEffect(transitionState.currentState, transitionState.targetState) {
+        if (transitionState.targetState) {
+            dragOffsetY.snapTo(0f)
+        } else if (!transitionState.currentState && !transitionState.targetState) {
             currentPage = PlayerSheetPage.MAIN
-            rawDragOffsetY = 0f
-        } else {
             rawDragOffsetY = 0f
             dragOffsetY.snapTo(0f)
         }
@@ -148,7 +158,6 @@ fun PlayerSettingsSheet(
     fun settleOrDismiss(velocityY: Float = 0f) {
         val total = currentOffset()
         if (total > dismissThresholdPx || velocityY > 1100f) {
-            rawDragOffsetY = 0f
             onDismiss()
         } else {
             scope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -218,18 +227,18 @@ fun PlayerSettingsSheet(
         )
     }
 
-    val enterTransition = if (isFullscreen) {
-        fadeIn(tween(180)) + slideInHorizontally(
-            initialOffsetX = { it / 2 },
+    val sheetEnterTransition = if (isFullscreen) {
+        slideInHorizontally(
+            initialOffsetX = { it },
             animationSpec = IosSpringSpecs.GentleOffset
         )
     } else {
         PhantomMotion.SheetSlideEnter
     }
 
-    val exitTransition = if (isFullscreen) {
-        fadeOut(tween(150)) + slideOutHorizontally(
-            targetOffsetX = { it / 2 },
+    val sheetExitTransition = if (isFullscreen) {
+        slideOutHorizontally(
+            targetOffsetX = { it },
             animationSpec = IosSpringSpecs.GentleOffset
         )
     } else {
@@ -237,9 +246,9 @@ fun PlayerSettingsSheet(
     }
 
     AnimatedVisibility(
-        visible = visible,
-        enter = enterTransition,
-        exit = exitTransition,
+        visibleState = transitionState,
+        enter = fadeIn(tween(180)),
+        exit = fadeOut(tween(150)),
         modifier = modifier.fillMaxSize()
     ) {
         val screenHeightDp = configuration.screenHeightDp.dp
@@ -266,6 +275,10 @@ fun PlayerSettingsSheet(
 
             Surface(
                 modifier = Modifier
+                    .animateEnterExit(
+                        enter = sheetEnterTransition,
+                        exit = sheetExitTransition
+                    )
                     .offset { IntOffset(0, currentOffset().roundToInt()) }
                     .then(
                         if (isFullscreen) {

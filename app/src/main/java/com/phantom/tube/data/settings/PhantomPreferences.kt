@@ -265,7 +265,7 @@ class PhantomPreferences(context: Context) {
     }
 
     companion object {
-        private const val PREFS_NAME = "phantom_user_preferences"
+        internal const val PREFS_NAME = "phantom_user_preferences"
         private const val HTTP_CACHE_DIR_NAME = "http_cache"
         private const val HTTP_CACHE_MAX_BYTES = 8L * 1024 * 1024
 
@@ -287,7 +287,7 @@ class PhantomPreferences(context: Context) {
         private const val KEY_SKIP_INTRO = "pref_skip_intro"
         private const val KEY_SKIP_OUTRO = "pref_skip_outro"
 
-        private const val KEY_APP_LANGUAGE = "pref_app_language"
+        internal const val KEY_APP_LANGUAGE = "pref_app_language"
         private const val KEY_CONTENT_COUNTRY = "pref_content_country"
         private const val KEY_PAUSE_WATCH_HISTORY = "pref_pause_watch_history"
     }

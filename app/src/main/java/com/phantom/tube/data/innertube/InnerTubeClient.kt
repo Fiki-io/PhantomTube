@@ -5,6 +5,7 @@ import com.phantom.tube.data.model.CommentsResult
 import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoItem
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -87,13 +88,19 @@ class InnerTubeClient(
                 .build()
 
             val responseBody = httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext FeedResult()
-                response.body?.string() ?: return@withContext FeedResult()
+                if (!response.isSuccessful) {
+                    return@withContext FeedResult(errorMessage = "HTTP ${response.code}")
+                }
+                response.body?.string()
+                    ?: return@withContext FeedResult(errorMessage = "Empty response")
             }
             return@withContext InnerTubeParser.parseFeedWithContinuation(responseBody)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
-            return@withContext FeedResult()
+            val detail = e.localizedMessage?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+            return@withContext FeedResult(errorMessage = detail)
         }
     }
 
@@ -133,6 +140,8 @@ class InnerTubeClient(
                 response.body?.string() ?: return@withContext null
             }
             return@withContext InnerTubeParser.parseWatchNext(responseBody, videoId)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             return@withContext null
@@ -156,13 +165,19 @@ class InnerTubeClient(
                 .build()
 
             val responseBody = httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext FeedResult()
-                response.body?.string() ?: return@withContext FeedResult()
+                if (!response.isSuccessful) {
+                    return@withContext FeedResult(errorMessage = "HTTP ${response.code}")
+                }
+                response.body?.string()
+                    ?: return@withContext FeedResult(errorMessage = "Empty response")
             }
             return@withContext InnerTubeParser.parseWatchNextContinuation(responseBody, currentVideoId)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
-            return@withContext FeedResult()
+            val detail = e.localizedMessage?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+            return@withContext FeedResult(errorMessage = detail)
         }
     }
 
@@ -184,6 +199,8 @@ class InnerTubeClient(
                 response.body?.string() ?: return@withContext CommentsResult()
             }
             return@withContext InnerTubeParser.parseComments(responseBody)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             return@withContext CommentsResult()
@@ -288,6 +305,8 @@ class InnerTubeClient(
                 response.body?.string() ?: return@withContext null
             }
             return@withContext InnerTubeParser.parseChannelPage(responseBody, targetChannelId)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             return@withContext null
@@ -311,13 +330,19 @@ class InnerTubeClient(
                 .build()
 
             val responseBody = httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext FeedResult()
-                response.body?.string() ?: return@withContext FeedResult()
+                if (!response.isSuccessful) {
+                    return@withContext FeedResult(errorMessage = "HTTP ${response.code}")
+                }
+                response.body?.string()
+                    ?: return@withContext FeedResult(errorMessage = "Empty response")
             }
             return@withContext InnerTubeParser.parseChannelContinuation(responseBody)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
-            return@withContext FeedResult()
+            val detail = e.localizedMessage?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+            return@withContext FeedResult(errorMessage = detail)
         }
     }
 

@@ -23,7 +23,8 @@ data class AppUpdateInfo(
     val downloadUrl: String,
     val changelog: String,
     val minVersionCode: Int = 0,
-    val isForceUpdate: Boolean = false
+    val isForceUpdate: Boolean = false,
+    val sha256: String = ""
 )
 
 sealed class UpdateCheckResult {
@@ -92,6 +93,7 @@ class UpdateManager(
             val changelog = json.optString("changelog", "")
             val minVersionCode = json.optInt("minVersionCode", 0)
             val forceUpdate = json.optBoolean("forceUpdate", false)
+            val sha256 = json.optString("sha256", "").trim()
 
             val currentCode = getCurrentVersionCode().toInt()
 
@@ -109,7 +111,8 @@ class UpdateManager(
                         downloadUrl = downloadUrl,
                         changelog = changelog,
                         minVersionCode = minVersionCode,
-                        isForceUpdate = isForce
+                        isForceUpdate = isForce,
+                        sha256 = sha256
                     )
                 )
             } else {
@@ -122,6 +125,7 @@ class UpdateManager(
 
     suspend fun downloadApk(
         downloadUrl: String,
+        expectedSha256: String = "",
         onProgress: (Float) -> Unit
     ): File? = withContext(Dispatchers.IO) {
         try {
@@ -149,6 +153,12 @@ class UpdateManager(
 
                 var completed = false
                 try {
+                    val normalizedExpectedHash = expectedSha256.trim()
+                    val digest = if (normalizedExpectedHash.isNotBlank()) {
+                        java.security.MessageDigest.getInstance("SHA-256")
+                    } else {
+                        null
+                    }
                     body.byteStream().use { input ->
                         FileOutputStream(tempFile).use { output ->
                             val buffer = ByteArray(16 * 1024)
@@ -165,6 +175,7 @@ class UpdateManager(
 
                             while (input.read(buffer).also { bytesRead = it } != -1) {
                                 output.write(buffer, 0, bytesRead)
+                                digest?.update(buffer, 0, bytesRead)
                                 totalRead += bytesRead
                                 if (contentLength > 0L) {
                                     val progress = (totalRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
@@ -182,6 +193,15 @@ class UpdateManager(
                             if (totalRead <= 0L || (contentLength > 0L && totalRead < contentLength)) {
                                 return@withContext null
                             }
+                        }
+                    }
+
+                    if (digest != null) {
+                        val actualHex = digest.digest().joinToString("") { byte ->
+                            "%02x".format(byte)
+                        }
+                        if (!actualHex.equals(normalizedExpectedHash, ignoreCase = true)) {
+                            return@withContext null
                         }
                     }
 

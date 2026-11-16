@@ -228,7 +228,7 @@ fun PhantomGhostSurface(
                     databaseEnabled = false
                     mediaPlaybackRequiresUserGesture = false
                     cacheMode = WebSettings.LOAD_NO_CACHE
-                    mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                    mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                     allowFileAccess = false
                     allowContentAccess = false
                     offscreenPreRaster = false
@@ -254,6 +254,27 @@ fun PhantomGhostSurface(
                 webChromeClient = WebChromeClient()
 
                 webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(
+                        view: WebView,
+                        request: WebResourceRequest
+                    ): Boolean {
+                        val uri = request.url ?: return true
+                        val scheme = uri.scheme?.lowercase() ?: ""
+                        if (uri.toString() == "about:blank") return false
+                        if (scheme != "https") return true
+                        val host = uri.host?.lowercase() ?: return true
+                        val isAllowedHost = host == "appassets.androidplatform.net" ||
+                            host == "youtube.com" ||
+                            host.endsWith(".youtube.com") ||
+                            host == "youtube-nocookie.com" ||
+                            host.endsWith(".youtube-nocookie.com") ||
+                            host == "youtu.be" ||
+                            host.endsWith(".googlevideo.com") ||
+                            host == "accounts.google.com" ||
+                            host == "www.google.com"
+                        return !isAllowedHost
+                    }
+
                     override fun shouldInterceptRequest(
                         view: WebView,
                         request: WebResourceRequest

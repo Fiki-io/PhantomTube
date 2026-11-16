@@ -439,4 +439,7 @@
     <string name="app_logo_desc">Phantom ロゴ</string>
     <string name="player_playlist_badge">再生リスト</string>
     <string name="player_mix_badge">ミックス</string>
+    <string name="settings_quality_badge_adaptive">自動調整</string>
+    <string name="settings_quality_badge_max">最高</string>
+    <string name="settings_quality_badge_saver">節約</string>
 </resources>

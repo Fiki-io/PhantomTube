@@ -1,5 +1,9 @@
 package com.phantom.tube.ui.screens.player.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -241,23 +245,30 @@ fun BoxScope.PlayerPortraitSheetContent(
     }
 
     // Floating YouTube Mix Bar
-    if (mixPlaylist.isNotEmpty() && !showMixSheet && !showCommentsSheet && !showDescriptionSheet && !showSettingsSheet) {
-        val nextVid = if (currentMixIndex < mixPlaylist.lastIndex) mixPlaylist[currentMixIndex + 1] else mixPlaylist.first()
-        FloatingMixBar(
-            nextVideo = nextVid,
-            mixTitle = mixTitle,
-            onClick = onOpenMixSheet,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .graphicsLayer {
-                    val progress = sheetProgressProvider()
-                    translationY = (1f - progress) * screenHeightPx
-                    alpha = (progress / 0.25f).coerceIn(0f, 1f)
-                }
-                .zIndex(4f)
-                .navigationBarsPadding()
-                .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
-        )
+    val isFloatingMixVisible = mixPlaylist.isNotEmpty() && !showMixSheet && !showCommentsSheet && !showDescriptionSheet && !showSettingsSheet
+    AnimatedVisibility(
+        visible = isFloatingMixVisible,
+        enter = fadeIn(tween(160)),
+        exit = fadeOut(tween(100)),
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .graphicsLayer {
+                val progress = sheetProgressProvider()
+                translationY = (1f - progress) * screenHeightPx
+                alpha = (progress / 0.25f).coerceIn(0f, 1f)
+            }
+            .zIndex(4f)
+            .navigationBarsPadding()
+            .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
+    ) {
+        if (mixPlaylist.isNotEmpty()) {
+            val nextVid = if (currentMixIndex < mixPlaylist.lastIndex) mixPlaylist[currentMixIndex + 1] else mixPlaylist.first()
+            FloatingMixBar(
+                nextVideo = nextVid,
+                mixTitle = mixTitle,
+                onClick = onOpenMixSheet
+            )
+        }
     }
 
     recVideoToDownload?.let { target ->

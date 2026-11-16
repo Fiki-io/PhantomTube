@@ -37,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -88,8 +89,10 @@ fun HomeScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     var isLoadingMore by remember { mutableStateOf(false) }
     var hasError by remember { mutableStateOf(false) }
+    var errorDetail by remember { mutableStateOf<String?>(null) }
     var isTopBarVisible by remember { mutableStateOf(true) }
     var videoToDownload by remember { mutableStateOf<VideoItem?>(null) }
+    var homeRefreshNonce by remember { mutableIntStateOf(0) }
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -206,6 +209,18 @@ fun HomeScreen(
         feedJob?.cancel()
         loadMoreJob?.cancel()
         isLoadingMore = false
+        val prevLeadIds = if (isRefresh) {
+            videos.take(4).map { it.id }.toSet()
+        } else {
+            emptySet()
+        }
+        val activeNonce = if (isRefresh) {
+            homeRefreshNonce += 1
+            homeRefreshNonce
+        } else {
+            homeRefreshNonce = 0
+            0
+        }
         feedJob = scope.launch {
             if (isRefresh) {
                 isRefreshing = true
@@ -214,11 +229,20 @@ fun HomeScreen(
                 isLoading = true
             }
             hasError = false
+            errorDetail = null
             try {
                 val result = if (category == "Semua") {
-                    repository.getHomeRecommendations(historyIndex = 0)
+                    repository.getHomeRecommendations(
+                        historyIndex = 0,
+                        refreshNonce = activeNonce,
+                        excludeLeadIds = prevLeadIds
+                    )
                 } else {
-                    repository.getFeedPage(query = categoryToQuery(category, contentCountry))
+                    repository.getFeedPage(
+                        query = categoryToQuery(category, contentCountry),
+                        refreshNonce = activeNonce,
+                        excludeLeadIds = prevLeadIds
+                    )
                 }
                 videos = result.videos
                 continuationToken = if (category == "Semua") {
@@ -226,7 +250,8 @@ fun HomeScreen(
                 } else {
                     result.continuationToken
                 }
-                hasError = result.videos.isEmpty()
+                hasError = result.videos.isEmpty() || result.errorMessage != null
+                errorDetail = result.errorMessage
                 if (isRefresh) {
                     listState.scrollToItem(0)
                 }
@@ -235,6 +260,7 @@ fun HomeScreen(
             } catch (e: Exception) {
                 if (!isRefresh) {
                     hasError = true
+                    errorDetail = e.localizedMessage?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
                 }
             } finally {
                 isLoading = false
@@ -247,15 +273,22 @@ fun HomeScreen(
         val token = continuationToken ?: return
         if (isLoadingMore || isLoading || isRefreshing) return
         loadMoreJob?.cancel()
+        val activeNonce = homeRefreshNonce
         loadMoreJob = scope.launch {
             isLoadingMore = true
             try {
                 val result = if (selectedCategory == "Semua") {
                     if (token.startsWith("history_") || token.startsWith("smart_")) {
                         val nextIdx = token.substringAfter("_").toIntOrNull() ?: 1
-                        repository.getHomeRecommendations(historyIndex = nextIdx)
+                        repository.getHomeRecommendations(
+                            historyIndex = nextIdx,
+                            refreshNonce = activeNonce
+                        )
                     } else if (token == "feed_start") {
-                        repository.getFeedPage(query = categoryToQuery("Semua", contentCountry))
+                        repository.getFeedPage(
+                            query = categoryToQuery("Semua", contentCountry),
+                            refreshNonce = activeNonce
+                        )
                     } else {
                         repository.getFeedPage(continuation = token)
                     }
@@ -356,7 +389,9 @@ fun HomeScreen(
                 }
                 hasError && videos.isEmpty() -> {
                     Column(
-                        modifier = Modifier.align(Alignment.Center),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(horizontal = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
@@ -365,10 +400,19 @@ fun HomeScreen(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
+                        if (!errorDetail.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = errorDetail.orEmpty(),
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
                         Spacer(modifier = Modifier.height(12.dp))
                         PhantomIconButton(
                             icon = Icons.Default.Refresh,
                             contentDescription = stringResource(R.string.common_retry),
+                            size = 48.dp,
                             onClick = { loadFeed(selectedCategory) }
                         )
                     }

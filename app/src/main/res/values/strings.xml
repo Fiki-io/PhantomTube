@@ -439,4 +439,8 @@
     <string name="app_logo_desc">Phantom Logo</string>
     <string name="player_playlist_badge">Playlist</string>
     <string name="player_mix_badge">Mix</string>
+    <string name="settings_quality_badge_adaptive">Adaptive</string>
+    <string name="settings_quality_badge_max">Max</string>
+    <string name="settings_quality_badge_saver">Saver</string>
+    <string name="developer_email" translatable="false">totoyu379@gmail.com</string>
 </resources>
