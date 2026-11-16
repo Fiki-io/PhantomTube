@@ -968,15 +968,15 @@ private fun PlayerLifecycleEffects(
         }
     }
 
-    LaunchedEffect(session.playerState.isPlaying) {
-        if (session.playerState.isPlaying) {
+    LaunchedEffect(session.playerState.isPlaying, session.isAppInBackground) {
+        if (session.playerState.isPlaying && !session.isAppInBackground) {
             OfflineAudioPlayerManager.stop(context)
             session.lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
             session.lastObservedPlaybackSec = session.currentPositionSec
-            while (session.playerState.isPlaying) {
+            while (session.playerState.isPlaying && !session.isAppInBackground) {
                 delay(1500L)
                 val now = SystemClock.elapsedRealtime()
-                if (session.playerState.isPlaying && (now - session.lastProgressElapsedRealtime > 2500L)) {
+                if (session.playerState.isPlaying && !session.isAppInBackground && (now - session.lastProgressElapsedRealtime > 2500L)) {
                     if (!session.isPlaybackStalled) {
                         session.isPlaybackStalled = true
                         if (!session.networkObserver.isConnected()) {
@@ -984,15 +984,15 @@ private fun PlayerLifecycleEffects(
                         }
                         session.playerState = session.playerState.copy(isBuffering = true)
                         session.mediaService?.updatePlaybackState(
-                            playing = false,
+                            playing = true,
                             currentPositionMs = (session.currentPositionSec * 1000).toLong(),
-                            forceNotify = true,
+                            forceNotify = false,
                             isBuffering = true
                         )
                     }
                 }
             }
-        } else {
+        } else if (!session.playerState.isPlaying) {
             session.isPlaybackStalled = false
         }
     }
@@ -1079,7 +1079,9 @@ private fun PlayerLifecycleEffects(
         repository.clearCommentsCache()
         session.isScrubbing = false
         session.isQualityMenuExpanded = false
-        session.controller.requestStoryboard()
+        if (!session.isAppInBackground) {
+            session.controller.requestStoryboard()
+        }
         val fromInternal = session.isInternalNavigation
         if (fromInternal) {
             session.isInternalNavigation = false
@@ -1121,6 +1123,9 @@ private fun PlayerLifecycleEffects(
 
         launch {
             session.sponsorSegments = repository.getSponsorSegments(video.id)
+            if (session.isAppInBackground) {
+                session.syncBackgroundTickerMode()
+            }
         }
 
         launch {
@@ -1231,7 +1236,7 @@ private fun PlayerLifecycleEffects(
                     }
                 }
 
-                if (!nextData.commentsContinuationToken.isNullOrBlank()) {
+                if (!session.isAppInBackground && !nextData.commentsContinuationToken.isNullOrBlank()) {
                     launch {
                         session.isLoadingComments = true
                         try {
@@ -1297,7 +1302,7 @@ private fun PlayerLifecycleEffects(
             if (!isFloatingMiniPlayer) {
                 com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
                     context = context,
-                    aggressiveGraphicsPurge = true
+                    aggressiveGraphicsPurge = false
                 )
             }
         }
@@ -1383,10 +1388,16 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                         if (!session.networkObserver.isConnected()) {
                             session.showNotice(context.getString(R.string.player_no_internet_notice))
                         } else {
+                            session.controller.setBackgroundPriorityProtected(true)
                             session.controller.play()
                         }
                     }
-                    onPauseAction = { session.controller.pause() }
+                    onPauseAction = {
+                        session.controller.pause()
+                        if (session.isAppInBackground) {
+                            session.controller.setBackgroundPriorityProtected(false)
+                        }
+                    }
                     onNextAction = { session.playNext() }
                     onPreviousAction = { session.playPrevious() }
                     onOfflineTimeoutAction = {
@@ -1455,14 +1466,43 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                         activity?.isInPictureInPictureMode == true
                     } else false
                     if (!inPip) {
+                        session.isAppInBackground = true
+                        if (session.currentPositionSec > 2f) {
+                            val activeVid = session.currentVideo
+                            val posMs = (session.currentPositionSec * 1000).toLong()
+                            val durMs = (session.currentDurationSec * 1000).toLong()
+                            session.lastRecordedPositionSec = session.currentPositionSec
+                            session.scope.launch {
+                                repository.recordWatch(
+                                    video = activeVid,
+                                    positionMs = posMs,
+                                    durationMs = durMs
+                                )
+                            }
+                        }
                         if (!isBgAllowed) {
+                            session.controller.setBackgroundPriorityProtected(false)
+                            session.controller.setBackgroundMode(backgrounded = true, keepSponsorTick = false)
                             session.controller.pause()
                         } else {
+                            val activePlayback = session.playerState.isPlaying || session.playerState.isBuffering
+                            session.controller.setBackgroundPriorityProtected(activePlayback)
+                            session.controller.setBackgroundMode(
+                                backgrounded = true,
+                                keepSponsorTick = session.hasPendingSponsorSegments()
+                            )
                             session.controller.setVideoSurfaceActive(false)
                         }
                     }
                 }
                 Lifecycle.Event.ON_START -> {
+                    session.isAppInBackground = false
+                    session.lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+                    session.controller.setBackgroundPriorityProtected(true)
+                    session.controller.setBackgroundMode(backgrounded = false, keepSponsorTick = false)
+                    if (session.storyboardData == null) {
+                        session.controller.requestStoryboard()
+                    }
                     if (!session.isAudioOnly) {
                         val restoreQ = session.playerState.currentQuality.ifBlank {
                             repository.preferences?.defaultQuality?.value ?: "auto"

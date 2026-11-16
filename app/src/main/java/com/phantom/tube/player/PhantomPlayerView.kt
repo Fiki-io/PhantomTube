@@ -31,13 +31,21 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
         isHorizontalScrollBarEnabled = false
         overScrollMode = View.OVER_SCROLL_NEVER
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            setRendererPriorityPolicy(RENDERER_PRIORITY_BOUND, true)
+            setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, false)
+        }
+    }
+
+    fun updateRendererPriority(important: Boolean, waivedWhenNotVisible: Boolean) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val priority = if (important) RENDERER_PRIORITY_IMPORTANT else RENDERER_PRIORITY_BOUND
+            setRendererPriorityPolicy(priority, waivedWhenNotVisible)
         }
     }
 
     override fun onWindowVisibilityChanged(visibility: Int) {
-        // Intercept GONE/INVISIBLE to keep Chromium audio and timers running in background / screen off
-        super.onWindowVisibilityChanged(View.VISIBLE)
+        // Forward real window visibility so Chromium drops GPU compositor / video surface ticks when hidden,
+        // while JS document.hidden shield + skipping super.onPause() keeps HTML5 audio playing.
+        super.onWindowVisibilityChanged(visibility)
     }
 
     override fun onPause() {
@@ -54,8 +62,38 @@ class PhantomPlayerController(context: Context) {
     private var pendingStartSeconds: Float = 0f
     private var isSurfaceCollapsed = false
 
+    private var isRendererProtected: Boolean? = null
+
     fun attachWebView(view: WebView) {
         this.webView = view
+        isRendererProtected = null
+    }
+
+    fun onRendererGone() {
+        webView = null
+        isReady = false
+        isRendererProtected = null
+    }
+
+    fun setBackgroundPriorityProtected(protected: Boolean) {
+        if (isRendererProtected == protected) return
+        isRendererProtected = protected
+        val target = webView as? PhantomBackgroundWebView ?: return
+        target.post {
+            try {
+                if (protected) {
+                    target.updateRendererPriority(important = true, waivedWhenNotVisible = false)
+                } else {
+                    target.updateRendererPriority(important = false, waivedWhenNotVisible = true)
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun setBackgroundMode(backgrounded: Boolean, keepSponsorTick: Boolean) {
+        PhantomRenderEngine.isBackgroundMode = backgrounded
+        evaluateJs("if (window.setBackgroundMode) window.setBackgroundMode($backgrounded, $keepSponsorTick);")
     }
 
     fun onReady() {
@@ -84,13 +122,6 @@ class PhantomPlayerController(context: Context) {
                         target.requestLayout()
                     }
                 }
-                if (collapsed) {
-                    com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
-                        context = appContext,
-                        webView = target,
-                        aggressiveGraphicsPurge = true
-                    )
-                }
             } catch (_: Exception) {
             }
         }
@@ -98,11 +129,6 @@ class PhantomPlayerController(context: Context) {
 
     fun loadVideo(videoId: String, startSeconds: Float = 0f) {
         if (isReady && webView != null) {
-            com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
-                context = appContext,
-                webView = webView,
-                aggressiveGraphicsPurge = false
-            )
             evaluateJs("window.loadVideo('${escapeJsArg(videoId)}', $startSeconds);")
         } else {
             pendingVideoId = videoId
@@ -196,6 +222,7 @@ class PhantomPlayerController(context: Context) {
         isReady = false
         pendingVideoId = null
         isSurfaceCollapsed = false
+        PhantomRenderEngine.isBackgroundMode = false
         com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
             context = appContext,
             aggressiveGraphicsPurge = true
@@ -227,7 +254,7 @@ fun PhantomGhostSurface(
                     domStorageEnabled = true
                     databaseEnabled = false
                     mediaPlaybackRequiresUserGesture = false
-                    cacheMode = WebSettings.LOAD_NO_CACHE
+                    cacheMode = WebSettings.LOAD_DEFAULT
                     mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                     allowFileAccess = false
                     allowContentAccess = false
@@ -250,7 +277,6 @@ fun PhantomGhostSurface(
                     userAgentString = com.phantom.tube.core.security.PhantomNative.getUserAgent()
                 }
 
-                clearCache(false)
                 webChromeClient = WebChromeClient()
 
                 webViewClient = object : WebViewClient() {
@@ -283,6 +309,19 @@ fun PhantomGhostSurface(
                         if (cleanResp != null) return cleanResp
 
                         return super.shouldInterceptRequest(view, request)
+                    }
+
+                    override fun onRenderProcessGone(
+                        view: WebView?,
+                        detail: android.webkit.RenderProcessGoneDetail?
+                    ): Boolean {
+                        android.util.Log.w(
+                            "PhantomPlayerView",
+                            "WebView renderer gone (didCrash=${detail?.didCrash()}, priority=${detail?.rendererPriorityAtExit()})"
+                        )
+                        controller.onRendererGone()
+                        bridge.onErrorCallback(5)
+                        return true
                     }
                 }
 
@@ -326,6 +365,9 @@ object PhantomRenderEngine {
     private const val MAX_CSS_CACHE_ENTRIES = 2
     private val cssCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
 
+    @Volatile
+    var isBackgroundMode: Boolean = false
+
     fun clearCache() {
         cssCache.clear()
     }
@@ -335,7 +377,7 @@ object PhantomRenderEngine {
 
     fun intercept(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
-        val reqType = com.phantom.tube.core.security.PhantomNative.classifyRequestUrl(url)
+        val reqType = com.phantom.tube.core.security.PhantomNative.classifyRequestUrl(url, isBackgroundMode)
         if (reqType == 0) return null
 
         if (reqType == 4) {
@@ -428,7 +470,10 @@ object PhantomRenderEngine {
                     val scriptToInject = "<script id=\"phantom-clean-script\"$scriptNonceAttr>$scriptBody</script>"
 
                     val payload = styleToInject + scriptToInject
+                    val headOpenMatch = Regex("<head[^>]*>", RegexOption.IGNORE_CASE).find(rawHtml)
                     val modifiedHtml = when {
+                        headOpenMatch != null ->
+                            rawHtml.replaceRange(headOpenMatch.range, "${headOpenMatch.value}$payload")
                         rawHtml.contains("</head>") -> rawHtml.replace("</head>", "$payload</head>")
                         rawHtml.contains("<body") -> rawHtml.replace("<body", "$payload<body")
                         else -> payload + rawHtml

@@ -2,7 +2,6 @@ package com.phantom.tube.core.util
 
 import android.content.ComponentCallbacks2
 import android.content.Context
-import android.webkit.WebView
 import coil.imageLoader
 import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.player.PhantomRenderEngine
@@ -22,7 +21,6 @@ object PhantomMemoryOptimizer {
 
     fun trimNow(
         context: Context,
-        webView: WebView? = null,
         aggressiveGraphicsPurge: Boolean = false
     ) {
         val now = System.currentTimeMillis()
@@ -33,16 +31,6 @@ object PhantomMemoryOptimizer {
         lastTrimTimestampMs.set(now)
 
         val appContext = context.applicationContext
-
-        if (webView != null) {
-            webView.post {
-                runCatching {
-                    webView.clearCache(false)
-                    webView.clearFormData()
-                    webView.clearMatches()
-                }
-            }
-        }
 
         optimizerScope.launch {
             runCatching {

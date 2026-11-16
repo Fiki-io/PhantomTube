@@ -102,7 +102,7 @@ object PhantomNative {
      *   4 -> Telemetry / Cast / Ad / Logging bloat to short-circuit with 204
      *   0 -> Pass-through / no modification
      */
-    fun classifyRequestUrl(url: String): Int {
+    fun classifyRequestUrl(url: String, isBackgroundMode: Boolean = false): Int {
         if (url.contains("/engine/render")) return 1
         val lower = url.lowercase()
         if (lower.contains("doubleclick.net") ||
@@ -120,6 +120,36 @@ object PhantomNative {
             lower.contains("ad_status.js")
         ) {
             return 4
+        }
+        val host = lower.substringAfter("://", "").substringBefore('/').substringBefore('?')
+        if (isBackgroundMode &&
+            !host.contains("googlevideo.com") &&
+            !host.contains("appassets.androidplatform.net")
+        ) {
+            if (host == "i.ytimg.com" ||
+                host == "i9.ytimg.com" ||
+                host == "yt3.ggpht.com" ||
+                host == "yt3.googleusercontent.com" ||
+                host == "lh3.googleusercontent.com" ||
+                host == "fonts.gstatic.com" ||
+                host == "fonts.googleapis.com"
+            ) {
+                return 4
+            }
+            val pathOnly = lower.substringBefore('?')
+            if (pathOnly.endsWith(".jpg") ||
+                pathOnly.endsWith(".jpeg") ||
+                pathOnly.endsWith(".png") ||
+                pathOnly.endsWith(".webp") ||
+                pathOnly.endsWith(".gif") ||
+                pathOnly.endsWith(".avif") ||
+                pathOnly.endsWith(".woff") ||
+                pathOnly.endsWith(".woff2") ||
+                pathOnly.endsWith(".ttf") ||
+                pathOnly.endsWith(".otf")
+            ) {
+                return 4
+            }
         }
         val isYtHost = lower.contains("youtube.com") || lower.contains("youtube-nocookie.com")
         if (isYtHost && (lower.contains("/embed/") || lower.contains("/embed?"))) return 2
@@ -263,6 +293,8 @@ object PhantomNative {
     <script>
         var player = null;
         var timeTicker = null;
+        var isBackgroundMode = false;
+        var keepLightweightTicker = false;
 
         var urlParams = new URLSearchParams(window.location.search);
         var initialVideoId = urlParams.get('v') || '';
@@ -394,27 +426,32 @@ object PhantomNative {
         }
 
         function onPlayerStateChange(event) {
-            try {
-                var iframe = document.querySelector('iframe');
-                if (iframe && iframe.contentWindow) {
-                    iframe.contentWindow.postMessage({ type: 'PHANTOM_CLEAN' }, '*');
-                }
-            } catch(e) {}
-            if (event.data === 1 || event.data === 3) {
-                startTimeTicker();
-                sendStoryboard();
+            if (!isBackgroundMode) {
                 try {
-                    if (player && typeof player.getAvailableQualityLevels === 'function') {
-                        var lvls = player.getAvailableQualityLevels() || [];
-                        var cur = (typeof player.getPlaybackQuality === 'function') ? player.getPlaybackQuality() : 'auto';
-                        if (window.PhantomBridge && typeof window.PhantomBridge.onQualityChange === 'function') {
-                            window.PhantomBridge.onQualityChange(cur || 'auto', JSON.stringify(lvls));
-                        }
+                    var iframe = document.querySelector('iframe');
+                    if (iframe && iframe.contentWindow) {
+                        iframe.contentWindow.postMessage({ type: 'PHANTOM_CLEAN' }, '*');
                     }
                 } catch(e) {}
+            }
+            if (event.data === 1 || event.data === 3) {
+                startTimeTicker();
+                if (!isBackgroundMode) {
+                    sendStoryboard();
+                    try {
+                        if (player && typeof player.getAvailableQualityLevels === 'function') {
+                            var lvls = player.getAvailableQualityLevels() || [];
+                            var cur = (typeof player.getPlaybackQuality === 'function') ? player.getPlaybackQuality() : 'auto';
+                            if (window.PhantomBridge && typeof window.PhantomBridge.onQualityChange === 'function') {
+                                window.PhantomBridge.onQualityChange(cur || 'auto', JSON.stringify(lvls));
+                            }
+                        }
+                    } catch(e) {}
+                }
             } else {
                 stopTimeTicker();
             }
+            syncTimeSnapshot();
             if (window.PhantomBridge) {
                 window.PhantomBridge.onStateChange(event.data);
             }
@@ -427,6 +464,24 @@ object PhantomNative {
             }
         }
 
+        function syncTimeSnapshot() {
+            try {
+                if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
+                    var videoData = (typeof player.getVideoData === 'function') ? player.getVideoData() : null;
+                    var loadedId = (videoData && videoData.video_id) ? videoData.video_id : activeVideoId;
+                    if (activeVideoId && loadedId && loadedId !== activeVideoId) {
+                        return;
+                    }
+                    var current = player.getCurrentTime() || 0;
+                    var duration = player.getDuration() || 0;
+                    var loaded = (typeof player.getVideoLoadedFraction === 'function' ? player.getVideoLoadedFraction() : 0) || 0;
+                    if (window.PhantomBridge) {
+                        window.PhantomBridge.onTimeUpdate(activeVideoId, current, duration, loaded);
+                    }
+                }
+            } catch(e) {}
+        }
+
         function stopTimeTicker() {
             if (timeTicker) {
                 clearInterval(timeTicker);
@@ -436,23 +491,15 @@ object PhantomNative {
 
         function startTimeTicker() {
             if (timeTicker) clearInterval(timeTicker);
-            timeTicker = setInterval(function() {
-                try {
-                    if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
-                        var videoData = (typeof player.getVideoData === 'function') ? player.getVideoData() : null;
-                        var loadedId = (videoData && videoData.video_id) ? videoData.video_id : activeVideoId;
-                        if (activeVideoId && loadedId && loadedId !== activeVideoId) {
-                            return;
-                        }
-                        var current = player.getCurrentTime() || 0;
-                        var duration = player.getDuration() || 0;
-                        var loaded = (typeof player.getVideoLoadedFraction === 'function' ? player.getVideoLoadedFraction() : 0) || 0;
-                        if (window.PhantomBridge) {
-                            window.PhantomBridge.onTimeUpdate(activeVideoId, current, duration, loaded);
-                        }
-                    }
-                } catch(e) {}
-            }, 500);
+            timeTicker = null;
+            if (isBackgroundMode) {
+                if (!keepLightweightTicker) {
+                    return;
+                }
+                timeTicker = setInterval(syncTimeSnapshot, 2000);
+                return;
+            }
+            timeTicker = setInterval(syncTimeSnapshot, 500);
         }
 
         window.addEventListener('message', function(e) {
@@ -508,12 +555,42 @@ object PhantomNative {
             try {
                 stopTimeTicker();
                 if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+                syncTimeSnapshot();
             } catch(e) {}
         };
 
         window.seekTo = function(seconds) {
             try {
                 if (player && typeof player.seekTo === 'function') player.seekTo(seconds, true);
+                syncTimeSnapshot();
+            } catch(e) {}
+        };
+
+        window.setBackgroundMode = function(bg, keepSponsorTick) {
+            try {
+                isBackgroundMode = !!bg;
+                keepLightweightTicker = !!keepSponsorTick;
+                if (isBackgroundMode) {
+                    syncTimeSnapshot();
+                    stopTimeTicker();
+                    var pState = (player && typeof player.getPlayerState === 'function') ? player.getPlayerState() : -1;
+                    if (keepLightweightTicker && (pState === 1 || pState === 3)) {
+                        startTimeTicker();
+                    }
+                } else {
+                    syncTimeSnapshot();
+                    var pStateFg = (player && typeof player.getPlayerState === 'function') ? player.getPlayerState() : -1;
+                    if (pStateFg === 1 || pStateFg === 3) {
+                        startTimeTicker();
+                    }
+                }
+                var iframe = document.querySelector('iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({
+                        type: 'PHANTOM_SET_BACKGROUND_MODE',
+                        background: isBackgroundMode
+                    }, '*');
+                }
             } catch(e) {}
         };
 
@@ -908,6 +985,95 @@ a[href*="youtube.com/watch"] {
 
     private const val RAW_CLEAN_SCRIPT = """
 (function() {
+    var isIframeBackground = false;
+
+    try {
+        Object.defineProperty(document, 'hidden', {
+            get: function() { return false; },
+            configurable: true
+        });
+        Object.defineProperty(document, 'visibilityState', {
+            get: function() { return 'visible'; },
+            configurable: true
+        });
+        Object.defineProperty(document, 'webkitVisibilityState', {
+            get: function() { return 'visible'; },
+            configurable: true
+        });
+        Object.defineProperty(document, 'webkitHidden', {
+            get: function() { return false; },
+            configurable: true
+        });
+    } catch(e) {}
+
+    window.addEventListener('visibilitychange', function(e) { e.stopImmediatePropagation(); }, true);
+    document.addEventListener('visibilitychange', function(e) { e.stopImmediatePropagation(); }, true);
+    window.addEventListener('webkitvisibilitychange', function(e) { e.stopImmediatePropagation(); }, true);
+    document.addEventListener('webkitvisibilitychange', function(e) { e.stopImmediatePropagation(); }, true);
+    window.addEventListener('blur', function(e) { e.stopImmediatePropagation(); }, true);
+    window.addEventListener('pagehide', function(e) { e.stopImmediatePropagation(); }, true);
+    window.addEventListener('freeze', function(e) { e.stopImmediatePropagation(); }, true);
+
+    try {
+        var origRAF = window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : null;
+        var origCAF = window.cancelAnimationFrame ? window.cancelAnimationFrame.bind(window) : null;
+        var bgRafTimers = Object.create(null);
+        var bgRafSeq = 1;
+        window.requestAnimationFrame = function(cb) {
+            if (!isIframeBackground && origRAF) {
+                return origRAF(cb);
+            }
+            var fakeId = -bgRafSeq++;
+            bgRafTimers[fakeId] = setTimeout(function() {
+                delete bgRafTimers[fakeId];
+                try {
+                    cb((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now());
+                } catch(err) {}
+            }, isIframeBackground ? 1000 : 16);
+            return fakeId;
+        };
+        window.cancelAnimationFrame = function(id) {
+            if (id < 0 && bgRafTimers[id]) {
+                clearTimeout(bgRafTimers[id]);
+                delete bgRafTimers[id];
+                return;
+            }
+            if (origCAF && id >= 0) {
+                try { origCAF(id); } catch(err) {}
+            }
+        };
+    } catch(e) {}
+
+    try {
+        if (window.MediaSource && typeof window.MediaSource.isTypeSupported === 'function') {
+            var origIsTypeSupported = window.MediaSource.isTypeSupported.bind(window.MediaSource);
+            window.MediaSource.isTypeSupported = function(mimeType) {
+                if (typeof mimeType === 'string' && mimeType.toLowerCase().indexOf('av01') !== -1) {
+                    return false;
+                }
+                return origIsTypeSupported(mimeType);
+            };
+        }
+        if (navigator.mediaCapabilities && typeof navigator.mediaCapabilities.decodingInfo === 'function') {
+            var origDecodingInfo = navigator.mediaCapabilities.decodingInfo.bind(navigator.mediaCapabilities);
+            navigator.mediaCapabilities.decodingInfo = function(config) {
+                if (config && config.video) {
+                    var ct = (config.video.contentType || '').toLowerCase();
+                    if (ct.indexOf('av01') !== -1) {
+                        return Promise.resolve({ supported: false, smooth: false, powerEfficient: false });
+                    }
+                    if (isIframeBackground &&
+                        ((config.video.height || 0) > 240 ||
+                         (config.video.width || 0) > 426 ||
+                         (config.video.framerate || 0) > 30)) {
+                        return Promise.resolve({ supported: true, smooth: false, powerEfficient: false });
+                    }
+                }
+                return origDecodingInfo(config);
+            };
+        }
+    } catch(e) {}
+
     var selectors = [
         '.ytp-ce-element', '.ytp-ce-video', '.ytp-ce-channel', '.ytp-ce-playlist',
         '.ytp-ce-website', '.ytp-ce-merchandise', '.ytp-ce-covering-overlay',
@@ -957,6 +1123,8 @@ a[href*="youtube.com/watch"] {
 
     var lastSentEndscreenIds = '';
     var rafPending = false;
+    var cleanTimerId = null;
+    var qualityReportInterval = null;
 
     function hideNode(node) {
         if (!node || !node.style) return;
@@ -1017,7 +1185,7 @@ a[href*="youtube.com/watch"] {
             }
         } catch(e) {}
 
-        if (!initialFullSweepDone) {
+        if (!initialFullSweepDone && document.querySelector('.html5-video-player')) {
             try {
                 var els = document.querySelectorAll(combinedSelector);
                 for (var i = 0; i < els.length; i++) {
@@ -1070,9 +1238,9 @@ a[href*="youtube.com/watch"] {
     }
 
     function scheduleClean() {
-        if (rafPending) return;
+        if (isIframeBackground || rafPending) return;
         rafPending = true;
-        setTimeout(clean, 550);
+        cleanTimerId = setTimeout(clean, 550);
     }
 
     clean();
@@ -1197,7 +1365,37 @@ a[href*="youtube.com/watch"] {
                 }
             } catch(err) {}
         } else if (e.data && e.data.type === 'PHANTOM_CLEAN') {
-            clean();
+            if (!isIframeBackground) {
+                clean();
+            }
+        } else if (e.data && e.data.type === 'PHANTOM_SET_BACKGROUND_MODE') {
+            try {
+                isIframeBackground = !!e.data.background;
+                if (isIframeBackground) {
+                    obs.disconnect();
+                    if (cleanTimerId) {
+                        clearTimeout(cleanTimerId);
+                        cleanTimerId = null;
+                    }
+                    rafPending = false;
+                    if (qualityReportInterval) {
+                        clearInterval(qualityReportInterval);
+                        qualityReportInterval = null;
+                    }
+                } else {
+                    if (document.documentElement) {
+                        obs.observe(document.documentElement, {
+                            childList: true,
+                            subtree: true
+                        });
+                    }
+                    clean();
+                    reportIframeQuality();
+                    if (!qualityReportInterval) {
+                        qualityReportInterval = setInterval(reportIframeQuality, 4000);
+                    }
+                }
+            } catch(err) {}
         }
     });
 
@@ -1246,7 +1444,7 @@ a[href*="youtube.com/watch"] {
     document.addEventListener('play', enforceAudioHealth, true);
     document.addEventListener('loadeddata', enforceAudioHealth, true);
 
-    setInterval(reportIframeQuality, 4000);
+    qualityReportInterval = setInterval(reportIframeQuality, 4000);
     document.addEventListener('DOMContentLoaded', reportIframeQuality);
     window.addEventListener('load', reportIframeQuality);
 })();

@@ -126,7 +126,7 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val attrs = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build()
             val req = audioFocusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(attrs)
@@ -414,23 +414,25 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         forceNotify: Boolean = false,
         isBuffering: Boolean = false
     ) {
-        val effectivelyPlaying = playing && !isBuffering
+        val keepSessionActive = playing || isBuffering
         if (isBuffering && isPlaying && !networkConnectivityObserver.isConnected()) {
             wasPlayingBeforeDisconnect = true
-        } else if (effectivelyPlaying || (!isBuffering && !playing)) {
+        } else if (playing && !isBuffering) {
+            wasPlayingBeforeDisconnect = false
+        } else if (!playing && !isBuffering) {
             wasPlayingBeforeDisconnect = false
         }
 
-        val stateChanged = (lastNotifiedPlaying != effectivelyPlaying) ||
+        val stateChangedForNotification = (lastNotifiedPlaying != playing) ||
             (lastNotifiedTitle != currentTitle) ||
             (lastNotifiedChannel != currentChannel) ||
             forceNotify
 
-        isPlaying = effectivelyPlaying
+        isPlaying = playing
         if (currentPositionMs >= 0L) {
             this.currentPositionMs = currentPositionMs
         }
-        if (isPlaying) {
+        if (keepSessionActive) {
             requestAudioFocus()
             registerBecomingNoisyReceiver()
             acquireWakeLock()
@@ -441,10 +443,10 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
 
         val state = when {
             isBuffering -> PlaybackState.STATE_BUFFERING
-            effectivelyPlaying -> PlaybackState.STATE_PLAYING
+            playing -> PlaybackState.STATE_PLAYING
             else -> PlaybackState.STATE_PAUSED
         }
-        val playbackSpeed = if (effectivelyPlaying) 1.0f else 0.0f
+        val playbackSpeed = if (playing && !isBuffering) 1.0f else 0.0f
         val playbackState = PlaybackState.Builder()
             .setActions(
                 PlaybackState.ACTION_PLAY or
@@ -458,8 +460,8 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             .build()
         mediaSession?.setPlaybackState(playbackState)
 
-        if (stateChanged) {
-            lastNotifiedPlaying = effectivelyPlaying
+        if (stateChangedForNotification) {
+            lastNotifiedPlaying = playing
             lastNotifiedTitle = currentTitle
             lastNotifiedChannel = currentChannel
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager

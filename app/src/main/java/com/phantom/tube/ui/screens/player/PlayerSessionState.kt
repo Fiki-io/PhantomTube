@@ -133,6 +133,26 @@ class PlayerSessionState(
     var lastProgressElapsedRealtime by mutableLongStateOf(0L)
     var lastObservedPlaybackSec by mutableFloatStateOf(0f)
     var isPlaybackStalled by mutableStateOf(false)
+    var isAppInBackground by mutableStateOf(false)
+
+    fun hasPendingSponsorSegments(): Boolean {
+        val sbEnabled = repository.preferences?.sponsorBlockEnabled?.value ?: true
+        if (!sbEnabled || sponsorSegments.isEmpty()) return false
+        return sponsorSegments.any { seg ->
+            seg.uuid !in skippedSegmentUuids &&
+                seg.uuid !in undoneSegmentUuids &&
+                seg.endSecond > currentPositionSec
+        }
+    }
+
+    fun syncBackgroundTickerMode() {
+        if (isAppInBackground) {
+            controller.setBackgroundMode(
+                backgrounded = true,
+                keepSponsorTick = hasPendingSponsorSegments()
+            )
+        }
+    }
 
     var storyboardData by mutableStateOf<StoryboardData?>(null)
     var isScrubbing by mutableStateOf(false)
@@ -465,11 +485,12 @@ class PlayerSessionState(
                     isPlaybackStalled = false
                     lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
                     lastObservedPlaybackSec = currentPositionSec
+                    controller.setBackgroundPriorityProtected(true)
                     playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
                     mediaService?.updatePlaybackState(
                         playing = true,
                         currentPositionMs = (currentPositionSec * 1000).toLong(),
-                        forceNotify = true,
+                        forceNotify = false,
                         isBuffering = false
                     )
                     if (isCaptionsEnabled) {
@@ -499,11 +520,14 @@ class PlayerSessionState(
                 2 -> {
                     isPlaybackStalled = false
                     wasPlayingBeforeOffline = false
+                    if (isAppInBackground) {
+                        controller.setBackgroundPriorityProtected(false)
+                    }
                     playerState = playerState.copy(isPlaying = false, isBuffering = false)
                     mediaService?.updatePlaybackState(
                         playing = false,
                         currentPositionMs = (currentPositionSec * 1000).toLong(),
-                        forceNotify = true,
+                        forceNotify = false,
                         isBuffering = false
                     )
                     val activeVid = currentVideo
@@ -521,14 +545,15 @@ class PlayerSessionState(
                 }
                 3 -> {
                     val wasPlaying = playerState.isPlaying
+                    controller.setBackgroundPriorityProtected(true)
                     playerState = playerState.copy(isBuffering = true)
                     if (wasPlaying && !networkObserver.isConnected()) {
                         wasPlayingBeforeOffline = true
                     }
                     mediaService?.updatePlaybackState(
-                        playing = false,
+                        playing = wasPlaying,
                         currentPositionMs = (currentPositionSec * 1000).toLong(),
-                        forceNotify = true,
+                        forceNotify = false,
                         isBuffering = true
                     )
                 }
@@ -536,7 +561,7 @@ class PlayerSessionState(
                     isPlaybackStalled = false
                     wasPlayingBeforeOffline = false
                     playerState = playerState.copy(isPlaying = false, isEnded = true)
-                    mediaService?.updatePlaybackState(false, 0L, forceNotify = true, isBuffering = false)
+                    mediaService?.updatePlaybackState(false, 0L, forceNotify = false, isBuffering = false)
                     val endedVidId = activeVideo.id
                     scope.launch {
                         repository.resetWatchPosition(endedVidId)
@@ -546,10 +571,15 @@ class PlayerSessionState(
                         controller.play()
                     } else if (sleepTimerOption == SleepTimerOption.END_OF_VIDEO) {
                         controller.pause()
+                        if (isAppInBackground) {
+                            controller.setBackgroundPriorityProtected(false)
+                        }
                         sleepTimerOption = SleepTimerOption.OFF
                         sleepTimerRemainingSec = null
                     } else if (isAutoplayNext) {
                         playNext()
+                    } else if (isAppInBackground) {
+                        controller.setBackgroundPriorityProtected(false)
                     }
                 }
             }
@@ -569,7 +599,7 @@ class PlayerSessionState(
                         mediaService?.updatePlaybackState(
                             playing = true,
                             currentPositionMs = (current * 1000).toLong(),
-                            forceNotify = true,
+                            forceNotify = false,
                             isBuffering = false
                         )
                     }
@@ -591,12 +621,12 @@ class PlayerSessionState(
                 hasSyncedMediaSessionInitialPosition = true
                 lastSyncedMediaSessionSec = current
                 mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
-            } else if (kotlin.math.abs(current - lastSyncedMediaSessionSec) >= 5f) {
+            } else if (!isAppInBackground && kotlin.math.abs(current - lastSyncedMediaSessionSec) >= 5f) {
                 lastSyncedMediaSessionSec = current
                 mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
             }
 
-            if (current > 2f && (current - lastRecordedPositionSec >= 5f || current < lastRecordedPositionSec)) {
+            if (!isAppInBackground && current > 2f && (current - lastRecordedPositionSec >= 5f || current < lastRecordedPositionSec)) {
                 lastRecordedPositionSec = current
                 val activeVid = currentVideo
                 scope.launch {
@@ -625,7 +655,11 @@ class PlayerSessionState(
                 if (match.autoSkip) {
                     controller.seekTo(match.endSecond)
                     currentPositionSec = match.endSecond
+                    lastSyncedMediaSessionSec = match.endSecond
                     mediaService?.updatePlaybackState(playerState.isPlaying, (match.endSecond * 1000).toLong())
+                }
+                if (isAppInBackground) {
+                    syncBackgroundTickerMode()
                 }
                 showSponsorPill = true
                 sponsorPillJob?.cancel()
@@ -650,7 +684,15 @@ class PlayerSessionState(
                 5 -> context.getString(R.string.player_error_load)
                 else -> "${context.getString(R.string.player_error_load)} ($errorCode)"
             }
-            playerState = playerState.copy(isBuffering = false, errorCode = msg)
+            isPlaybackStalled = false
+            controller.setBackgroundPriorityProtected(false)
+            playerState = playerState.copy(isPlaying = false, isBuffering = false, errorCode = msg)
+            mediaService?.updatePlaybackState(
+                playing = false,
+                currentPositionMs = (currentPositionSec * 1000).toLong(),
+                forceNotify = false,
+                isBuffering = false
+            )
         },
         onQualityChangeCallback = { currentQuality, availableQualities ->
             playerState = playerState.copy(
