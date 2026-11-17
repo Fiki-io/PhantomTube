@@ -12,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -25,16 +26,17 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Clear
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,11 +56,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -78,6 +80,7 @@ import com.phantom.tube.data.model.ChannelSortChip
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.ChannelScreenSkeleton
+import com.phantom.tube.ui.components.PhantomErrorStateView
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.screens.channel.components.ChannelAboutBottomSheet
 import com.phantom.tube.ui.screens.channel.components.ChannelAboutCard
@@ -111,7 +114,7 @@ fun ChannelScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
-    val channelListState = rememberLazyListState()
+    val channelListState = rememberLazyGridState()
 
     var profile by remember(channelId) { mutableStateOf<ChannelProfile?>(null) }
     var isLoading by remember(channelId) { mutableStateOf(true) }
@@ -388,6 +391,8 @@ fun ChannelScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .widthIn(max = 760.dp)
+                    .align(Alignment.CenterHorizontally)
                     .padding(horizontal = 16.dp, vertical = 6.dp)
                     .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(14.dp))
@@ -419,13 +424,17 @@ fun ChannelScreen(
                             color = TextPrimary
                         ),
                         cursorBrush = SolidColor(YouTubeRed),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("channel_search_input")
                     )
                 }
                 if (searchQuery.isNotEmpty()) {
                     IconButton(
                         onClick = { searchQuery = "" },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier
+                            .size(48.dp)
+                            .testTag("channel_search_clear_btn")
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Clear,
@@ -448,229 +457,235 @@ fun ChannelScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(24.dp)
-                    ) {
-                        Text(
-                            text = errorMessage ?: stringResource(R.string.channel_load_failed),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = stringResource(R.string.channel_load_failed_hint),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(YouTubeRed)
-                                .clickable { loadChannel() }
-                                .padding(horizontal = 18.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Refresh,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.action_retry),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                color = Color.White
-                            )
-                        }
-                    }
+                    PhantomErrorStateView(
+                        title = errorMessage ?: stringResource(R.string.channel_load_failed),
+                        detail = stringResource(R.string.channel_load_failed_hint),
+                        retryLabel = stringResource(R.string.action_retry),
+                        onRetry = { loadChannel() },
+                        retryTestTag = "channel_error_retry"
+                    )
                 }
             }
 
             currentProfile != null -> {
-                LazyColumn(
-                    state = channelListState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = navBarPadding + 110.dp)
-                ) {
-                    item(key = "channel_header") {
-                        ChannelHeaderSection(
-                            profile = currentProfile,
-                            isSubscribed = isSubscribed,
-                            onToggleSubscribe = {
-                                scope.launch {
-                                    if (isSubscribed) {
-                                        repository.unsubscribe(resolvedChannelId)
-                                    } else {
-                                        repository.subscribe(
-                                            SubscriptionEntity(
-                                                channelId = resolvedChannelId,
-                                                channelTitle = currentProfile.title.ifBlank { initialChannelTitle },
-                                                channelHandle = currentProfile.handle,
-                                                channelAvatarUrl = currentProfile.avatarUrl,
-                                                subscriberCountText = currentProfile.subscriberCountText
-                                            )
-                                        )
-                                    }
-                                }
-                            },
-                            onOpenAboutSheet = { showAboutSheet = true }
-                        )
-                    }
-
-                    item(key = "channel_tabs") {
-                        ChannelTabBar(
-                            tabs = availableTabs,
-                            selectedTab = selectedTab,
-                            onSelectTab = { selectedTab = it }
-                        )
-                    }
-
-                    when (selectedTab) {
-                        ChannelTabType.HOME -> {
-                            val featured = currentProfile.featuredVideo ?: filteredVideos.firstOrNull()
-                            if (featured != null) {
-                                item(key = "home_featured_${featured.id}") {
-                                    Column(modifier = Modifier.padding(top = 12.dp)) {
-                                        Text(
-                                            text = stringResource(R.string.channel_for_you),
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 16.sp
-                                            ),
-                                            color = TextPrimary,
-                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                                        )
-                                        PhantomVideoCard(
-                                            video = featured,
-                                            onDownloadClick = { videoToDownload = it },
-                                            onClick = { onVideoClick(featured) }
-                                        )
-                                    }
-                                }
-                            }
-
-                            val recentVideos = if (featured != null) {
-                                filteredVideos.filter { it.id != featured.id }
-                            } else {
-                                filteredVideos
-                            }
-
-                            if (recentVideos.isNotEmpty()) {
-                                item(key = "home_recent_header") {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 6.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.channel_recent_videos),
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 16.sp
-                                            ),
-                                            color = TextPrimary
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .heightIn(min = 48.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .clickable {
-                                                    selectedTab = ChannelTabType.VIDEOS
-                                                }
-                                                .padding(horizontal = 8.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = stringResource(R.string.channel_tab_videos),
-                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                color = YouTubeRed
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val columns = if (maxWidth >= 600.dp) 2 else 1
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(columns),
+                        state = channelListState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = navBarPadding + 110.dp)
+                    ) {
+                        item(
+                            key = "channel_header",
+                            span = { GridItemSpan(maxLineSpan) }
+                        ) {
+                            ChannelHeaderSection(
+                                profile = currentProfile,
+                                isSubscribed = isSubscribed,
+                                onToggleSubscribe = {
+                                    scope.launch {
+                                        if (isSubscribed) {
+                                            repository.unsubscribe(resolvedChannelId)
+                                        } else {
+                                            repository.subscribe(
+                                                SubscriptionEntity(
+                                                    channelId = resolvedChannelId,
+                                                    channelTitle = currentProfile.title.ifBlank { initialChannelTitle },
+                                                    channelHandle = currentProfile.handle,
+                                                    channelAvatarUrl = currentProfile.avatarUrl,
+                                                    subscriberCountText = currentProfile.subscriberCountText
+                                                )
                                             )
                                         }
                                     }
-                                }
-                                itemsIndexed(
-                                    items = recentVideos.take(15),
-                                    key = { idx: Int, v: VideoItem -> "home_v_${v.id}_$idx" }
-                                ) { _: Int, video: VideoItem ->
-                                    ChannelCompactVideoRow(
-                                        video = video,
-                                        onClick = { onVideoClick(video) }
-                                    )
-                                }
-                            } else if (featured == null) {
-                                item {
-                                    ChannelEmptyStateBox(stringResource(R.string.channel_no_videos))
-                                }
-                            }
+                                },
+                                onOpenAboutSheet = { showAboutSheet = true }
+                            )
                         }
 
-                        ChannelTabType.VIDEOS -> {
-                            item(key = "videos_sort_bar") {
-                                ChannelSortFilterBar(
-                                    selectedSort = selectedSort,
-                                    onSelectSort = { selectSortOrder(it) }
-                                )
-                            }
-                            if (isLoadingVideosTab && filteredVideos.isEmpty()) {
-                                item(key = "videos_tab_loading") {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 32.dp),
-                                        contentAlignment = Alignment.Center
+                        item(
+                            key = "channel_tabs",
+                            span = { GridItemSpan(maxLineSpan) }
+                        ) {
+                            ChannelTabBar(
+                                tabs = availableTabs,
+                                selectedTab = selectedTab,
+                                onSelectTab = { selectedTab = it }
+                            )
+                        }
+
+                        when (selectedTab) {
+                            ChannelTabType.HOME -> {
+                                val featured = currentProfile.featuredVideo ?: filteredVideos.firstOrNull()
+                                if (featured != null) {
+                                    item(
+                                        key = "home_featured_${featured.id}",
+                                        span = { GridItemSpan(maxLineSpan) }
                                     ) {
-                                        CircularProgressIndicator(
-                                            color = YouTubeRed,
-                                            strokeWidth = 2.5.dp,
-                                            modifier = Modifier.size(28.dp)
-                                        )
+                                        Column(modifier = Modifier.padding(top = 12.dp)) {
+                                            Text(
+                                                text = stringResource(R.string.channel_for_you),
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 16.sp
+                                                ),
+                                                color = TextPrimary,
+                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .padding(horizontal = 12.dp)
+                                                    .widthIn(max = 560.dp)
+                                            ) {
+                                                PhantomVideoCard(
+                                                    video = featured,
+                                                    onDownloadClick = { videoToDownload = it },
+                                                    onClick = { onVideoClick(featured) }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
-                            } else if (filteredVideos.isEmpty()) {
-                                item {
-                                    ChannelEmptyStateBox(stringResource(R.string.channel_no_videos))
+
+                                val recentVideos = if (featured != null) {
+                                    filteredVideos.filter { it.id != featured.id }
+                                } else {
+                                    filteredVideos
                                 }
-                            } else {
-                                itemsIndexed(
-                                    items = filteredVideos,
-                                    key = { idx: Int, v: VideoItem -> "tab_v_${selectedSort.name}_${v.id}_$idx" }
-                                ) { _: Int, video: VideoItem ->
-                                    ChannelCompactVideoRow(
-                                        video = video,
-                                        onClick = { onVideoClick(video) }
+
+                                if (recentVideos.isNotEmpty()) {
+                                    item(
+                                        key = "home_recent_header",
+                                        span = { GridItemSpan(maxLineSpan) }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 6.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.channel_recent_videos),
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 16.sp
+                                                ),
+                                                color = TextPrimary
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .heightIn(min = 48.dp)
+                                                    .testTag("channel_see_all_videos")
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .clickable {
+                                                        selectedTab = ChannelTabType.VIDEOS
+                                                    }
+                                                    .padding(horizontal = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = stringResource(R.string.channel_tab_videos),
+                                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                    color = YouTubeRed
+                                                )
+                                            }
+                                        }
+                                    }
+                                    itemsIndexed(
+                                        items = recentVideos.take(15),
+                                        key = { idx: Int, v: VideoItem -> "home_v_${v.id}_$idx" }
+                                    ) { _: Int, video: VideoItem ->
+                                        ChannelCompactVideoRow(
+                                            video = video,
+                                            onClick = { onVideoClick(video) }
+                                        )
+                                    }
+                                } else if (featured == null) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        ChannelEmptyStateBox(stringResource(R.string.channel_no_videos))
+                                    }
+                                }
+                            }
+
+                            ChannelTabType.VIDEOS -> {
+                                item(
+                                    key = "videos_sort_bar",
+                                    span = { GridItemSpan(maxLineSpan) }
+                                ) {
+                                    ChannelSortFilterBar(
+                                        selectedSort = selectedSort,
+                                        onSelectSort = { selectSortOrder(it) }
                                     )
                                 }
-                                if (isLoadingMore || isLoadingVideosTab) {
-                                    item {
+                                if (isLoadingVideosTab && filteredVideos.isEmpty()) {
+                                    item(
+                                        key = "videos_tab_loading",
+                                        span = { GridItemSpan(maxLineSpan) }
+                                    ) {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(vertical = 16.dp),
+                                                .padding(vertical = 32.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             CircularProgressIndicator(
                                                 color = YouTubeRed,
                                                 strokeWidth = 2.5.dp,
-                                                modifier = Modifier.size(26.dp)
+                                                modifier = Modifier.size(28.dp)
                                             )
+                                        }
+                                    }
+                                } else if (filteredVideos.isEmpty()) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        ChannelEmptyStateBox(stringResource(R.string.channel_no_videos))
+                                    }
+                                } else {
+                                    itemsIndexed(
+                                        items = filteredVideos,
+                                        key = { idx: Int, v: VideoItem -> "tab_v_${selectedSort.name}_${v.id}_$idx" }
+                                    ) { _: Int, video: VideoItem ->
+                                        ChannelCompactVideoRow(
+                                            video = video,
+                                            onClick = { onVideoClick(video) }
+                                        )
+                                    }
+                                    if (isLoadingMore || isLoadingVideosTab) {
+                                        item(span = { GridItemSpan(maxLineSpan) }) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 16.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    color = YouTubeRed,
+                                                    strokeWidth = 2.5.dp,
+                                                    modifier = Modifier.size(26.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        ChannelTabType.ABOUT -> {
-                            item(key = "about_card") {
-                                ChannelAboutCard(
-                                    profile = currentProfile,
-                                    onChannelClick = onChannelClick,
-                                    onVideoLinkClick = onVideoClick
-                                )
+                            ChannelTabType.ABOUT -> {
+                                item(
+                                    key = "about_card",
+                                    span = { GridItemSpan(maxLineSpan) }
+                                ) {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.TopCenter
+                                    ) {
+                                        ChannelAboutCard(
+                                            profile = currentProfile,
+                                            onChannelClick = onChannelClick,
+                                            onVideoLinkClick = onVideoClick
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

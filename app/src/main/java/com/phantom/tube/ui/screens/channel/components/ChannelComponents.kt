@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,6 +55,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -68,6 +70,7 @@ import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.GlassBorderDim
 import com.phantom.tube.core.theme.GlassBorderLight
 import com.phantom.tube.core.theme.GlassSurface
+import com.phantom.tube.core.theme.OverlayBadgeScrim
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -110,7 +113,9 @@ fun ChannelTopBar(
             onClick = {
                 if (isSearchActive) onToggleSearch() else onBack()
             },
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier
+                .size(48.dp)
+                .testTag("channel_back_btn")
         ) {
             Box(
                 modifier = Modifier
@@ -141,7 +146,9 @@ fun ChannelTopBar(
         )
         IconButton(
             onClick = onToggleSearch,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier
+                .size(48.dp)
+                .testTag("channel_search_btn")
         ) {
             Box(
                 modifier = Modifier
@@ -160,7 +167,9 @@ fun ChannelTopBar(
         }
         IconButton(
             onClick = onShareChannel,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier
+                .size(48.dp)
+                .testTag("channel_share_btn")
         ) {
             Box(
                 modifier = Modifier
@@ -376,6 +385,7 @@ fun ChannelHeaderSection(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 48.dp)
+                    .testTag("channel_subscribe_btn")
                     .clip(RoundedCornerShape(24.dp))
                     .background(subBgColor)
                     .border(
@@ -548,7 +558,7 @@ fun ChannelCompactVideoRow(
                         .align(Alignment.BottomEnd)
                         .padding(6.dp)
                         .clip(RoundedCornerShape(5.dp))
-                        .background(Color.Black.copy(alpha = 0.78f))
+                        .background(OverlayBadgeScrim)
                         .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Text(
@@ -603,6 +613,7 @@ fun ChannelAboutCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .widthIn(max = 760.dp)
             .padding(16.dp)
             .border(1.dp, GlassBorderLight, RoundedCornerShape(20.dp)),
         shape = RoundedCornerShape(20.dp),

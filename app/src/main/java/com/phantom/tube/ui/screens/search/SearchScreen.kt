@@ -16,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,13 +31,16 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,13 +53,14 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NorthWest
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -86,6 +91,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -99,20 +105,21 @@ import coil.request.ImageRequest
 import coil.size.Precision
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
-import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.ObsidianDark
-import com.phantom.tube.core.theme.SystemStatusBarColor
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.YouTubeSurfaceLight
 import com.phantom.tube.core.util.openExternalUrl
 import com.phantom.tube.data.model.SearchChannelItem
 import com.phantom.tube.data.model.SuggestionItem
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.PhantomChip
+import com.phantom.tube.ui.components.PhantomEmptyStateView
+import com.phantom.tube.ui.components.PhantomErrorStateView
 import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.SearchChannelCard
@@ -174,7 +181,7 @@ fun SearchScreen(
     var hasSearched by remember { mutableStateOf(false) }
     var searchError by remember { mutableStateOf<String?>(null) }
     var videoToDownload by remember { mutableStateOf<VideoItem?>(null) }
-    val searchListState = remember(lastSearchQuery) { LazyListState() }
+    val searchListState = remember(lastSearchQuery) { LazyGridState() }
     val uniqueSearchChannels = remember(searchChannels) { searchChannels.distinctBy { it.id } }
 
     val nestedScrollConnection = remember {
@@ -494,12 +501,15 @@ fun SearchScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .widthIn(max = 760.dp)
+                .align(Alignment.CenterHorizontally)
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             PhantomIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = stringResource(R.string.action_back),
+                modifier = Modifier.testTag("search_back_btn"),
                 size = 48.dp,
                 iconSize = 20.dp,
                 onClick = {
@@ -542,7 +552,8 @@ fun SearchScreen(
                         modifier = Modifier
                             .weight(1f)
                             .padding(vertical = 10.dp)
-                            .focusRequester(focusRequester),
+                            .focusRequester(focusRequester)
+                            .testTag("search_input"),
                         textStyle = TextStyle(
                             color = TextPrimary,
                             fontSize = 14.sp,
@@ -582,7 +593,9 @@ fun SearchScreen(
                                 selectedFilter = SearchFilter.ALL
                                 isFilterBarVisible = true
                             },
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier
+                                .size(48.dp)
+                                .testTag("search_clear_btn")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
@@ -642,7 +655,12 @@ fun SearchScreen(
                 }
                 // 2. Actively typing (searchQuery is not blank) -> Show Hybrid Suggestions (Instant local history + Live YouTube suggestions)
                 !hasSearched && searchQuery.isNotBlank() -> {
-                    Column(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .widthIn(max = 760.dp)
+                            .align(Alignment.TopCenter)
+                    ) {
                         if (isFetchingSuggestions && combinedSuggestions.isEmpty()) {
                             LinearProgressIndicator(
                                 modifier = Modifier
@@ -734,7 +752,7 @@ fun SearchScreen(
                                                 modifier = Modifier
                                                     .size(40.dp)
                                                     .clip(CircleShape)
-                                                    .background(Color(0xFF262626))
+                                                    .background(YouTubeSurfaceLight)
                                             )
 
                                             Spacer(modifier = Modifier.width(14.dp))
@@ -842,81 +860,95 @@ fun SearchScreen(
                     }
                 }
                 hasSearched && (searchResults.isNotEmpty() || searchChannels.isNotEmpty()) -> {
-                    LazyColumn(
-                        state = searchListState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = bottomNavInset + 140.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        // 1. YouTube-style Channel Card at top of search results
-                        if (uniqueSearchChannels.isNotEmpty()) {
-                            itemsIndexed(
-                                items = uniqueSearchChannels,
-                                key = { index, ch -> "search_ch_${ch.id}_$index" },
-                                contentType = { _, _ -> "channel_card" }
-                            ) { _, channel ->
-                                SearchChannelCard(
-                                    channel = channel,
-                                    repository = repository,
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        val columns = when {
+                            maxWidth >= 840.dp -> 3
+                            maxWidth >= 600.dp -> 2
+                            else -> 1
+                        }
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(columns),
+                            state = searchListState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = bottomNavInset + 140.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            // 1. YouTube-style Channel Card at top of search results
+                            if (uniqueSearchChannels.isNotEmpty()) {
+                                val channelSpan = if (uniqueSearchChannels.size >= 2 && columns >= 2) 1 else columns
+                                gridItemsIndexed(
+                                    items = uniqueSearchChannels,
+                                    key = { index, ch -> "search_ch_${ch.id}_$index" },
+                                    span = { _, _ -> GridItemSpan(channelSpan) },
+                                    contentType = { _, _ -> "channel_card" }
+                                ) { _, channel ->
+                                    SearchChannelCard(
+                                        channel = channel,
+                                        repository = repository,
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                            onChannelClick(channel.id, channel.title)
+                                        }
+                                    )
+                                }
+                            }
+
+                            // 2. Video items
+                            gridItemsIndexed(
+                                items = searchResults,
+                                key = { index, video -> "search_${video.id}_$index" },
+                                contentType = { _, _ -> "video_card" }
+                            ) { _, video ->
+                                PhantomVideoCard(
+                                    video = video,
+                                    progressFraction = historyMap[video.id] ?: 0f,
+                                    onChannelClick = { chId ->
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                        onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
+                                    },
+                                    onDownloadClick = { videoToDownload = it },
                                     onClick = {
                                         focusManager.clearFocus()
                                         keyboardController?.hide()
-                                        onChannelClick(channel.id, channel.title)
+                                        onVideoClick(video)
                                     }
                                 )
                             }
-                        }
 
-                        // 2. Video items
-                        itemsIndexed(
-                            items = searchResults,
-                            key = { index, video -> "search_${video.id}_$index" },
-                            contentType = { _, _ -> "video_card" }
-                        ) { _, video ->
-                            PhantomVideoCard(
-                                video = video,
-                                progressFraction = historyMap[video.id] ?: 0f,
-                                onChannelClick = { chId ->
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                    onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
-                                },
-                                onDownloadClick = { videoToDownload = it },
-                                onClick = {
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                    onVideoClick(video)
-                                }
-                            )
-                        }
-
-                        if (isLoadingMore) {
-                            item(key = "loading_more_search", contentType = "loader") {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 14.dp),
-                                    contentAlignment = Alignment.Center
+                            if (isLoadingMore) {
+                                item(
+                                    key = "loading_more_search",
+                                    span = { GridItemSpan(maxLineSpan) },
+                                    contentType = "loader"
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
+                                    Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(YouTubeSurface)
-                                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                                            .fillMaxWidth()
+                                            .padding(vertical = 14.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        CircularProgressIndicator(
-                                            color = YouTubeRed,
-                                            strokeWidth = 2.dp,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Text(
-                                            text = stringResource(R.string.common_loading),
-                                            color = TextSecondary,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Medium
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(YouTubeSurface)
+                                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        ) {
+                                            CircularProgressIndicator(
+                                                color = YouTubeRed,
+                                                strokeWidth = 2.dp,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                text = stringResource(R.string.common_loading),
+                                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                                color = TextSecondary
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -925,51 +957,35 @@ fun SearchScreen(
                 }
                 hasSearched && searchError != null && searchResults.isEmpty() && searchChannels.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = stringResource(R.string.home_failed_load_video),
-                                color = TextPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            val detail = searchError
-                            if (!detail.isNullOrBlank()) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = detail,
-                                    color = TextSecondary,
-                                    fontSize = 12.sp
+                        PhantomErrorStateView(
+                            title = stringResource(R.string.home_failed_load_video),
+                            detail = searchError,
+                            retryLabel = stringResource(R.string.common_retry),
+                            onRetry = {
+                                executeSearch(
+                                    query = lastSearchQuery.ifBlank { searchQuery },
+                                    filter = selectedFilter
                                 )
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            PhantomIconButton(
-                                icon = Icons.Default.Refresh,
-                                contentDescription = stringResource(R.string.common_retry),
-                                size = 48.dp,
-                                onClick = {
-                                    executeSearch(
-                                        query = lastSearchQuery.ifBlank { searchQuery },
-                                        filter = selectedFilter
-                                    )
-                                }
-                            )
-                        }
+                            },
+                            retryTestTag = "search_error_retry"
+                        )
                     }
                 }
                 hasSearched && searchResults.isEmpty() && searchChannels.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = stringResource(R.string.search_no_results_for, searchQuery.trim()),
-                            color = TextMuted,
-                            fontSize = 14.sp
+                        PhantomEmptyStateView(
+                            icon = Icons.Rounded.SearchOff,
+                            title = stringResource(R.string.search_no_results_for, searchQuery.trim())
                         )
                     }
                 }
                 searchQuery.isBlank() && searchHistory.isNotEmpty() -> {
-                    Column(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .widthIn(max = 760.dp)
+                            .align(Alignment.TopCenter)
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1084,20 +1100,10 @@ fun SearchScreen(
                 }
                 else -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = TextMuted.copy(alpha = 0.35f),
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = stringResource(R.string.empty_search),
-                                color = TextMuted,
-                                fontSize = 13.sp
-                            )
-                        }
+                        PhantomEmptyStateView(
+                            icon = Icons.Default.Search,
+                            title = stringResource(R.string.empty_search)
+                        )
                     }
                 }
             }

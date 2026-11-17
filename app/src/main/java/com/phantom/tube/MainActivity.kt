@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
     private var isInPipMode by mutableStateOf(false)
     private var activeVideo by mutableStateOf<VideoItem?>(null)
     private var isPlayerMinimized by mutableStateOf(false)
+    private var isPlayerActivelyPlaying by mutableStateOf(false)
     private var pendingDeepLinkChannelId by mutableStateOf<String?>(null)
     private var hasRequestedNotificationThisSession = false
     private val playbackBackStack = mutableListOf<VideoItem>()
@@ -124,8 +125,24 @@ class MainActivity : ComponentActivity() {
             val preferences = app.preferences
             val defaultLanguage = remember { LocaleHelper.resolveDefaultLanguage() }
             val appLanguage by (preferences?.appLanguage ?: kotlinx.coroutines.flow.MutableStateFlow(defaultLanguage)).collectAsState()
+            val autoPipEnabled by (preferences?.autoPipEnabled ?: kotlinx.coroutines.flow.MutableStateFlow(true)).collectAsState()
             val baseContext = LocalContext.current
             val currentConfig = LocalConfiguration.current
+
+            val shouldAutoPip = autoPipEnabled && activeVideo != null && !isPlayerMinimized && isPlayerActivelyPlaying
+            LaunchedEffect(shouldAutoPip) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    try {
+                        setPictureInPictureParams(
+                            PictureInPictureParams.Builder()
+                                .setAspectRatio(Rational(16, 9))
+                                .setAutoEnterEnabled(shouldAutoPip)
+                                .build()
+                        )
+                    } catch (_: Exception) {
+                    }
+                }
+            }
 
             val hostActivity = this@MainActivity
             val localizedContext = remember(appLanguage, baseContext) {
@@ -442,6 +459,7 @@ class MainActivity : ComponentActivity() {
                             playbackForwardStack.clear()
                             activeVideo = null
                             isPlayerMinimized = false
+                            isPlayerActivelyPlaying = false
                         }
                     }
                     val hasBottomNav = activeChannelId == null && !isSettingsOpen && !isDownloadsOpen
@@ -482,6 +500,7 @@ class MainActivity : ComponentActivity() {
                                 playbackForwardStack.clear()
                                 activeVideo = null
                                 isPlayerMinimized = false
+                                isPlayerActivelyPlaying = false
                             },
                             onPlayNextVideo = { nextVideo: VideoItem ->
                                 openVideo(nextVideo, pushCurrentToBackStack = true)
@@ -533,6 +552,9 @@ class MainActivity : ComponentActivity() {
                             onChannelClick = { chId: String, chTitle: String ->
                                 activeChannelId = chId
                                 activeChannelTitle = chTitle
+                            },
+                            onPlaybackActiveChanged = { isActive ->
+                                isPlayerActivelyPlaying = isActive
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -659,7 +681,8 @@ class MainActivity : ComponentActivity() {
         super.onUserLeaveHint()
         // Enter Picture-in-Picture only if enabled in preferences and video is actively playing in FULL player mode
         val isAutoPip = (application as? PhantomApp)?.preferences?.autoPipEnabled?.value ?: true
-        if (isAutoPip && activeVideo != null && !isPlayerMinimized && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val shouldEnterPip = isAutoPip && activeVideo != null && !isPlayerMinimized && isPlayerActivelyPlaying
+        if (shouldEnterPip && Build.VERSION.SDK_INT in Build.VERSION_CODES.O until Build.VERSION_CODES.S) {
             try {
                 val params = PictureInPictureParams.Builder()
                     .setAspectRatio(Rational(16, 9))

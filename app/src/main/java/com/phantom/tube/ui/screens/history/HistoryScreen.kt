@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,17 +17,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsTopHeight
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -41,23 +42,25 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
+import com.phantom.tube.core.theme.MediaPlaceholderBg
 import com.phantom.tube.core.theme.ObsidianDark
-import com.phantom.tube.core.theme.SystemStatusBarColor
-import com.phantom.tube.core.theme.TextMuted
+import com.phantom.tube.core.theme.OverlayBadgeScrim
+import com.phantom.tube.core.theme.OverlayTrackSubtle
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
+import com.phantom.tube.ui.components.PhantomEmptyStateView
 import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.screens.settings.components.SettingsConfirmDialog
 import kotlinx.coroutines.launch
@@ -98,9 +101,8 @@ fun HistoryScreen(
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = stringResource(R.string.nav_history),
-                    color = TextPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = TextPrimary
                 )
             }
 
@@ -108,6 +110,7 @@ fun HistoryScreen(
                 PhantomIconButton(
                     icon = Icons.Default.DeleteSweep,
                     contentDescription = stringResource(R.string.library_clear_history),
+                    modifier = Modifier.testTag("history_clear_btn"),
                     size = 48.dp,
                     iconSize = 20.dp,
                     onClick = {
@@ -122,139 +125,131 @@ fun HistoryScreen(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
         ) {
-
-        if (historyList.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = null,
-                        tint = TextMuted,
-                        modifier = Modifier.size(54.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = stringResource(R.string.empty_history),
-                        color = TextMuted,
-                        fontSize = 14.sp
+            if (historyList.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    PhantomEmptyStateView(
+                        icon = Icons.Default.History,
+                        title = stringResource(R.string.empty_history)
                     )
                 }
-            }
-        } else {
-            val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 4.dp, bottom = bottomNavInset + 140.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                itemsIndexed(
-                    items = historyList,
-                    key = { index, entry -> "hist_${entry.videoId}_$index" },
-                    contentType = { _, _ -> "history_card" }
-                ) { _, entry ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                onVideoClick(
-                                    VideoItem(
-                                        id = entry.videoId,
-                                        title = entry.title,
-                                        channelTitle = entry.channelTitle,
-                                        channelId = entry.channelId,
-                                        thumbnailUrl = entry.thumbnailUrl,
-                                        durationText = entry.durationText
-                                    )
-                                )
-                            }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            } else {
+                val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val columns = if (maxWidth >= 600.dp) 2 else 1
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(columns),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = 4.dp, bottom = bottomNavInset + 140.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Thumbnail with Resume Progress Indicator
-                        Box(
-                            modifier = Modifier
-                                .width(120.dp)
-                                .height(68.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF181818))
-                        ) {
-                            val thumbRequest = remember(entry.thumbnailUrl, context) {
-                                ImageRequest.Builder(context)
-                                    .data(entry.thumbnailUrl)
-                                    .size(240, 136)
-                                    .precision(Precision.INEXACT)
-                                    .allowRgb565(true)
-                                    .allowHardware(false)
-                                    .build()
-                            }
-                            AsyncImage(
-                                model = thumbRequest,
-                                contentDescription = entry.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.matchParentSize()
-                            )
-
-                            if (entry.durationText.isNotBlank()) {
+                        itemsIndexed(
+                            items = historyList,
+                            key = { index, entry -> "hist_${entry.videoId}_$index" },
+                            contentType = { _, _ -> "history_card" }
+                        ) { _, entry ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("history_item_${entry.videoId}")
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        onVideoClick(
+                                            VideoItem(
+                                                id = entry.videoId,
+                                                title = entry.title,
+                                                channelTitle = entry.channelTitle,
+                                                channelId = entry.channelId,
+                                                thumbnailUrl = entry.thumbnailUrl,
+                                                durationText = entry.durationText
+                                            )
+                                        )
+                                    }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Thumbnail with Resume Progress Indicator
                                 Box(
                                     modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(4.dp)
-                                        .background(Color(0xCC000000), RoundedCornerShape(4.dp))
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        .width(120.dp)
+                                        .height(68.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MediaPlaceholderBg)
                                 ) {
+                                    val thumbRequest = remember(entry.thumbnailUrl, context) {
+                                        ImageRequest.Builder(context)
+                                            .data(entry.thumbnailUrl)
+                                            .size(240, 136)
+                                            .precision(Precision.INEXACT)
+                                            .allowRgb565(true)
+                                            .allowHardware(false)
+                                            .build()
+                                    }
+                                    AsyncImage(
+                                        model = thumbRequest,
+                                        contentDescription = entry.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.matchParentSize()
+                                    )
+
+                                    if (entry.durationText.isNotBlank()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(4.dp)
+                                                .background(OverlayBadgeScrim, RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = entry.durationText,
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+
+                                    if (entry.progressFraction > 0f) {
+                                        LinearProgressIndicator(
+                                            progress = { entry.progressFraction },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(3.dp)
+                                                .align(Alignment.BottomCenter),
+                                            color = YouTubeRed,
+                                            trackColor = OverlayTrackSubtle
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = entry.durationText,
-                                        color = Color.White,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium
+                                        text = entry.title,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = TextPrimary,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    Spacer(modifier = Modifier.height(3.dp))
+
+                                    Text(
+                                        text = entry.channelTitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
-
-                            if (entry.progressFraction > 0f) {
-                                LinearProgressIndicator(
-                                    progress = { entry.progressFraction },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(3.dp)
-                                        .align(Alignment.BottomCenter),
-                                    color = YouTubeRed,
-                                    trackColor = Color.White.copy(alpha = 0.2f)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = entry.title,
-                                color = TextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                lineHeight = 18.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(3.dp))
-
-                            Text(
-                                text = entry.channelTitle,
-                                color = TextSecondary,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
                         }
                     }
                 }
             }
-        }
         }
     }
 

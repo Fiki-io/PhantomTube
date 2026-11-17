@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,13 +38,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +54,8 @@ import androidx.compose.ui.unit.sp
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.BubbleDockBg
 import com.phantom.tube.core.theme.BubbleDockBorder
+import com.phantom.tube.core.theme.PillBorderSubtle
+import com.phantom.tube.core.theme.PillSurfaceActive
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import kotlin.math.roundToInt
@@ -136,8 +139,8 @@ fun BubbleBottomNav(
                     .fillMaxHeight()
                     .padding(horizontal = 4.dp, vertical = 2.dp)
                     .clip(RoundedCornerShape(26.dp))
-                    .background(Color(0xFF28282C))
-                    .border(0.5.dp, Color(0xFF3A3A3F), RoundedCornerShape(26.dp))
+                    .background(PillSurfaceActive)
+                    .border(0.5.dp, PillBorderSubtle, RoundedCornerShape(26.dp))
             )
 
             // Item-item tab di atas pil geser
@@ -191,6 +194,7 @@ fun BubbleBottomNav(
                             .weight(1f)
                             .fillMaxHeight()
                             .clip(RoundedCornerShape(24.dp))
+                            .testTag("nav_tab_${tab.name.lowercase()}")
                             .clickable(
                                 interactionSource = interactionSource,
                                 indication = null,
@@ -222,9 +226,11 @@ fun BubbleBottomNav(
                             )
                             Text(
                                 text = title,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                ),
                                 color = textColor,
-                                fontSize = 10.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(horizontal = 4.dp)

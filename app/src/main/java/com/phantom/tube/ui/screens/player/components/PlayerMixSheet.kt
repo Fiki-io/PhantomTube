@@ -50,6 +50,9 @@ import coil.size.Precision
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
+import com.phantom.tube.core.theme.ControlSurfaceMuted
+import com.phantom.tube.core.theme.MediaPlaceholderBg
+import com.phantom.tube.core.theme.OverlayBadgeScrim
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -69,7 +72,7 @@ fun MixPlaylistItemCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isCurrent) Color(0xFF272727) else Color.Transparent)
+            .background(if (isCurrent) ControlSurfaceMuted else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
@@ -105,7 +108,7 @@ fun MixPlaylistItemCard(
                     .width(100.dp)
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF181818))
+                    .background(MediaPlaceholderBg)
             ) {
                 val context = LocalContext.current
                 AsyncImage(
@@ -127,7 +130,7 @@ fun MixPlaylistItemCard(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(4.dp)
-                            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
+                            .background(OverlayBadgeScrim, RoundedCornerShape(4.dp))
                             .padding(horizontal = 4.dp, vertical = 2.dp)
                     ) {
                         Text(

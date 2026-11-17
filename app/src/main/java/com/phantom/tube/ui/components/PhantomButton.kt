@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,7 +30,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.phantom.tube.core.theme.ChipTextDefault
+import com.phantom.tube.core.theme.ChipTextSelected
+import com.phantom.tube.core.theme.ControlSurfaceMuted
+import com.phantom.tube.core.theme.IconBtnBgDefault
+import com.phantom.tube.core.theme.IconBtnBgPressed
 import com.phantom.tube.core.theme.TextPrimary
 
 @Composable
@@ -76,7 +81,7 @@ fun PhantomIconButton(
             .then(borderModifier)
             .clip(shape)
             .background(
-                if (isPressed) Color(0x33FFFFFF) else Color(0x0FFFFFFF)
+                if (isPressed) IconBtnBgPressed else IconBtnBgDefault
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -130,7 +135,7 @@ fun PhantomChip(
             }
             .clip(RoundedCornerShape(10.dp))
             .background(
-                if (isSelected) Color.White else Color(0xFF272727)
+                if (isSelected) Color.White else ControlSurfaceMuted
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -142,9 +147,10 @@ fun PhantomChip(
     ) {
         Text(
             text = text,
-            fontSize = 13.sp,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (isSelected) Color(0xFF0F0F0F) else Color(0xFFF1F1F1)
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+            ),
+            color = if (isSelected) ChipTextSelected else ChipTextDefault
         )
     }
 }

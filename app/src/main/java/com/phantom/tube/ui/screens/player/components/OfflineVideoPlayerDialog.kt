@@ -72,6 +72,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -85,6 +86,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.phantom.tube.core.database.DownloadEntity
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
+import com.phantom.tube.core.theme.MediaPlaceholderBg
+import com.phantom.tube.core.theme.OverlayTrackSubtle
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
@@ -409,7 +412,12 @@ fun OfflineVideoPlayerDialog(
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = closePlayer) {
+                        IconButton(
+                            onClick = closePlayer,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .testTag("offline_video_close_btn")
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = stringResource(R.string.player_close),
@@ -434,7 +442,12 @@ fun OfflineVideoPlayerDialog(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        IconButton(onClick = onOpenExternal) {
+                        IconButton(
+                            onClick = onOpenExternal,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .testTag("offline_video_external_btn")
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.OpenInNew,
                                 contentDescription = stringResource(R.string.downloads_play_external),
@@ -450,7 +463,7 @@ fun OfflineVideoPlayerDialog(
                             modifier = Modifier
                                 .align(Alignment.Center)
                                 .padding(horizontal = 24.dp)
-                                .background(Color(0xE6181818), RoundedCornerShape(16.dp))
+                                .background(MediaPlaceholderBg.copy(alpha = 0.92f), RoundedCornerShape(16.dp))
                                 .padding(20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -477,7 +490,9 @@ fun OfflineVideoPlayerDialog(
                                         videoViewRef?.stopPlayback()
                                         retryNonce++
                                     },
-                                    modifier = Modifier.heightIn(min = 48.dp),
+                                    modifier = Modifier
+                                        .heightIn(min = 48.dp)
+                                        .testTag("offline_video_retry_btn"),
                                     colors = ButtonDefaults.buttonColors(containerColor = YouTubeRed)
                                 ) {
                                     Icon(
@@ -558,6 +573,7 @@ fun OfflineVideoPlayerDialog(
                         Box(
                             modifier = Modifier
                                 .size(68.dp)
+                                .testTag("offline_video_play_pause_btn")
                                 .background(YouTubeRed, CircleShape)
                                 .clickable(enabled = !isBuffering) {
                                     videoViewRef?.let { vv ->
@@ -645,7 +661,7 @@ fun OfflineVideoPlayerDialog(
                             colors = SliderDefaults.colors(
                                 thumbColor = YouTubeRed,
                                 activeTrackColor = YouTubeRed,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                inactiveTrackColor = OverlayTrackSubtle
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -672,7 +688,9 @@ fun OfflineVideoPlayerDialog(
                             // Fullscreen / Landscape Toggle Button
                             IconButton(
                                 onClick = toggleFullscreen,
-                                modifier = Modifier.size(48.dp)
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .testTag("offline_video_fullscreen_btn")
                             ) {
                                 Icon(
                                     imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,

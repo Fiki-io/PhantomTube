@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -40,6 +41,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -195,11 +197,12 @@ fun PhantomTopBar(
                         Spacer(modifier = Modifier.width(8.dp))
 
                         Text(
-                            text = "PHANTOM",
-                            color = TextPrimary,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 0.5.sp
+                            text = stringResource(R.string.app_brand_name),
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = TextPrimary
                         )
                     }
 
@@ -214,6 +217,7 @@ fun PhantomTopBar(
                                 contentDescription = stringResource(R.string.nav_settings),
                                 size = 48.dp,
                                 iconSize = 20.dp,
+                                modifier = Modifier.testTag("top_bar_settings_btn"),
                                 onClick = onSettingsClick
                             )
                         }
@@ -223,6 +227,7 @@ fun PhantomTopBar(
                             contentDescription = stringResource(R.string.nav_search),
                             size = 48.dp,
                             iconSize = 22.dp,
+                            modifier = Modifier.testTag("top_bar_search_btn"),
                             onClick = onSearchClick
                         )
                     }

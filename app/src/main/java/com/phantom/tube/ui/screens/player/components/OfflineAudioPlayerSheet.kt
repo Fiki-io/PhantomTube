@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,15 +76,13 @@ import com.phantom.tube.R
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
-import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
-import com.phantom.tube.core.theme.GlassBorderLight
 import com.phantom.tube.core.theme.GlassSurface
-import com.phantom.tube.core.theme.ObsidianDark
+import com.phantom.tube.core.theme.MediaPlaceholderBg
+import com.phantom.tube.core.theme.OverlayTrackSubtle
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.player.offline.OfflineAudioPlayerManager
@@ -140,7 +139,12 @@ fun OfflineAudioPlayerSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onDismiss) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .testTag("offline_audio_close_btn")
+                ) {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
                         contentDescription = stringResource(R.string.player_close),
@@ -164,7 +168,12 @@ fun OfflineAudioPlayerSheet(
                     )
                 }
 
-                IconButton(onClick = { showQueue = !showQueue }) {
+                IconButton(
+                    onClick = { showQueue = !showQueue },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .testTag("offline_audio_queue_btn")
+                ) {
                     Icon(
                         imageVector = Icons.Default.QueueMusic,
                         contentDescription = stringResource(R.string.player_mix_open_queue),
@@ -253,7 +262,7 @@ fun OfflineAudioPlayerSheet(
                     colors = SliderDefaults.colors(
                         thumbColor = YouTubeRed,
                         activeTrackColor = YouTubeRed,
-                        inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                        inactiveTrackColor = OverlayTrackSubtle
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -302,7 +311,9 @@ fun OfflineAudioPlayerSheet(
                     // Previous Button
                     IconButton(
                         onClick = { OfflineAudioPlayerManager.playPrevious(context) },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier
+                            .size(48.dp)
+                            .testTag("offline_audio_prev_btn")
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipPrevious,
@@ -316,6 +327,7 @@ fun OfflineAudioPlayerSheet(
                     Box(
                         modifier = Modifier
                             .size(64.dp)
+                            .testTag("offline_audio_play_pause_btn")
                             .clip(CircleShape)
                             .background(YouTubeRed)
                             .clickable { OfflineAudioPlayerManager.togglePlayPause(context) },
@@ -332,7 +344,9 @@ fun OfflineAudioPlayerSheet(
                     // Next Button
                     IconButton(
                         onClick = { OfflineAudioPlayerManager.playNext(context) },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier
+                            .size(48.dp)
+                            .testTag("offline_audio_next_btn")
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
@@ -410,7 +424,7 @@ fun OfflineAudioPlayerSheet(
                                     modifier = Modifier
                                         .size(44.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0xFF181818)),
+                                        .background(MediaPlaceholderBg),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (item.thumbnailUrl.isNotBlank()) {

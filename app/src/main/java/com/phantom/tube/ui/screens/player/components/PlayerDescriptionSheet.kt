@@ -40,6 +40,9 @@ import coil.request.ImageRequest
 import coil.size.Precision
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBorder
+import com.phantom.tube.core.theme.ChapterActiveBg
+import com.phantom.tube.core.theme.ChapterInactiveBg
+import com.phantom.tube.core.theme.ControlSurfaceMuted
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -154,7 +157,7 @@ fun PlayerDescriptionSheet(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(18.dp))
-                                        .background(if (isSubscribed) Color(0xFF272727) else Color.White)
+                                        .background(if (isSubscribed) ControlSurfaceMuted else Color.White)
                                         .clickable(onClick = onSubscribeClick)
                                         .padding(horizontal = 14.dp, vertical = 7.dp)
                                 ) {
@@ -219,7 +222,7 @@ fun PlayerDescriptionSheet(
                                         modifier = Modifier
                                             .height(26.dp)
                                             .width(1.dp)
-                                            .background(Color(0xFF272727))
+                                            .background(ControlSurfaceMuted)
                                     )
 
                                     Column(
@@ -240,7 +243,7 @@ fun PlayerDescriptionSheet(
                                         modifier = Modifier
                                             .height(26.dp)
                                             .width(1.dp)
-                                            .background(Color(0xFF272727))
+                                            .background(ControlSurfaceMuted)
                                     )
 
                                     Column(
@@ -321,7 +324,7 @@ fun PlayerDescriptionSheet(
                                                     Box(
                                                         modifier = Modifier
                                                             .clip(RoundedCornerShape(6.dp))
-                                                            .background(if (isActive) Color(0xFF0A78D2) else Color(0xFF2E2E2E))
+                                                            .background(if (isActive) ChapterActiveBg else ChapterInactiveBg)
                                                             .padding(horizontal = 7.dp, vertical = 3.dp)
                                                     ) {
                                                         Text(

@@ -97,6 +97,7 @@ fun PlayerScreen(
     onPlayForwardVideo: () -> Boolean = { false },
     isVideoInBackStack: (String) -> Boolean = { false },
     onChannelClick: ((channelId: String, channelTitle: String) -> Unit)? = null,
+    onPlaybackActiveChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -133,6 +134,14 @@ fun PlayerScreen(
         isMinimized = isMinimized,
         isFloatingMiniPlayer = isFloatingMiniPlayer
     )
+
+    val isPlaybackActive = session.playerState.isPlaying || session.playerState.isBuffering
+    LaunchedEffect(isPlaybackActive) {
+        onPlaybackActiveChanged(isPlaybackActive)
+    }
+    DisposableEffect(Unit) {
+        onDispose { onPlaybackActiveChanged(false) }
+    }
 
     PlayerMediaServiceEffect(session = session)
 
@@ -346,7 +355,8 @@ fun PlayerScreen(
                         }
                     }
                 },
-                onClose = onClose
+                onClose = onClose,
+                onSkipNext = { session.playNext() }
             )
         }
 

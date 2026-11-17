@@ -9,10 +9,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,17 +21,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.phantom.tube.core.theme.ObsidianDark
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.phantom.tube.core.theme.ObsidianDark
+import com.phantom.tube.core.theme.ShimmerBase
+import com.phantom.tube.core.theme.ShimmerHighlight
 
 /**
  * Animated gradient shimmer brush for authentic loading skeleton states.
@@ -39,9 +42,9 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun rememberShimmerBrush(): Brush {
     val shimmerColors = listOf(
-        Color(0xFF222226),
-        Color(0xFF38383E),
-        Color(0xFF222226)
+        ShimmerBase,
+        ShimmerHighlight,
+        ShimmerBase
     )
 
     val transition = rememberInfiniteTransition(label = "shimmer_transition")
@@ -140,22 +143,32 @@ fun VideoCardSkeleton(
 }
 
 /**
- * Vertical list of skeleton cards for feed loading states.
+ * Adaptive grid of skeleton cards for feed loading states.
  */
 @Composable
 fun VideoFeedSkeleton(
-    count: Int = 3,
+    count: Int = 6,
     modifier: Modifier = Modifier
 ) {
     val brush = rememberShimmerBrush()
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-        userScrollEnabled = false
-    ) {
-        items(count) {
-            VideoCardSkeleton(brush = brush)
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val columns = when {
+            maxWidth >= 840.dp -> 3
+            maxWidth >= 600.dp -> 2
+            else -> 1
+        }
+        val effectiveCount = if (columns == 1) count.coerceAtMost(4) else count.coerceAtLeast(columns * 2)
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(columns),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 100.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            userScrollEnabled = false
+        ) {
+            items(effectiveCount) {
+                VideoCardSkeleton(brush = brush)
+            }
         }
     }
 }

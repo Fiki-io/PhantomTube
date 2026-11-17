@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,31 +15,31 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsTopHeight
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.CompassCalibration
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -58,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,16 +70,18 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
 import com.phantom.tube.R
+import com.phantom.tube.core.theme.AvatarPlaceholderBg
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
+import com.phantom.tube.core.theme.ControlBorderSubtle
+import com.phantom.tube.core.theme.ControlSurfaceMuted
 import com.phantom.tube.core.theme.ObsidianDark
-import com.phantom.tube.core.theme.SystemStatusBarColor
-import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
+import com.phantom.tube.ui.components.PhantomEmptyStateView
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.VideoCardSkeleton
 import com.phantom.tube.ui.screens.player.components.DownloadFormatSheet
@@ -189,17 +193,17 @@ fun SubscriptionScreen(
             Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = stringResource(R.string.subscriptions_title),
-                color = TextPrimary,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = TextPrimary
             )
         }
 
-        // DOWNLOADS SHORTCUT CARD (Opsi 3: Unduhan di Halaman Koleksi)
+        // DOWNLOADS SHORTCUT CARD
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp)
+                .testTag("subs_downloads_shortcut")
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardBackground)
                 .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
@@ -227,9 +231,8 @@ fun SubscriptionScreen(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.downloads_title),
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = TextPrimary
                 )
                 Text(
                     text = if (downloadsList.isEmpty()) {
@@ -237,8 +240,8 @@ fun SubscriptionScreen(
                     } else {
                         stringResource(R.string.downloads_count_format, downloadsList.size, totalMb)
                     },
-                    color = TextSecondary,
-                    fontSize = 12.sp
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
                 )
             }
 
@@ -254,67 +257,19 @@ fun SubscriptionScreen(
 
 
         if (subscriptions.isEmpty() && favorites.isEmpty()) {
-            // EMPTY STATE
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Subscriptions,
-                        contentDescription = null,
-                        tint = TextMuted,
-                        modifier = Modifier.size(64.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = stringResource(R.string.empty_subscriptions_title),
-                        color = TextPrimary,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = stringResource(R.string.empty_subscriptions_desc),
-                        color = TextSecondary,
-                        fontSize = 13.5.sp,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 19.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Button(
-                        onClick = onExploreClick,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = YouTubeRed,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Explore,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.explore_home),
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
+                PhantomEmptyStateView(
+                    icon = Icons.Default.Subscriptions,
+                    title = stringResource(R.string.empty_subscriptions_title),
+                    subtitle = stringResource(R.string.empty_subscriptions_desc),
+                    actionLabel = stringResource(R.string.explore_home),
+                    actionIcon = Icons.Default.Explore,
+                    onActionClick = onExploreClick,
+                    actionTestTag = "subs_explore_home_btn"
+                )
             }
         } else {
             val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -324,92 +279,105 @@ fun SubscriptionScreen(
                     .clipToBounds()
                     .nestedScroll(pullRefreshState.nestedScrollConnection)
             ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = bottomNavInset + 140.dp)
-                ) {
-                    // 1. Horizontal Avatars Row of Subscribed Channels
-                    if (subscriptions.isNotEmpty()) {
-                        item(key = "subscribed_channels_row") {
-                            LazyRow(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val columns = when {
+                        maxWidth >= 840.dp -> 3
+                        maxWidth >= 600.dp -> 2
+                        else -> 1
+                    }
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(columns),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = bottomNavInset + 140.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // 1. Horizontal Avatars Row of Subscribed Channels
+                        if (subscriptions.isNotEmpty()) {
+                            item(
+                                key = "subscribed_channels_row",
+                                span = { GridItemSpan(maxLineSpan) }
                             ) {
-                                items(subscriptions, key = { it.channelId }) { sub ->
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .width(64.dp)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null,
-                                                onClick = { onChannelClick(sub.channelId, sub.channelTitle) }
-                                            )
-                                    ) {
-                                        Box(
+                                LazyRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(subscriptions, key = { it.channelId }) { sub ->
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
                                             modifier = Modifier
-                                                .size(54.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(0xFF222222))
-                                                .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                                                .width(64.dp)
+                                                .testTag("sub_channel_${sub.channelId}")
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null,
+                                                    onClick = { onChannelClick(sub.channelId, sub.channelTitle) }
+                                                )
                                         ) {
-                                            val avatarRequest = remember(sub.channelAvatarUrl, context) {
-                                                ImageRequest.Builder(context)
-                                                    .data(sub.channelAvatarUrl)
-                                                    .size(128, 128)
-                                                    .precision(Precision.INEXACT)
-                                                    .allowRgb565(true)
-                                                    .allowHardware(false)
-                                                    .build()
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(54.dp)
+                                                    .clip(CircleShape)
+                                                    .background(AvatarPlaceholderBg)
+                                                    .border(1.dp, ControlBorderSubtle, CircleShape)
+                                            ) {
+                                                val avatarRequest = remember(sub.channelAvatarUrl, context) {
+                                                    ImageRequest.Builder(context)
+                                                        .data(sub.channelAvatarUrl)
+                                                        .size(128, 128)
+                                                        .precision(Precision.INEXACT)
+                                                        .allowRgb565(true)
+                                                        .allowHardware(false)
+                                                        .build()
+                                                }
+                                                AsyncImage(
+                                                    model = avatarRequest,
+                                                    contentDescription = sub.channelTitle,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.matchParentSize()
+                                                )
                                             }
-                                            AsyncImage(
-                                                model = avatarRequest,
-                                                contentDescription = sub.channelTitle,
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier.matchParentSize()
+
+                                            Spacer(modifier = Modifier.height(6.dp))
+
+                                            Text(
+                                                text = sub.channelTitle,
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                                color = TextSecondary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                textAlign = TextAlign.Center
                                             )
                                         }
-
-                                        Spacer(modifier = Modifier.height(6.dp))
-
-                                        Text(
-                                            text = sub.channelTitle,
-                                            color = TextSecondary,
-                                            fontSize = 11.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center
-                                        )
                                     }
                                 }
                             }
                         }
-                    }
 
-                    if (favorites.isNotEmpty()) {
-                        item(key = "favorites_section_header") {
-                            Text(
-                                text = stringResource(R.string.library_favorites),
-                                color = TextPrimary,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                            )
-                        }
+                        if (favorites.isNotEmpty()) {
+                            item(
+                                key = "favorites_section_header",
+                                span = { GridItemSpan(maxLineSpan) }
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.library_favorites),
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = TextPrimary,
+                                    modifier = Modifier.padding(vertical = 6.dp)
+                                )
+                            }
 
-                        itemsIndexed(favorites, key = { index, fav -> "fav_vid_${fav.videoId}_$index" }) { _, fav ->
-                            val favVideo = VideoItem(
-                                id = fav.videoId,
-                                title = fav.title,
-                                channelTitle = fav.channelTitle,
-                                channelId = fav.channelId,
-                                thumbnailUrl = fav.thumbnailUrl,
-                                durationText = fav.durationText
-                            )
-                            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                            gridItemsIndexed(favorites, key = { index, fav -> "fav_vid_${fav.videoId}_$index" }) { _, fav ->
+                                val favVideo = VideoItem(
+                                    id = fav.videoId,
+                                    title = fav.title,
+                                    channelTitle = fav.channelTitle,
+                                    channelId = fav.channelId,
+                                    thumbnailUrl = fav.thumbnailUrl,
+                                    durationText = fav.durationText
+                                )
                                 PhantomVideoCard(
                                     video = favVideo,
                                     onChannelClick = { chId ->
@@ -423,64 +391,69 @@ fun SubscriptionScreen(
                                 )
                             }
                         }
-                    }
 
-                    // 2. Section divider / header
-                    if (subscriptions.isNotEmpty()) {
-                        item(key = "feed_section_header") {
-                            Text(
-                                text = stringResource(R.string.channel_recent_videos),
-                                color = TextPrimary,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                            )
-                        }
-                    }
-
-                    // 3. Loading indicator, Empty message, or Feed items
-                    if (isLoadingFeed && feedVideos.isEmpty()) {
-                        repeat(3) { index ->
-                            item(key = "sub_skeleton_$index") {
-                                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                                    VideoCardSkeleton()
-                                }
+                        // 2. Section divider / header
+                        if (subscriptions.isNotEmpty()) {
+                            item(
+                                key = "feed_section_header",
+                                span = { GridItemSpan(maxLineSpan) }
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.channel_recent_videos),
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = TextPrimary,
+                                    modifier = Modifier.padding(vertical = 6.dp)
+                                )
                             }
                         }
-                    } else if (subscriptions.isNotEmpty() && feedVideos.isEmpty()) {
-                        item(key = "sub_empty_videos") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 36.dp, horizontal = 24.dp),
-                                contentAlignment = Alignment.Center
+
+                        // 3. Loading indicator, Empty message, or Feed items
+                        if (isLoadingFeed && feedVideos.isEmpty()) {
+                            items(columns.coerceAtLeast(3), key = { index -> "sub_skeleton_$index" }) {
+                                VideoCardSkeleton()
+                            }
+                        } else if (subscriptions.isNotEmpty() && feedVideos.isEmpty()) {
+                            item(
+                                key = "sub_empty_videos",
+                                span = { GridItemSpan(maxLineSpan) }
                             ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 36.dp, horizontal = 24.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = stringResource(R.string.channel_no_videos),
-                                        color = TextSecondary,
-                                        fontSize = 14.sp,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    Button(
-                                        onClick = { refreshFeed(forceRefresh = true) },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF272727),
-                                            contentColor = Color.White
-                                        ),
-                                        shape = RoundedCornerShape(18.dp)
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Text(text = stringResource(R.string.common_retry), fontSize = 13.sp)
+                                        Text(
+                                            text = stringResource(R.string.channel_no_videos),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = TextSecondary,
+                                            textAlign = TextAlign.Center
+                                        )
+                                        Button(
+                                            onClick = { refreshFeed(forceRefresh = true) },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = ControlSurfaceMuted,
+                                                contentColor = Color.White
+                                            ),
+                                            shape = RoundedCornerShape(18.dp),
+                                            modifier = Modifier
+                                                .heightIn(min = 48.dp)
+                                                .testTag("subs_retry_feed_btn")
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.common_retry),
+                                                style = MaterialTheme.typography.labelLarge
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
-                    } else if (feedVideos.isNotEmpty()) {
-                        itemsIndexed(feedVideos, key = { index, v -> "sub_vid_${v.id}_$index" }) { _, video ->
-                            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        } else if (feedVideos.isNotEmpty()) {
+                            gridItemsIndexed(feedVideos, key = { index, v -> "sub_vid_${v.id}_$index" }) { _, video ->
                                 PhantomVideoCard(
                                     video = video,
                                     onChannelClick = { chId ->

@@ -23,8 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,13 +47,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
+import com.phantom.tube.core.theme.ControlBorderSubtle
+import com.phantom.tube.core.theme.MiniMediaPlaceholderBg
+import com.phantom.tube.core.theme.OverlayButtonTint
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
@@ -76,6 +81,7 @@ fun PhantomMiniPlayer(
     onExpand: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onClose: () -> Unit,
+    onSkipNext: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -172,14 +178,15 @@ fun PhantomMiniPlayer(
             }
             .clip(RoundedCornerShape(12.dp))
             .background(YouTubeSurface)
-            .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(12.dp))
+            .border(1.dp, ControlBorderSubtle, RoundedCornerShape(12.dp))
+            .testTag("miniplayer_root")
             .clickable(onClick = onExpand)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                    .padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Video Thumbnail (downsampled to 160x90 to save RAM)
@@ -194,10 +201,10 @@ fun PhantomMiniPlayer(
                 }
                 Box(
                     modifier = Modifier
-                        .width(70.dp)
-                        .height(42.dp)
+                        .width(66.dp)
+                        .height(38.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFF141414))
+                        .background(MiniMediaPlaceholderBg)
                 ) {
                     AsyncImage(
                         model = miniThumbRequest,
@@ -231,9 +238,8 @@ fun PhantomMiniPlayer(
                 ) {
                     Text(
                         text = video.title.ifBlank { stringResource(R.string.common_loading) },
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                         color = TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -241,8 +247,8 @@ fun PhantomMiniPlayer(
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = video.channelTitle,
+                            style = MaterialTheme.typography.labelSmall,
                             color = TextSecondary,
-                            fontSize = 11.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -256,6 +262,7 @@ fun PhantomMiniPlayer(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
+                        .testTag("miniplayer_play_pause")
                         .iosBounceClick(scaleDown = 0.88f, onClick = onTogglePlayPause),
                     contentAlignment = Alignment.Center
                 ) {
@@ -263,7 +270,7 @@ fun PhantomMiniPlayer(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(Color(0x1AFFFFFF)),
+                            .background(OverlayButtonTint),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -275,11 +282,31 @@ fun PhantomMiniPlayer(
                     }
                 }
 
+                if (onSkipNext != null) {
+                    // Skip Next Button (48.dp touch target)
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .testTag("miniplayer_next")
+                            .iosBounceClick(scaleDown = 0.88f, onClick = onSkipNext),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipNext,
+                            contentDescription = stringResource(R.string.player_next_video),
+                            tint = TextPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+
                 // Close Button (48.dp touch target)
                 Box(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
+                        .testTag("miniplayer_close")
                         .iosBounceClick(scaleDown = 0.85f, onClick = onClose),
                     contentAlignment = Alignment.Center
                 ) {

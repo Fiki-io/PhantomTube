@@ -48,6 +48,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -280,7 +281,9 @@ fun PhantomAnchoredPlayerSheet(
 
                                     IconButton(
                                         onClick = onDismiss,
-                                        modifier = Modifier.size(48.dp)
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .testTag("sheet_close_btn")
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.Close,

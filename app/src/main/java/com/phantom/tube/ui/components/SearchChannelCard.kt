@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,11 +35,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
@@ -47,9 +48,11 @@ import com.phantom.tube.core.database.SubscriptionEntity
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBackgroundAlt
 import com.phantom.tube.core.theme.CardBorder
+import com.phantom.tube.core.theme.ControlSurfaceMuted
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.core.theme.VerifiedBadgeTint
 import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.SearchChannelItem
@@ -70,6 +73,7 @@ fun SearchChannelCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .testTag("search_channel_${channel.id}")
             .clip(RoundedCornerShape(12.dp))
             .background(CardBackground)
             .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
@@ -125,9 +129,8 @@ fun SearchChannelCard(
                         val initials = channel.title.trim().take(1).uppercase()
                         Text(
                             text = initials,
-                            color = TextPrimary,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            color = TextPrimary
                         )
                     }
                 }
@@ -141,9 +144,8 @@ fun SearchChannelCard(
                     ) {
                         Text(
                             text = channel.title,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = TextPrimary,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false)
@@ -154,7 +156,7 @@ fun SearchChannelCard(
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = stringResource(R.string.channel_verified),
-                                tint = Color(0xFFAAAAAA),
+                                tint = VerifiedBadgeTint,
                                 modifier = Modifier.size(15.dp)
                             )
                         }
@@ -180,8 +182,8 @@ fun SearchChannelCard(
                     if (metaLine.isNotBlank()) {
                         Text(
                             text = metaLine,
+                            style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary,
-                            fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -192,11 +194,10 @@ fun SearchChannelCard(
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = channel.description,
+                            style = MaterialTheme.typography.bodySmall,
                             color = TextMuted,
-                            fontSize = 12.sp,
                             maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            lineHeight = 16.sp
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -209,9 +210,10 @@ fun SearchChannelCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
+                    .testTag("search_channel_sub_${channel.id}")
                     .clip(RoundedCornerShape(24.dp))
                     .background(
-                        if (isSubscribed) Color(0xFF272727) else Color.White
+                        if (isSubscribed) ControlSurfaceMuted else Color.White
                     )
                     .clickable {
                         scope.launch {
@@ -243,16 +245,14 @@ fun SearchChannelCard(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = stringResource(R.string.channel_subscribed),
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = Color.White
                         )
                     } else {
                         Text(
                             text = stringResource(R.string.channel_subscribe),
-                            color = Color.Black,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = Color.Black
                         )
                     }
                 }

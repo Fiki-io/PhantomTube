@@ -3,6 +3,7 @@ package com.phantom.tube.ui.screens.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,15 +17,15 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -48,22 +49,18 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.ObsidianDark
-import com.phantom.tube.core.theme.TextMuted
-import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
-import com.phantom.tube.ui.components.PhantomIconButton
+import com.phantom.tube.ui.components.PhantomErrorStateView
 import com.phantom.tube.ui.components.PhantomTopBar
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.VideoFeedSkeleton
@@ -94,7 +91,7 @@ fun HomeScreen(
     var videoToDownload by remember { mutableStateOf<VideoItem?>(null) }
     var homeRefreshNonce by remember { mutableIntStateOf(0) }
 
-    val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
     val scope = rememberCoroutineScope()
     var feedJob by remember { mutableStateOf<Job?>(null) }
     var loadMoreJob by remember { mutableStateOf<Job?>(null) }
@@ -120,9 +117,9 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(listState) {
+    LaunchedEffect(gridState) {
         snapshotFlow {
-            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+            gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0
         }
             .distinctUntilChanged()
             .collect { isAtTop ->
@@ -253,7 +250,7 @@ fun HomeScreen(
                 hasError = result.videos.isEmpty() || result.errorMessage != null
                 errorDetail = result.errorMessage
                 if (isRefresh) {
-                    listState.scrollToItem(0)
+                    gridState.scrollToItem(0)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -331,9 +328,9 @@ fun HomeScreen(
     }
 
     // Automatic infinite scroll engine: monitors scroll state and triggers seamlessly
-    LaunchedEffect(listState) {
+    LaunchedEffect(gridState) {
         snapshotFlow {
-            val layoutInfo = listState.layoutInfo
+            val layoutInfo = gridState.layoutInfo
             val total = layoutInfo.totalItemsCount
             val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
             total to last
@@ -350,7 +347,7 @@ fun HomeScreen(
 
     LaunchedEffect(continuationToken, isLoadingMore) {
         if (!isLoadingMore && !isLoading && !isRefreshing && continuationToken != null) {
-            val layoutInfo = listState.layoutInfo
+            val layoutInfo = gridState.layoutInfo
             val total = layoutInfo.totalItemsCount
             val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
             if (total > 0 && last >= total - 4) {
@@ -388,94 +385,93 @@ fun HomeScreen(
                     VideoFeedSkeleton()
                 }
                 hasError && videos.isEmpty() -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(horizontal = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = stringResource(R.string.home_failed_load_video),
-                            color = TextPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        if (!errorDetail.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = errorDetail.orEmpty(),
-                                color = TextSecondary,
-                                fontSize = 12.sp
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        PhantomIconButton(
-                            icon = Icons.Default.Refresh,
-                            contentDescription = stringResource(R.string.common_retry),
-                            size = 48.dp,
-                            onClick = { loadFeed(selectedCategory) }
+                        PhantomErrorStateView(
+                            title = stringResource(R.string.home_failed_load_video),
+                            detail = errorDetail,
+                            retryLabel = stringResource(R.string.common_retry),
+                            onRetry = { loadFeed(selectedCategory) },
+                            retryTestTag = "home_error_retry"
                         )
                     }
                 }
                 else -> {
                     val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = bottomNavInset + 140.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        itemsIndexed(
-                            items = videos,
-                            key = { index, video -> "home_${video.id}_$index" },
-                            contentType = { _, _ -> "video_card" }
-                        ) { _, video ->
-                            PhantomVideoCard(
-                                video = video,
-                                progressFraction = historyMap[video.id] ?: 0f,
-                                onChannelClick = { chId ->
-                                    onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
-                                },
-                                onDownloadClick = { videoToDownload = it },
-                                onClick = { onVideoClick(video) }
-                            )
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        val columns = when {
+                            maxWidth >= 840.dp -> 3
+                            maxWidth >= 600.dp -> 2
+                            else -> 1
                         }
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(columns),
+                            state = gridState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = bottomNavInset + 140.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            itemsIndexed(
+                                items = videos,
+                                key = { index, video -> "home_${video.id}_$index" },
+                                contentType = { _, _ -> "video_card" }
+                            ) { _, video ->
+                                PhantomVideoCard(
+                                    video = video,
+                                    progressFraction = historyMap[video.id] ?: 0f,
+                                    onChannelClick = { chId ->
+                                        onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
+                                    },
+                                    onDownloadClick = { videoToDownload = it },
+                                    onClick = { onVideoClick(video) }
+                                )
+                            }
 
-                        // Infinite scroll loader at bottom
-                        if (isLoadingMore) {
-                            item(key = "loading_more_indicator", contentType = "loader") {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 14.dp),
-                                    contentAlignment = Alignment.Center
+                            if (isLoadingMore) {
+                                item(
+                                    key = "loading_more_indicator",
+                                    span = { GridItemSpan(maxLineSpan) },
+                                    contentType = "loader"
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
+                                    Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(YouTubeSurface)
-                                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                                            .fillMaxWidth()
+                                            .padding(vertical = 14.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        CircularProgressIndicator(
-                                            color = YouTubeRed,
-                                            strokeWidth = 2.dp,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Text(
-                                            text = stringResource(R.string.common_loading),
-                                            color = TextSecondary,
-                                            fontSize = 12.sp
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(YouTubeSurface)
+                                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        ) {
+                                            CircularProgressIndicator(
+                                                color = YouTubeRed,
+                                                strokeWidth = 2.dp,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                text = stringResource(R.string.common_loading),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = TextSecondary
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        if (continuationToken == null && videos.isNotEmpty()) {
-                            item(key = "end_of_feed_spacer") {
-                                Spacer(modifier = Modifier.height(16.dp))
+                            if (continuationToken == null && videos.isNotEmpty()) {
+                                item(
+                                    key = "end_of_feed_spacer",
+                                    span = { GridItemSpan(maxLineSpan) }
+                                ) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
                             }
                         }
                     }

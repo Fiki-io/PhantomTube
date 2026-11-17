@@ -77,7 +77,11 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
 import com.phantom.tube.core.theme.ObsidianDark
+import com.phantom.tube.core.theme.OfflineNoticeBg
+import com.phantom.tube.core.theme.OfflineNoticeBorder
+import com.phantom.tube.core.theme.OfflineNoticeIcon
 import com.phantom.tube.core.theme.SystemStatusBarColor
+import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.player.PhantomGhostSurface
@@ -404,6 +408,7 @@ fun BoxScope.PlayerVideoViewportBox(
                 onExpand = onExpand,
                 onTogglePlayPause = onTogglePlayPause,
                 onClose = onClose,
+                onSkipNext = onSkipNext,
                 onDrag = { deltaX, deltaY ->
                     rawFloatX += deltaX
                     val desiredY = (floatingOffsetY.value + rawFloatY + deltaY).coerceIn(minOffsetY, 0f)
@@ -660,8 +665,8 @@ fun BoxScope.PlayerVideoViewportBox(
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xEE1E1416))
-                        .border(1.dp, Color(0x66FF5252), RoundedCornerShape(20.dp))
+                        .background(OfflineNoticeBg)
+                        .border(1.dp, OfflineNoticeBorder, RoundedCornerShape(20.dp))
                         .padding(horizontal = 14.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -669,12 +674,12 @@ fun BoxScope.PlayerVideoViewportBox(
                     Icon(
                         imageVector = Icons.Rounded.WifiOff,
                         contentDescription = null,
-                        tint = Color(0xFFFF5252),
+                        tint = OfflineNoticeIcon,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
                         text = stringResource(R.string.player_offline_waiting),
-                        color = Color(0xFFF2F2F2),
+                        color = TextPrimary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
                     )

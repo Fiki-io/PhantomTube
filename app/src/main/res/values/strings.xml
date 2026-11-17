@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">Phantom</string>
+    <string name="app_brand_name" translatable="false">PHANTOM</string>
 
     <!-- Navigation -->
     <string name="nav_home">Home</string>

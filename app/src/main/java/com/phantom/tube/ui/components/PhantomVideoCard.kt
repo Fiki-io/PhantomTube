@@ -30,6 +30,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -53,6 +55,11 @@ import coil.request.ImageRequest
 import coil.size.Precision
 import com.phantom.tube.R
 import com.phantom.tube.PhantomApp
+import com.phantom.tube.core.theme.ControlSurfaceMuted
+import com.phantom.tube.core.theme.MediaPlaceholderBg
+import com.phantom.tube.core.theme.MenuBorderSubtle
+import com.phantom.tube.core.theme.MenuSurfaceDark
+import com.phantom.tube.core.theme.OverlayBadgeScrim
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
@@ -91,6 +98,7 @@ fun PhantomVideoCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .testTag("video_card_${video.id}")
             .clip(RoundedCornerShape(12.dp))
             .iosBounceClick(
                 scaleDown = 0.975f,
@@ -115,7 +123,7 @@ fun PhantomVideoCard(
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF181818))
+                .background(MediaPlaceholderBg)
         ) {
             AsyncImage(
                 model = thumbRequest,
@@ -131,7 +139,7 @@ fun PhantomVideoCard(
                         .align(Alignment.BottomEnd)
                         .padding(end = 8.dp, bottom = 8.dp)
                         .background(
-                            color = Color(0xCC000000),
+                            color = OverlayBadgeScrim,
                             shape = RoundedCornerShape(4.dp)
                         )
                         .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -148,10 +156,11 @@ fun PhantomVideoCard(
                         )
                         Text(
                             text = video.durationText.ifBlank { stringResource(R.string.player_playlist_badge) },
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            letterSpacing = 0.5.sp
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = Color.White
                         )
                     }
                 }
@@ -161,17 +170,18 @@ fun PhantomVideoCard(
                         .align(Alignment.BottomEnd)
                         .padding(end = 8.dp, bottom = 8.dp)
                         .background(
-                            color = Color(0xCC000000),
+                            color = OverlayBadgeScrim,
                             shape = RoundedCornerShape(4.dp)
                         )
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = video.durationText,
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 0.5.sp
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = Color.White
                     )
                 }
             }
@@ -223,7 +233,7 @@ fun PhantomVideoCard(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF272727))
+                    .background(ControlSurfaceMuted)
                     .then(
                         if (onChannelClick != null && targetChannelId.isNotBlank()) {
                             Modifier.iosBounceClick(scaleDown = 0.90f) { onChannelClick(targetChannelId) }
@@ -254,7 +264,7 @@ fun PhantomVideoCard(
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .background(Color(0xFF272727), CircleShape),
+                            .background(ControlSurfaceMuted, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -269,9 +279,8 @@ fun PhantomVideoCard(
                     if (initials.isNotBlank()) {
                         Text(
                             text = initials,
-                            color = TextPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = TextPrimary
                         )
                     } else {
                         Icon(
@@ -289,12 +298,13 @@ fun PhantomVideoCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = video.title,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 19.sp
+                    ),
                     color = TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 19.sp
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(3.dp))
@@ -307,8 +317,8 @@ fun PhantomVideoCard(
 
                 Text(
                     text = metaString,
+                    style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary,
-                    fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -323,7 +333,9 @@ fun PhantomVideoCard(
                             showMenu = true
                         }
                     },
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier
+                        .size(48.dp)
+                        .testTag("video_more_${video.id}")
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
@@ -337,16 +349,15 @@ fun PhantomVideoCard(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false },
                     modifier = Modifier
-                        .background(Color(0xFF212121))
-                        .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+                        .background(MenuSurfaceDark)
+                        .border(1.dp, MenuBorderSubtle, RoundedCornerShape(8.dp))
                 ) {
                     DropdownMenuItem(
                         text = {
                             Text(
                                 text = stringResource(R.string.player_download),
-                                color = TextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
+                                style = MaterialTheme.typography.labelLarge,
+                                color = TextPrimary
                             )
                         },
                         leadingIcon = {
@@ -371,9 +382,8 @@ fun PhantomVideoCard(
                         text = {
                             Text(
                                 text = stringResource(R.string.player_share),
-                                color = TextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
+                                style = MaterialTheme.typography.labelLarge,
+                                color = TextPrimary
                             )
                         },
                         leadingIcon = {
