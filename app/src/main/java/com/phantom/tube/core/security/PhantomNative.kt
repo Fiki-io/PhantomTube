@@ -408,16 +408,28 @@ object PhantomNative {
             } catch(e) {}
         }
 
+        function ensureHostAudioFull() {
+            try {
+                if (player) {
+                    if (typeof player.isMuted === 'function' && player.isMuted()) {
+                        if (typeof player.unMute === 'function') player.unMute();
+                    }
+                    if (typeof player.getVolume === 'function' && player.getVolume() < 100) {
+                        if (typeof player.setVolume === 'function') player.setVolume(100);
+                    }
+                }
+                var iframe = document.querySelector('iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: 'PHANTOM_ENSURE_AUDIO_HEALTH' }, '*');
+                }
+            } catch(e) {}
+        }
+
         function onPlayerReady(event) {
             if (window.PhantomBridge) {
                 window.PhantomBridge.onReady();
             }
-            try {
-                if (player) {
-                    if (typeof player.unMute === 'function') player.unMute();
-                    if (typeof player.setVolume === 'function') player.setVolume(100);
-                }
-            } catch(e) {}
+            ensureHostAudioFull();
             startTimeTicker();
             setTimeout(sendStoryboard, 1000);
             if (event.target && typeof event.target.playVideo === 'function') {
@@ -435,6 +447,7 @@ object PhantomNative {
                 } catch(e) {}
             }
             if (event.data === 1 || event.data === 3) {
+                ensureHostAudioFull();
                 startTimeTicker();
                 if (!isBackgroundMode) {
                     sendStoryboard();
@@ -526,10 +539,7 @@ object PhantomNative {
                         'videoId': videoId,
                         'startSeconds': startSec || 0
                     });
-                    try {
-                        if (typeof player.unMute === 'function') player.unMute();
-                        if (typeof player.setVolume === 'function') player.setVolume(100);
-                    } catch(ve) {}
+                    ensureHostAudioFull();
                 }
                 setTimeout(sendStoryboard, 1500);
             } catch(e) {
@@ -544,8 +554,7 @@ object PhantomNative {
         window.playVideo = function() {
             try {
                 if (player) {
-                    if (typeof player.unMute === 'function') player.unMute();
-                    if (typeof player.setVolume === 'function') player.setVolume(100);
+                    ensureHostAudioFull();
                     if (typeof player.playVideo === 'function') player.playVideo();
                 }
             } catch(e) {}
@@ -650,6 +659,7 @@ object PhantomNative {
                 if (iframe && iframe.contentWindow) {
                     iframe.contentWindow.postMessage({ type: 'PHANTOM_SET_AUDIO_ONLY', enabled: !!enabled }, '*');
                 }
+                ensureHostAudioFull();
             } catch(e) {}
         };
 
@@ -688,6 +698,7 @@ object PhantomNative {
                         restoreQuality: restoreQuality || 'auto'
                     }, '*');
                 }
+                ensureHostAudioFull();
             } catch(e) {}
         };
 
@@ -1396,6 +1407,8 @@ a[href*="youtube.com/watch"] {
                     }
                 }
             } catch(err) {}
+        } else if (e.data && e.data.type === 'PHANTOM_ENSURE_AUDIO_HEALTH') {
+            enforceAudioHealth();
         }
     });
 
@@ -1423,26 +1436,60 @@ a[href*="youtube.com/watch"] {
         } catch(e) {}
     }
 
+    var isEnforcingAudio = false;
+    var audioFixWindowStart = 0;
+    var audioFixBurstCount = 0;
     function enforceAudioHealth() {
+        if (isEnforcingAudio) return;
+        var now = Date.now();
+        if (now - audioFixWindowStart > 2000) {
+            audioFixWindowStart = now;
+            audioFixBurstCount = 0;
+        }
+        if (audioFixBurstCount >= 8) return;
+
+        isEnforcingAudio = true;
         try {
+            var fixed = false;
             var vid = document.querySelector('video.html5-main-video') || document.querySelector('video');
             if (vid) {
-                if (vid.muted) vid.muted = false;
-                if (vid.volume <= 0.01) vid.volume = 1.0;
+                if (vid.muted) {
+                    vid.muted = false;
+                    fixed = true;
+                }
+                if (typeof vid.volume === 'number' && vid.volume < 0.99) {
+                    vid.volume = 1.0;
+                    fixed = true;
+                }
             }
             var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
             if (p) {
                 if (typeof p.isMuted === 'function' && p.isMuted()) {
-                    if (typeof p.unMute === 'function') p.unMute();
+                    if (typeof p.unMute === 'function') {
+                        p.unMute();
+                        fixed = true;
+                    }
                 }
-                if (typeof p.getVolume === 'function' && p.getVolume() <= 1) {
-                    if (typeof p.setVolume === 'function') p.setVolume(100);
+                if (typeof p.getVolume === 'function' && p.getVolume() < 100) {
+                    if (typeof p.setVolume === 'function') {
+                        p.setVolume(100);
+                        fixed = true;
+                    }
                 }
             }
-        } catch(e) {}
+            if (fixed) {
+                audioFixBurstCount++;
+            }
+        } catch(e) {
+        } finally {
+            isEnforcingAudio = false;
+        }
     }
     document.addEventListener('play', enforceAudioHealth, true);
+    document.addEventListener('playing', enforceAudioHealth, true);
     document.addEventListener('loadeddata', enforceAudioHealth, true);
+    document.addEventListener('canplay', enforceAudioHealth, true);
+    document.addEventListener('volumechange', enforceAudioHealth, true);
 
     qualityReportInterval = setInterval(reportIframeQuality, 4000);
     document.addEventListener('DOMContentLoaded', reportIframeQuality);

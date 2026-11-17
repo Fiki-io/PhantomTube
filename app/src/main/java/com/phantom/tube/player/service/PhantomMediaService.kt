@@ -13,8 +13,6 @@ import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Icon
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaMetadata
 import android.media.session.MediaSession
@@ -41,20 +39,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
+class PhantomMediaService : Service() {
 
     private val binder = LocalBinder()
     private var mediaSession: MediaSession? = null
     private var wakeLock: PowerManager.WakeLock? = null
-    private var audioManager: AudioManager? = null
-    private var audioFocusRequest: AudioFocusRequest? = null
-    private var hasAudioFocus: Boolean = false
-    private var resumeOnFocusGain: Boolean = false
     private var isNoisyReceiverRegistered: Boolean = false
     private val becomingNoisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
-                resumeOnFocusGain = false
                 wasPlayingBeforeDisconnect = false
                 unregisterBecomingNoisyReceiver()
                 onPauseAction?.invoke()
@@ -113,50 +106,10 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         } catch (_: Exception) {}
 
         networkConnectivityObserver = NetworkConnectivityObserver(this)
-        audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         createNotificationChannel()
         setupMediaSession()
         observeNetworkConnectivity()
         startForegroundCompat(buildNotification())
-    }
-
-    private fun requestAudioFocus(): Boolean {
-        val manager = audioManager ?: return true
-        if (hasAudioFocus) return true
-        val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val attrs = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build()
-            val req = audioFocusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(attrs)
-                .setAcceptsDelayedFocusGain(true)
-                .setOnAudioFocusChangeListener(this)
-                .build().also { audioFocusRequest = it }
-            manager.requestAudioFocus(req)
-        } else {
-            @Suppress("DEPRECATION")
-            manager.requestAudioFocus(
-                this,
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
-            )
-        }
-        hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-        return hasAudioFocus
-    }
-
-    private fun abandonAudioFocus() {
-        val manager = audioManager ?: return
-        hasAudioFocus = false
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                audioFocusRequest?.let { manager.abandonAudioFocusRequest(it) }
-            } else {
-                @Suppress("DEPRECATION")
-                manager.abandonAudioFocus(this)
-            }
-        } catch (_: Exception) {}
     }
 
     private fun registerBecomingNoisyReceiver() {
@@ -178,32 +131,6 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         try {
             unregisterReceiver(becomingNoisyReceiver)
         } catch (_: Exception) {}
-    }
-
-    override fun onAudioFocusChange(focusChange: Int) {
-        when (focusChange) {
-            AudioManager.AUDIOFOCUS_LOSS -> {
-                resumeOnFocusGain = false
-                wasPlayingBeforeDisconnect = false
-                abandonAudioFocus()
-                unregisterBecomingNoisyReceiver()
-                onPauseAction?.invoke()
-            }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                resumeOnFocusGain = isPlaying
-                unregisterBecomingNoisyReceiver()
-                if (isPlaying) {
-                    onPauseAction?.invoke()
-                }
-            }
-            AudioManager.AUDIOFOCUS_GAIN -> {
-                hasAudioFocus = true
-                if (resumeOnFocusGain) {
-                    resumeOnFocusGain = false
-                    onPlayAction?.invoke()
-                }
-            }
-        }
     }
 
     private fun showNoInternetToast() {
@@ -248,7 +175,6 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             onPauseAction?.invoke()
             onOfflineTimeoutAction?.invoke()
             unregisterBecomingNoisyReceiver()
-            abandonAudioFocus()
             releaseWakeLock()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -283,9 +209,7 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
 
                 override fun onPause() {
                     wasPlayingBeforeDisconnect = false
-                    resumeOnFocusGain = false
                     unregisterBecomingNoisyReceiver()
-                    abandonAudioFocus()
                     onPauseAction?.invoke()
                 }
 
@@ -311,9 +235,7 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
 
                 override fun onStop() {
                     wasPlayingBeforeDisconnect = false
-                    resumeOnFocusGain = false
                     unregisterBecomingNoisyReceiver()
-                    abandonAudioFocus()
                     onPauseAction?.invoke()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -433,7 +355,6 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             this.currentPositionMs = currentPositionMs
         }
         if (keepSessionActive) {
-            requestAudioFocus()
             registerBecomingNoisyReceiver()
             acquireWakeLock()
         } else {
@@ -593,9 +514,7 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             }
             ACTION_PAUSE -> {
                 wasPlayingBeforeDisconnect = false
-                resumeOnFocusGain = false
                 unregisterBecomingNoisyReceiver()
-                abandonAudioFocus()
                 onPauseAction?.invoke()
             }
             ACTION_NEXT -> {
@@ -614,9 +533,7 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             }
             ACTION_STOP -> {
                 wasPlayingBeforeDisconnect = false
-                resumeOnFocusGain = false
                 unregisterBecomingNoisyReceiver()
-                abandonAudioFocus()
                 onPauseAction?.invoke()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -630,7 +547,6 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         val bgEnabled = (application as? PhantomApp)?.preferences?.backgroundPlaybackEnabled?.value ?: true
         if (!isPlaying || !bgEnabled) {
             unregisterBecomingNoisyReceiver()
-            abandonAudioFocus()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
@@ -642,7 +558,6 @@ class PhantomMediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         serviceScope.cancel()
         currentBitmap = null
         unregisterBecomingNoisyReceiver()
-        abandonAudioFocus()
         releaseWakeLock()
         mediaSession?.isActive = false
         mediaSession?.release()
