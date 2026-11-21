@@ -84,9 +84,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.core.database.DownloadEntity
 import com.phantom.tube.core.theme.BubbleDockBorder
 import com.phantom.tube.core.theme.CardBackground
@@ -569,15 +568,13 @@ private fun DownloadItemRow(
         ) {
             if (item.thumbnailUrl.isNotBlank()) {
                 val thumbRequest = remember(item.thumbnailUrl, context) {
-                    ImageRequest.Builder(context)
+                    PhantomImageRequest.Builder(context)
                         .data(item.thumbnailUrl)
                         .size(144, 108)
-                        .precision(Precision.INEXACT)
                         .allowRgb565(true)
-                        .allowHardware(false)
                         .build()
                 }
-                AsyncImage(
+                PhantomAsyncImage(
                     model = thumbRequest,
                     contentDescription = item.title,
                     contentScale = ContentScale.Crop,

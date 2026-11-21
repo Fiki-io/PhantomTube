@@ -66,9 +66,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.AvatarPlaceholderBg
 import com.phantom.tube.core.theme.CardBackground
@@ -324,15 +323,13 @@ fun SubscriptionScreen(
                                                     .border(1.dp, ControlBorderSubtle, CircleShape)
                                             ) {
                                                 val avatarRequest = remember(sub.channelAvatarUrl, context) {
-                                                    ImageRequest.Builder(context)
+                                                    PhantomImageRequest.Builder(context)
                                                         .data(sub.channelAvatarUrl)
                                                         .size(128, 128)
-                                                        .precision(Precision.INEXACT)
                                                         .allowRgb565(true)
-                                                        .allowHardware(false)
                                                         .build()
                                                 }
-                                                AsyncImage(
+                                                PhantomAsyncImage(
                                                     model = avatarRequest,
                                                     contentDescription = sub.channelTitle,
                                                     contentScale = ContentScale.Crop,

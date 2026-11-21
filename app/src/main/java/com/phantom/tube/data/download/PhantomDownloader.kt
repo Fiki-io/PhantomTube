@@ -27,10 +27,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import com.phantom.tube.R
-import com.phantom.tube.core.security.PhantomNative
+import com.phantom.tube.core.config.PhantomConfig
+import com.phantom.tube.core.network.HttpRequest
+import com.phantom.tube.core.network.HttpResponse
+import com.phantom.tube.core.network.PhantomHttpClient
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
@@ -175,13 +176,12 @@ object PhantomDownloader {
         }
     }
 
-    private val httpClient: OkHttpClient by lazy {
-        (PhantomApp.sharedClientInstance?.newBuilder() ?: OkHttpClient.Builder())
+    private val httpClient: PhantomHttpClient by lazy {
+        (PhantomApp.sharedClientInstance?.newBuilder() ?: PhantomHttpClient.Builder())
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .followRedirects(true)
             .followSslRedirects(true)
-            .retryOnConnectionFailure(true)
             .build()
     }
 
@@ -274,18 +274,18 @@ object PhantomDownloader {
 
         var lastError: Exception? = null
 
-        val referer = PhantomNative.getDownloadReferer()
-        val userAgent = PhantomNative.getUserAgent()
+        val referer = PhantomConfig.getDownloadReferer()
+        val userAgent = PhantomConfig.getUserAgent()
 
         val headerSets = listOf(
             mapOf("Referer" to referer, "User-Agent" to userAgent)
         )
 
         for (attempt in 1..3) {
-            var response: okhttp3.Response? = null
+            var response: HttpResponse? = null
             for (headers in headerSets) {
                 try {
-                    val req = Request.Builder().url(downloadUrl).apply {
+                    val req = HttpRequest.Builder().url(downloadUrl).apply {
                         headers.forEach { (k, v) -> header(k, v) }
                     }.build()
                     val res = httpClient.newCall(req).execute()

@@ -50,9 +50,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.R
 import com.phantom.tube.core.database.SubscriptionEntity
 import com.phantom.tube.core.theme.CardBackground
@@ -211,15 +210,13 @@ fun PlayerMetadataSection(
                 ) {
                     if (currentAvatar.isNotBlank()) {
                         val channelAvatarRequest = remember(currentAvatar, context) {
-                            ImageRequest.Builder(context)
+                            PhantomImageRequest.Builder(context)
                                 .data(currentAvatar)
                                 .size(72, 72)
-                                .precision(Precision.INEXACT)
                                 .allowRgb565(true)
-                                .allowHardware(false)
                                 .build()
                         }
-                        AsyncImage(
+                        PhantomAsyncImage(
                             model = channelAvatarRequest,
                             contentDescription = targetChannelTitle,
                             modifier = Modifier
@@ -490,15 +487,13 @@ fun PlayerMetadataSection(
                 ) {
                     if (topCommentAvatar.isNotBlank()) {
                         val commentAvatarRequest = remember(topCommentAvatar, context) {
-                            ImageRequest.Builder(context)
+                            PhantomImageRequest.Builder(context)
                                 .data(topCommentAvatar)
                                 .size(72, 72)
-                                .precision(Precision.INEXACT)
                                 .allowRgb565(true)
-                                .allowHardware(false)
                                 .build()
                         }
-                        AsyncImage(
+                        PhantomAsyncImage(
                             model = commentAvatarRequest,
                             contentDescription = null,
                             modifier = Modifier

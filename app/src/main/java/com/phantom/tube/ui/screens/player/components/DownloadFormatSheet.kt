@@ -77,9 +77,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.phantom.tube.R
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
@@ -252,15 +251,13 @@ fun DownloadFormatSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val previewThumbRequest = remember(video.thumbnailUrl, context) {
-                    ImageRequest.Builder(context)
+                    PhantomImageRequest.Builder(context)
                         .data(video.thumbnailUrl)
                         .size(160, 96)
-                        .precision(Precision.INEXACT)
                         .allowRgb565(true)
-                        .allowHardware(false)
                         .build()
                 }
-                AsyncImage(
+                PhantomAsyncImage(
                     model = previewThumbRequest,
                     contentDescription = null,
                     modifier = Modifier

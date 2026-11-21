@@ -14,7 +14,7 @@
 
 **Phantom Tube** (`PhantomTube APK`) is a resource-efficient YouTube frontend client engineered for Android smartphones and tablets. Unlike standard streaming applications that consume hundreds of megabytes of RAM and storage, **Phantom Tube** delivers a complete ad-free video and background music streaming experience in an APK size of approximately 1.5 MB.
 
-Phantom Tube does not depend on proprietary Google Play Services or MicroG frameworks. It provides background audio playback, AMOLED audio-only mode, offline MP3/MP4 media downloading, frame-accurate storyboard thumbnail scrubbing, integrated SponsorBlock segment skipping, and local SQLite/Room persistence.
+Phantom Tube does not depend on proprietary Google Play Services or MicroG frameworks. It provides background audio playback, AMOLED audio-only mode, offline MP3/MP4 media downloading, frame-accurate storyboard thumbnail scrubbing, integrated SponsorBlock segment skipping, and local SQLite persistence (`SQLiteOpenHelper`).
 
 ---
 
@@ -44,8 +44,8 @@ Phantom Tube does not depend on proprietary Google Play Services or MicroG frame
 ## Features
 
 ### 1. Video Playback & Player Controls
-- Zero-tracking YouTube player bridge using AndroidX WebKit with `WebViewAssetLoader` virtual origins to prevent error codes 150, 152, and 153.
-- Native resolution selector with manual quality overrides (Auto, 1080p Full HD, 720p HD, 480p, 360p, 240p, 144p).
+- Zero-tracking YouTube player bridge using Android `WebView` with `PhantomRenderEngine` request interception (`shouldInterceptRequest`) and virtual HTTPS origin (`appassets.androidplatform.net`) to prevent error codes 150, 152, and 153.
+- Resolution selector with manual quality overrides (Auto, 1080p Full HD, 720p HD, 480p, 360p, 240p, 144p).
 - Playback speed adjustment with granular speed presets (0.25x to 2.0x).
 - Background audio playback powered by an Android foreground media service (`PhantomMediaService`) with system audio focus and lockscreen controls.
 - Automatic Picture-in-Picture (PiP) transition when navigating home or switching applications.
@@ -66,7 +66,7 @@ Phantom Tube does not depend on proprietary Google Play Services or MicroG frame
 - High-quality MP3 audio downloading (320 kbps, 256 kbps, 128 kbps).
 - MP4 video downloading across multiple quality presets (up to 1080p).
 - Real-time download progress tracking with percentage, downloaded byte counts, and cancellation options.
-- Media files are indexed in a local Room database (`DownloadEntity`) with file size calculation and direct storage management.
+- Media files are indexed in a local SQLite database (`PhantomDatabase` / `DownloadEntity`) with file size calculation and direct storage management.
 
 ### 4. Dedicated Offline Audio & Video Player
 - Standalone offline audio player manager (`OfflineAudioPlayerManager`) and foreground playback service (`PhantomOfflineAudioService`).
@@ -85,7 +85,7 @@ Phantom Tube does not depend on proprietary Google Play Services or MicroG frame
 ### 6. Local Library & Privacy First
 - 100% offline-first architecture; does not require Google account authentication or API keys.
 - Local watch history with resume playback position tracking.
-- Local channel subscriptions and bookmarked/favorite videos stored locally in SQLite via Room.
+- Local channel subscriptions and bookmarked/favorite videos stored locally in SQLite (`PhantomDatabase`).
 - Privacy mode to pause watch history collection at any time.
 - Built-in cache cleaner with real-time directory calculation for internal and external cache directories.
 
@@ -104,11 +104,14 @@ Phantom Tube does not depend on proprietary Google Play Services or MicroG frame
 ```
 com.phantom.tube/
 ├── core/
+│   ├── config/        # Endpoint configuration, URL classifier, and version policy (PhantomConfig)
 │   ├── crash/         # Uncaught exception boundary and crash reporting activity
-│   ├── database/      # Room Database (History, Favorites, Subscriptions, Downloads)
-│   ├── security/      # Engine script/CSS/endpoint provider (PhantomNative)
+│   ├── database/      # SQLiteOpenHelper database (History, Favorites, Subscriptions, Downloads)
+│   ├── image/         # Custom async image loader & caches (PhantomImageLoader, PhantomAsyncImage)
+│   ├── network/       # Custom HttpURLConnection client (PhantomHttpClient) & connectivity observer
 │   ├── theme/         # Material 3 design system, typography, and color tokens
-│   └── util/          # Localization, region resolution, and context helpers
+│   ├── update/        # In-app release checker and APK installer (UpdateManager)
+│   └── util/          # Localization, region resolution, memory optimizer, and context helpers
 ├── data/
 │   ├── download/      # PhantomDownloadEngine, Downloader, and format models
 │   ├── innertube/     # InnerTube client, network request dispatchers, and parsers
@@ -120,7 +123,8 @@ com.phantom.tube/
 │   ├── offline/       # OfflineAudioPlayerManager and PhantomOfflineAudioService
 │   ├── service/       # PhantomMediaService foreground player service
 │   ├── PhantomPlayerBridge.kt  # WebView JavaScript interface bridge
-│   ├── PhantomPlayerView.kt    # WebKit asset loader and custom player container
+│   ├── PhantomPlayerView.kt    # WebView player container and request interceptor
+│   ├── PlayerWebAssets.kt      # Embedded player HTML, CSS, and clean-engine JS assets
 │   └── StoryboardHelper.kt     # Storyboard thumbnail mosaic calculator
 └── ui/
     ├── components/    # Reusable M3 widgets (Scrubber, MiniPlayer, VideoCard, Shimmer)
@@ -134,10 +138,10 @@ com.phantom.tube/
 | Programming Language | 100% Pure Kotlin (JVM 17) |
 | UI Framework | Jetpack Compose (Material Design 3) |
 | Architecture | MVVM with Reactive StateFlow & Coroutines |
-| Local Persistence | Native Android SQLite (`PhantomDatabase`) |
-| Networking | Native `HttpURLConnection`, AndroidX WebView |
-| Image Loading | Custom Async Memory/Disk Image Loader (`PhantomAsyncImage`) |
-| Audio & Media | Android Foreground Service, `MediaSession` & `AudioTrack` |
+| Local Persistence | Android SQLite (`SQLiteOpenHelper` / `PhantomDatabase`) |
+| Networking | Custom `HttpURLConnection` client (`PhantomHttpClient`) & Android `WebView` |
+| Image Loading | Custom Async Memory/Disk Image Loader (`PhantomImageLoader` / `PhantomAsyncImage`) |
+| Audio & Media | Android Foreground Service, `MediaSession`, `MediaPlayer` & `VideoView` |
 
 ---
 
@@ -183,7 +187,7 @@ PhantomTube stands on the shoulders of the open-source community and privacy-foc
 
 - **[SponsorBlock](https://sponsor.ajay.app)**: Created by Ajay Ramachandran and maintained by its global community. Thank you for providing the crowdsourced database and public API that makes seamless segment skipping possible.
 - **InnerTube & Open-Source Media Researchers**: Deep appreciation to the contributors of open-source projects such as NewPipe, yt-dlp, and Invidious for their foundational research, documentation, and parsing insights into YouTube InnerTube endpoints.
-- **Open-Source Libraries**: Special thanks to the maintainers of Square OkHttp, Coil Compose, AndroidX, and the Jetpack Compose team for providing the high-performance tooling that enables an ultra-compact binary footprint.
+- **Open-Source Ecosystem**: Special thanks to the AndroidX and Jetpack Compose teams for providing the UI and lifecycle tooling that enables an ultra-compact binary footprint.
 
 ---
 

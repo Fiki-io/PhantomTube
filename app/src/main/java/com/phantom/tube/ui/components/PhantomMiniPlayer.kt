@@ -51,9 +51,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.core.theme.ControlBorderSubtle
 import com.phantom.tube.core.theme.MiniMediaPlaceholderBg
 import com.phantom.tube.core.theme.OverlayButtonTint
@@ -192,10 +191,9 @@ fun PhantomMiniPlayer(
                 // Video Thumbnail (downsampled to 160x90 to save RAM)
                 val context = LocalContext.current
                 val miniThumbRequest = remember(video.thumbnailUrl, context) {
-                    ImageRequest.Builder(context)
+                    PhantomImageRequest.Builder(context)
                         .data(video.thumbnailUrl)
                         .size(160, 90)
-                        .precision(Precision.INEXACT)
                         .allowRgb565(true)
                         .build()
                 }
@@ -206,7 +204,7 @@ fun PhantomMiniPlayer(
                         .clip(RoundedCornerShape(6.dp))
                         .background(MiniMediaPlaceholderBg)
                 ) {
-                    AsyncImage(
+                    PhantomAsyncImage(
                         model = miniThumbRequest,
                         contentDescription = video.title,
                         contentScale = ContentScale.Crop,

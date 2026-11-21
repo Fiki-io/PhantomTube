@@ -62,9 +62,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.GlassBorderDim
@@ -200,12 +199,10 @@ fun ChannelHeaderSection(
     Column(modifier = Modifier.fillMaxWidth()) {
         if (profile.bannerUrl.isNotBlank()) {
             val bannerRequest = remember(profile.bannerUrl, context) {
-                ImageRequest.Builder(context)
+                PhantomImageRequest.Builder(context)
                     .data(profile.bannerUrl)
                     .size(800, 260)
-                    .precision(Precision.INEXACT)
                     .allowRgb565(true)
-                    .allowHardware(false)
                     .build()
             }
             Box(
@@ -216,7 +213,7 @@ fun ChannelHeaderSection(
                     .clip(RoundedCornerShape(18.dp))
                     .background(CardBackground)
             ) {
-                AsyncImage(
+                PhantomAsyncImage(
                     model = bannerRequest,
                     contentDescription = profile.title,
                     contentScale = ContentScale.Crop,
@@ -253,15 +250,13 @@ fun ChannelHeaderSection(
             ) {
                 if (profile.avatarUrl.isNotBlank()) {
                     val avatarRequest = remember(profile.avatarUrl, context) {
-                        ImageRequest.Builder(context)
+                        PhantomImageRequest.Builder(context)
                             .data(profile.avatarUrl)
                             .size(160, 160)
-                            .precision(Precision.INEXACT)
                             .allowRgb565(true)
-                            .allowHardware(false)
                             .build()
                     }
-                    AsyncImage(
+                    PhantomAsyncImage(
                         model = avatarRequest,
                         contentDescription = profile.title,
                         contentScale = ContentScale.Crop,
@@ -524,12 +519,10 @@ fun ChannelCompactVideoRow(
 ) {
     val context = LocalContext.current
     val thumbRequest = remember(video.thumbnailUrl, context) {
-        ImageRequest.Builder(context)
+        PhantomImageRequest.Builder(context)
             .data(video.thumbnailUrl)
             .size(320, 180)
-            .precision(Precision.INEXACT)
             .allowRgb565(true)
-            .allowHardware(false)
             .build()
     }
     Row(
@@ -546,7 +539,7 @@ fun ChannelCompactVideoRow(
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardBackground)
         ) {
-            AsyncImage(
+            PhantomAsyncImage(
                 model = thumbRequest,
                 contentDescription = video.title,
                 contentScale = ContentScale.Crop,

@@ -25,9 +25,9 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
+import com.phantom.tube.core.image.ImageSuccessResult
+import com.phantom.tube.core.image.PhantomImageRequest
+import com.phantom.tube.core.image.phantomImageLoader
 import com.phantom.tube.MainActivity
 import com.phantom.tube.R
 import com.phantom.tube.core.database.DownloadEntity
@@ -531,14 +531,13 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
         serviceScope.launch(Dispatchers.IO) {
             try {
-                val req = ImageRequest.Builder(this@PhantomOfflineAudioService)
+                val req = PhantomImageRequest.Builder(this@PhantomOfflineAudioService)
                     .data(url)
                     .size(160, 90)
                     .bitmapConfig(Bitmap.Config.RGB_565)
                     .allowRgb565(true)
-                    .allowHardware(false)
                     .build()
-                val result = (imageLoader.execute(req) as? SuccessResult)?.drawable
+                val result = (phantomImageLoader.execute(req) as? ImageSuccessResult)?.drawable
                 val bitmap = (result as? BitmapDrawable)?.bitmap
                 if (bitmap != null && !bitmap.isRecycled) {
                     withContext(Dispatchers.Main) {

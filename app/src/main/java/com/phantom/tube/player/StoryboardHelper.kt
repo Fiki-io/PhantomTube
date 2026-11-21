@@ -4,9 +4,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.util.LruCache
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
+import com.phantom.tube.core.image.ImageSuccessResult
+import com.phantom.tube.core.image.PhantomImageRequest
+import com.phantom.tube.core.image.phantomImageLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -150,13 +150,12 @@ object StoryboardHelper {
         var sheetBitmap = sheetCache.get(frame.sheetUrl)
         if (sheetBitmap == null || sheetBitmap.isRecycled) {
             try {
-                val request = ImageRequest.Builder(context)
+                val request = PhantomImageRequest.Builder(context)
                     .data(frame.sheetUrl)
                     .size(frame.sheetWidth, frame.sheetHeight)
                     .bitmapConfig(Bitmap.Config.RGB_565)
-                    .allowHardware(false) // Required for Bitmap.createBitmap cropping
                     .build()
-                val result = (context.imageLoader.execute(request) as? SuccessResult)?.drawable
+                val result = (context.phantomImageLoader.execute(request) as? ImageSuccessResult)?.drawable
                 sheetBitmap = (result as? BitmapDrawable)?.bitmap
                 if (sheetBitmap != null && !sheetBitmap.isRecycled) {
                     sheetCache.put(frame.sheetUrl, sheetBitmap)

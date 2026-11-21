@@ -3,7 +3,7 @@ package com.phantom.tube.data.settings
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.http.HttpResponseCache
-import coil.imageLoader
+import com.phantom.tube.core.image.phantomImageLoader
 import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.player.PhantomRenderEngine
 import com.phantom.tube.player.StoryboardHelper
@@ -216,7 +216,7 @@ class PhantomPreferences(context: Context) {
 
     fun clearAppCache(context: Context) {
         val appContext = context.applicationContext
-        runCatching { appContext.imageLoader.memoryCache?.clear() }
+        runCatching { appContext.phantomImageLoader.memoryCache?.clear() }
         runCatching { ChannelAvatarCache.clear() }
         runCatching { PhantomRenderEngine.clearCache() }
         runCatching { StoryboardHelper.clearCache() }

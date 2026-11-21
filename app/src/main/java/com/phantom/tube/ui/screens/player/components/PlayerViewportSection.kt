@@ -73,9 +73,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.OfflineNoticeBg
 import com.phantom.tube.core.theme.OfflineNoticeBorder
@@ -148,15 +147,13 @@ fun BoxScope.PlayerAmbientBackdrop(
     ) {
         if (thumbnailUrl.isNotBlank()) {
             val ambientImageRequest = remember(thumbnailUrl, context) {
-                ImageRequest.Builder(context)
+                PhantomImageRequest.Builder(context)
                     .data(thumbnailUrl)
                     .size(96, 54)
-                    .precision(Precision.INEXACT)
                     .allowRgb565(true)
-                    .allowHardware(false)
                     .build()
             }
-            AsyncImage(
+            PhantomAsyncImage(
                 model = ambientImageRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,

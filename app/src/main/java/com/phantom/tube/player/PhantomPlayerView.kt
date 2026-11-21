@@ -17,6 +17,10 @@ import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import com.phantom.tube.core.config.PhantomConfig
+import com.phantom.tube.core.network.HttpCacheControl
+import com.phantom.tube.core.network.HttpRequest
+import com.phantom.tube.core.network.PhantomHttpClient
 
 class PhantomBackgroundWebView @JvmOverloads constructor(
     context: Context,
@@ -43,7 +47,7 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
     }
 
     override fun onWindowVisibilityChanged(visibility: Int) {
-        // Intercept GONE/INVISIBLE so Chromium C++ WebContents::WasHidden() does not suspend
+        // Intercept GONE/INVISIBLE so Chromium WebView WebContents::WasHidden() does not suspend
         // active <video> playback when the app enters background; JS/CSS 1x1 collapse handles GPU savings.
         super.onWindowVisibilityChanged(View.VISIBLE)
     }
@@ -274,7 +278,7 @@ fun PhantomGhostSurface(
                     }
 
                     // Clean Chrome User-Agent
-                    userAgentString = com.phantom.tube.core.security.PhantomNative.getUserAgent()
+                    userAgentString = PhantomConfig.getUserAgent()
                 }
 
                 webChromeClient = WebChromeClient()
@@ -328,9 +332,9 @@ fun PhantomGhostSurface(
                 addJavascriptInterface(bridge, "PhantomBridge")
                 controller.attachWebView(this)
 
-                // Load with official HTTPS domain via in-memory native engine
+                // Load with official HTTPS domain via in-memory virtual origin
                 val startInt = startSeconds.toInt()
-                val origin = com.phantom.tube.core.security.PhantomNative.getOrigin()
+                val origin = PhantomConfig.getOrigin()
                 loadUrl("$origin/engine/render?v=${Uri.encode(videoId)}&start=$startInt")
             }
         },
@@ -339,19 +343,19 @@ fun PhantomGhostSurface(
 }
 
 object PhantomRenderEngine {
-    private var customHttpClient: okhttp3.OkHttpClient? = null
+    private var customHttpClient: PhantomHttpClient? = null
     private val EMPTY_BYTES = ByteArray(0)
     private val NO_CONTENT_HEADERS = mapOf(
         "Access-Control-Allow-Origin" to "*",
         "Cache-Control" to "no-store"
     )
 
-    fun init(client: okhttp3.OkHttpClient) {
+    fun init(client: PhantomHttpClient) {
         customHttpClient = client
     }
 
     private val defaultHttpClient by lazy {
-        okhttp3.OkHttpClient.Builder()
+        PhantomHttpClient.Builder()
             .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
             .followRedirects(true)
@@ -359,7 +363,7 @@ object PhantomRenderEngine {
             .build()
     }
 
-    private val httpClient: okhttp3.OkHttpClient
+    private val httpClient: PhantomHttpClient
         get() = customHttpClient ?: defaultHttpClient
 
     private const val MAX_CSS_CACHE_ENTRIES = 2
@@ -372,12 +376,12 @@ object PhantomRenderEngine {
         cssCache.clear()
     }
 
-    val CSS_RULES: String get() = com.phantom.tube.core.security.PhantomNative.getCssRules()
+    val CSS_RULES: String get() = PlayerWebAssets.getCssRules()
 
 
     fun intercept(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
-        val reqType = com.phantom.tube.core.security.PhantomNative.classifyRequestUrl(url, isBackgroundMode)
+        val reqType = PhantomConfig.classifyRequestUrl(url, isBackgroundMode)
         if (reqType == 0) return null
 
         if (reqType == 4) {
@@ -394,7 +398,7 @@ object PhantomRenderEngine {
         if (request.method != "GET") return null
 
         if (reqType == 1) {
-            val html = com.phantom.tube.core.security.PhantomNative.getHtml()
+            val html = PlayerWebAssets.getHtml()
             val bytes = html.toByteArray(Charsets.UTF_8)
             val headers = mapOf(
                 "Content-Type" to "text/html; charset=utf-8",
@@ -419,9 +423,9 @@ object PhantomRenderEngine {
                 }
             }
 
-            val reqBuilder = okhttp3.Request.Builder()
+            val reqBuilder = HttpRequest.Builder()
                 .url(url)
-                .cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
+                .cacheControl(HttpCacheControl.FORCE_NETWORK)
             for ((k, v) in request.requestHeaders) {
                 // Strip Accept-Encoding and conditional cache headers so YouTube always returns 200 OK body
                 val lower = k.lowercase()
@@ -466,7 +470,7 @@ object PhantomRenderEngine {
                     val scriptNonceAttr = if (scriptNonce.isNotEmpty()) " nonce=\"$scriptNonce\"" else ""
 
                     val styleToInject = "<style id=\"phantom-clean-engine\"$styleNonceAttr>$CSS_RULES</style>"
-                    val scriptBody = com.phantom.tube.core.security.PhantomNative.getCleanEngineScript()
+                    val scriptBody = PlayerWebAssets.getCleanEngineScript()
                     val scriptToInject = "<script id=\"phantom-clean-script\"$scriptNonceAttr>$scriptBody</script>"
 
                     val payload = styleToInject + scriptToInject

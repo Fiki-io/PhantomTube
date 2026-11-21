@@ -7,12 +7,11 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
-import com.phantom.tube.R
-import com.phantom.tube.core.security.PhantomNative
+import com.phantom.tube.core.config.PhantomConfig
+import com.phantom.tube.core.network.HttpRequest
+import com.phantom.tube.core.network.PhantomHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -35,7 +34,7 @@ sealed class UpdateCheckResult {
 
 class UpdateManager(
     private val context: Context,
-    private val httpClient: OkHttpClient
+    private val httpClient: PhantomHttpClient
 ) {
 
     fun getCurrentVersionName(): String {
@@ -73,8 +72,8 @@ class UpdateManager(
 
     suspend fun checkForUpdate(): UpdateCheckResult = withContext(Dispatchers.IO) {
         try {
-            val updateUrl = PhantomNative.getUpdateEndpoint()
-            val request = Request.Builder()
+            val updateUrl = PhantomConfig.getUpdateEndpoint()
+            val request = HttpRequest.Builder()
                 .url(updateUrl)
                 .header("User-Agent", "Phantom-Updater/${getCurrentVersionName()}")
                 .build()
@@ -97,8 +96,8 @@ class UpdateManager(
 
             val currentCode = getCurrentVersionCode().toInt()
 
-            // Apply policy to C++ engine
-            PhantomNative.applyVersionPolicy(currentCode, minVersionCode, forceUpdate)
+            // Apply remote version lock policy
+            PhantomConfig.applyVersionPolicy(currentCode, minVersionCode, forceUpdate)
 
             val isForce = forceUpdate || (minVersionCode > 0 && currentCode < minVersionCode)
             val isUpdateAvailable = (serverVersionCode > currentCode) || isForce
@@ -134,7 +133,7 @@ class UpdateManager(
                 return@withContext null
             }
 
-            val request = Request.Builder()
+            val request = HttpRequest.Builder()
                 .url(downloadUrl)
                 .build()
 

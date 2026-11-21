@@ -40,9 +40,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.R
 import com.phantom.tube.core.database.SubscriptionEntity
 import com.phantom.tube.core.theme.CardBackground
@@ -109,15 +108,13 @@ fun SearchChannelCard(
                 ) {
                     if (avatarUrl.isNotBlank()) {
                         val avatarRequest = remember(avatarUrl, context) {
-                            ImageRequest.Builder(context)
+                            PhantomImageRequest.Builder(context)
                                 .data(avatarUrl)
                                 .size(144, 144)
-                                .precision(Precision.INEXACT)
                                 .allowRgb565(true)
-                                .allowHardware(false)
                                 .build()
                         }
-                        AsyncImage(
+                        PhantomAsyncImage(
                             model = avatarRequest,
                             contentDescription = channel.title,
                             contentScale = ContentScale.Crop,

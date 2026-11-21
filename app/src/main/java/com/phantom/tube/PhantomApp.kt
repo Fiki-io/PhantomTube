@@ -3,14 +3,16 @@ package com.phantom.tube
 import android.app.Application
 import android.content.ComponentCallbacks2
 import android.graphics.Bitmap
-import coil.ImageLoader
-import coil.ImageLoaderFactory
-import coil.imageLoader
-import coil.disk.DiskCache
-import coil.memory.MemoryCache
 import com.phantom.tube.core.crash.PhantomCrashHandler
 import com.phantom.tube.core.database.PhantomDatabase
-import com.phantom.tube.core.security.PhantomNative
+import com.phantom.tube.core.image.ImageDiskCache
+import com.phantom.tube.core.image.ImageMemoryCache
+import com.phantom.tube.core.image.PhantomImageLoader
+import com.phantom.tube.core.image.PhantomImageLoaderFactory
+import com.phantom.tube.core.image.phantomImageLoader
+import com.phantom.tube.core.network.HttpCache
+import com.phantom.tube.core.network.HttpDispatcher
+import com.phantom.tube.core.network.PhantomHttpClient
 import com.phantom.tube.data.innertube.InnerTubeClient
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.data.sponsorblock.SponsorBlockClient
@@ -20,17 +22,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import okhttp3.Cache
-import okhttp3.ConnectionPool
-import okhttp3.Dispatcher
-import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
-class PhantomApp : Application(), ImageLoaderFactory {
+class PhantomApp : Application(), PhantomImageLoaderFactory {
 
     companion object {
         @Volatile
-        var sharedClientInstance: OkHttpClient? = null
+        var sharedClientInstance: PhantomHttpClient? = null
             private set
     }
 
@@ -43,17 +41,16 @@ class PhantomApp : Application(), ImageLoaderFactory {
     lateinit var repository: PhantomRepository
         private set
 
-    val sharedHttpClient: OkHttpClient by lazy {
-        val dispatcher = Dispatcher().apply {
+    val sharedHttpClient: PhantomHttpClient by lazy {
+        val dispatcher = HttpDispatcher().apply {
             maxRequests = 8
             maxRequestsPerHost = 4
         }
-        OkHttpClient.Builder()
+        PhantomHttpClient.Builder()
             .dispatcher(dispatcher)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
-            .connectionPool(ConnectionPool(3, 1, TimeUnit.MINUTES))
-            .cache(Cache(cacheDir.resolve("http_cache"), 8L * 1024 * 1024))
+            .cache(HttpCache(cacheDir.resolve("http_cache"), 8L * 1024 * 1024))
             .build()
             .also { sharedClientInstance = it }
     }
@@ -65,7 +62,6 @@ class PhantomApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         PhantomCrashHandler.install(this)
-        PhantomNative.verifySecurity(this)
         database = PhantomDatabase.getInstance(this)
         preferences = PhantomPreferences(this)
         com.phantom.tube.player.PhantomRenderEngine.init(sharedHttpClient)
@@ -99,41 +95,34 @@ class PhantomApp : Application(), ImageLoaderFactory {
         }
     }
 
-    override fun newImageLoader(): ImageLoader {
+    override fun newImageLoader(): PhantomImageLoader {
         val maxMem = Runtime.getRuntime().maxMemory()
         val targetCacheBytes = (maxMem / 10L)
             .coerceIn(8L * 1024L * 1024L, 24L * 1024L * 1024L)
             .toInt()
 
-        return ImageLoader.Builder(this)
-            .okHttpClient(sharedHttpClient)
+        return PhantomImageLoader.Builder(this)
+            .httpClient(sharedHttpClient)
             .bitmapConfig(Bitmap.Config.RGB_565)
-            .allowRgb565(true)
-            .bitmapFactoryMaxParallelism(2)
-            .bitmapFactoryExifOrientationPolicy(coil.decode.ExifOrientationPolicy.IGNORE)
+            .maxParallelism(2)
             .memoryCache {
-                MemoryCache.Builder(this)
+                ImageMemoryCache.Builder()
                     .maxSizeBytes(targetCacheBytes)
-                    .strongReferencesEnabled(true)
-                    .weakReferencesEnabled(false)
                     .build()
             }
             .diskCache {
-                DiskCache.Builder()
+                ImageDiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
                     .maxSizeBytes(16L * 1024 * 1024)
                     .build()
             }
-            .respectCacheHeaders(false)
-            .allowHardware(false)
-            .crossfade(false)
             .build()
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         try {
-            this.imageLoader.trimMemory(level)
+            this.phantomImageLoader.trimMemory(level)
             if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL || level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
                 com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
                     context = this,

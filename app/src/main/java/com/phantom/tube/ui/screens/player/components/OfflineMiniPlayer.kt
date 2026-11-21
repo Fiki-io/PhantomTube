@@ -44,9 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -95,15 +94,13 @@ fun OfflineMiniPlayer(
                 ) {
                     if (track.thumbnailUrl.isNotBlank()) {
                         val thumbRequest = remember(track.thumbnailUrl, context) {
-                            ImageRequest.Builder(context)
+                            PhantomImageRequest.Builder(context)
                                 .data(track.thumbnailUrl)
                                 .size(128, 128)
-                                .precision(Precision.INEXACT)
                                 .allowRgb565(true)
-                                .allowHardware(false)
                                 .build()
                         }
-                        AsyncImage(
+                        PhantomAsyncImage(
                             model = thumbRequest,
                             contentDescription = track.title,
                             contentScale = ContentScale.Crop,

@@ -100,9 +100,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.ObsidianDark
@@ -737,15 +736,13 @@ fun SearchScreen(
                                                 clean.ifBlank { ChannelAvatarCache.get(item.channelId, item.channelTitle) }
                                             }
                                             val suggAvatarRequest = remember(suggAvatar, context) {
-                                                ImageRequest.Builder(context)
+                                                PhantomImageRequest.Builder(context)
                                                     .data(suggAvatar)
                                                     .size(96, 96)
-                                                    .precision(Precision.INEXACT)
                                                     .allowRgb565(true)
-                                                    .allowHardware(false)
                                                     .build()
                                             }
-                                            AsyncImage(
+                                            PhantomAsyncImage(
                                                 model = suggAvatarRequest,
                                                 contentDescription = item.channelTitle ?: item.query,
                                                 contentScale = ContentScale.Crop,

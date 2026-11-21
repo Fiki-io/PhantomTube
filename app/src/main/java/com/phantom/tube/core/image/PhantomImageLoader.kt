@@ -1,4 +1,4 @@
-package coil
+package com.phantom.tube.core.image
 
 import android.content.ComponentCallbacks2
 import android.content.Context
@@ -6,13 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
 import android.util.LruCache
-import coil.decode.ExifOrientationPolicy
-import coil.disk.DiskCache
-import coil.memory.MemoryCache
-import coil.request.ErrorResult
-import coil.request.ImageRequest
-import coil.request.ImageResult
-import coil.request.SuccessResult
+import com.phantom.tube.core.network.HttpRequest
+import com.phantom.tube.core.network.PhantomHttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,23 +15,25 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-interface ImageLoaderFactory {
-    fun newImageLoader(): ImageLoader
+/**
+ * Lightweight internal image loader built on Android [BitmapFactory], [LruCache],
+ * SHA-256 disk caching, and [PhantomHttpClient], with zero third-party image dependencies.
+ */
+interface PhantomImageLoaderFactory {
+    fun newImageLoader(): PhantomImageLoader
 }
 
-class ImageLoader internal constructor(
+class PhantomImageLoader internal constructor(
     private val context: Context,
-    private val httpClient: OkHttpClient,
-    val memoryCache: MemoryCache?,
-    private val diskCache: DiskCache?,
+    private val httpClient: PhantomHttpClient,
+    val memoryCache: ImageMemoryCache?,
+    private val diskCache: ImageDiskCache?,
     private val defaultConfig: Bitmap.Config,
     maxParallelism: Int
 ) {
@@ -91,19 +88,19 @@ class ImageLoader internal constructor(
         return if (cached != null && !cached.isRecycled) cached else null
     }
 
-    suspend fun execute(request: ImageRequest): ImageResult = withContext(Dispatchers.IO) {
+    suspend fun execute(request: PhantomImageRequest): PhantomImageResult = withContext(Dispatchers.IO) {
         val url = request.urlString.trim()
         if (url.isBlank()) {
-            return@withContext ErrorResult(throwable = IllegalArgumentException("Blank image URL"))
+            return@withContext ImageErrorResult(throwable = IllegalArgumentException("Blank image URL"))
         }
 
         val key = request.cacheKey
         getFromMemory(key)?.let { cachedBmp ->
-            return@withContext SuccessResult(BitmapDrawable(context.resources, cachedBmp))
+            return@withContext ImageSuccessResult(BitmapDrawable(context.resources, cachedBmp))
         }
 
         try {
-            val diskFile = resolveDiskFile(url) ?: return@withContext ErrorResult(
+            val diskFile = resolveDiskFile(url) ?: return@withContext ImageErrorResult(
                 throwable = IllegalStateException("Empty image stream")
             )
 
@@ -126,14 +123,14 @@ class ImageLoader internal constructor(
                     targetHeight = maxH,
                     request = request
                 )
-            } ?: return@withContext ErrorResult(throwable = IllegalStateException("Decode failed"))
+            } ?: return@withContext ImageErrorResult(throwable = IllegalStateException("Decode failed"))
 
             if (!bitmap.isRecycled) {
                 bitmapRamCache.put(key, bitmap)
             }
-            SuccessResult(BitmapDrawable(context.resources, bitmap))
+            ImageSuccessResult(BitmapDrawable(context.resources, bitmap))
         } catch (e: Throwable) {
-            ErrorResult(throwable = e)
+            ImageErrorResult(throwable = e)
         }
     }
 
@@ -148,7 +145,7 @@ class ImageLoader internal constructor(
             return diskFile
         }
 
-        val req = Request.Builder()
+        val req = HttpRequest.Builder()
             .url(url)
             .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0.0.0 Mobile Safari/537.36")
             .get()
@@ -230,7 +227,7 @@ class ImageLoader internal constructor(
         file: File,
         targetWidth: Int,
         targetHeight: Int,
-        request: ImageRequest
+        request: PhantomImageRequest
     ): Bitmap? {
         val tempBuf = decodeTempBuffer.get()
         val path = file.absolutePath
@@ -299,13 +296,13 @@ class ImageLoader internal constructor(
     }
 
     class Builder(private val context: Context) {
-        private var httpClient: OkHttpClient? = null
-        private var memoryCache: MemoryCache? = null
-        private var diskCache: DiskCache? = null
+        private var httpClient: PhantomHttpClient? = null
+        private var memoryCache: ImageMemoryCache? = null
+        private var diskCache: ImageDiskCache? = null
         private var defaultConfig: Bitmap.Config = Bitmap.Config.RGB_565
         private var maxParallelism: Int = 2
 
-        fun okHttpClient(client: OkHttpClient): Builder = apply {
+        fun httpClient(client: PhantomHttpClient): Builder = apply {
             this.httpClient = client
         }
 
@@ -313,33 +310,21 @@ class ImageLoader internal constructor(
             this.defaultConfig = config
         }
 
-        fun allowRgb565(@Suppress("UNUSED_PARAMETER") enable: Boolean): Builder = this
-
-        fun bitmapFactoryMaxParallelism(maxParallelism: Int): Builder = apply {
+        fun maxParallelism(maxParallelism: Int): Builder = apply {
             this.maxParallelism = maxParallelism
         }
 
-        fun bitmapFactoryExifOrientationPolicy(
-            @Suppress("UNUSED_PARAMETER") policy: ExifOrientationPolicy
-        ): Builder = this
-
-        fun memoryCache(initializer: () -> MemoryCache): Builder = apply {
+        fun memoryCache(initializer: () -> ImageMemoryCache): Builder = apply {
             this.memoryCache = initializer()
         }
 
-        fun diskCache(initializer: () -> DiskCache): Builder = apply {
+        fun diskCache(initializer: () -> ImageDiskCache): Builder = apply {
             this.diskCache = initializer()
         }
 
-        fun respectCacheHeaders(@Suppress("UNUSED_PARAMETER") enable: Boolean): Builder = this
-
-        fun allowHardware(@Suppress("UNUSED_PARAMETER") enable: Boolean): Builder = this
-
-        fun crossfade(@Suppress("UNUSED_PARAMETER") enable: Boolean): Builder = this
-
-        fun build(): ImageLoader = ImageLoader(
+        fun build(): PhantomImageLoader = PhantomImageLoader(
             context = context.applicationContext,
-            httpClient = httpClient ?: OkHttpClient(),
+            httpClient = httpClient ?: PhantomHttpClient(),
             memoryCache = memoryCache,
             diskCache = diskCache,
             defaultConfig = defaultConfig,
@@ -349,13 +334,13 @@ class ImageLoader internal constructor(
 
     companion object {
         @Volatile
-        private var instance: ImageLoader? = null
+        private var instance: PhantomImageLoader? = null
 
-        fun get(context: Context): ImageLoader {
+        fun get(context: Context): PhantomImageLoader {
             return instance ?: synchronized(this) {
                 instance ?: run {
                     val app = context.applicationContext
-                    val created = if (app is ImageLoaderFactory) {
+                    val created = if (app is PhantomImageLoaderFactory) {
                         app.newImageLoader()
                     } else {
                         Builder(app).build()
@@ -368,5 +353,5 @@ class ImageLoader internal constructor(
     }
 }
 
-val Context.imageLoader: ImageLoader
-    get() = ImageLoader.get(this)
+val Context.phantomImageLoader: PhantomImageLoader
+    get() = PhantomImageLoader.get(this)

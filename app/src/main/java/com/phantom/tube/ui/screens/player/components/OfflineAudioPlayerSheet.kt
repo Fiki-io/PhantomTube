@@ -73,9 +73,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.GlassSurface
 import com.phantom.tube.core.theme.MediaPlaceholderBg
@@ -198,15 +197,13 @@ fun OfflineAudioPlayerSheet(
                 ) {
                     if (track.thumbnailUrl.isNotBlank()) {
                         val coverRequest = remember(track.thumbnailUrl, context) {
-                            ImageRequest.Builder(context)
+                            PhantomImageRequest.Builder(context)
                                 .data(track.thumbnailUrl)
                                 .size(512, 512)
-                                .precision(Precision.INEXACT)
                                 .allowRgb565(true)
-                                .allowHardware(false)
                                 .build()
                         }
-                        AsyncImage(
+                        PhantomAsyncImage(
                             model = coverRequest,
                             contentDescription = track.title,
                             contentScale = ContentScale.Crop,
@@ -429,15 +426,13 @@ fun OfflineAudioPlayerSheet(
                                 ) {
                                     if (item.thumbnailUrl.isNotBlank()) {
                                         val itemThumbRequest = remember(item.thumbnailUrl, context) {
-                                            ImageRequest.Builder(context)
+                                            PhantomImageRequest.Builder(context)
                                                 .data(item.thumbnailUrl)
                                                 .size(96, 96)
-                                                .precision(Precision.INEXACT)
                                                 .allowRgb565(true)
-                                                .allowHardware(false)
                                                 .build()
                                         }
-                                        AsyncImage(
+                                        PhantomAsyncImage(
                                             model = itemThumbRequest,
                                             contentDescription = null,
                                             contentScale = ContentScale.Crop,

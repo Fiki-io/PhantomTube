@@ -37,7 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import com.phantom.tube.core.image.PhantomAsyncImage
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.CardBackground
@@ -153,7 +153,7 @@ private fun EndscreenCardItem(
                 .background(Color(0xFF181818))
         ) {
             if (video.thumbnailUrl.isNotBlank()) {
-                AsyncImage(
+                PhantomAsyncImage(
                     model = video.thumbnailUrl,
                     contentDescription = video.title,
                     contentScale = ContentScale.Crop,

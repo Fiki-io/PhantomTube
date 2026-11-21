@@ -2,7 +2,7 @@ package com.phantom.tube.core.util
 
 import android.content.ComponentCallbacks2
 import android.content.Context
-import coil.imageLoader
+import com.phantom.tube.core.image.phantomImageLoader
 import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.player.PhantomRenderEngine
 import com.phantom.tube.player.StoryboardHelper
@@ -38,9 +38,9 @@ object PhantomMemoryOptimizer {
                 if (aggressiveGraphicsPurge) {
                     PhantomRenderEngine.clearCache()
                     StoryboardHelper.clearCache()
-                    appContext.imageLoader.trimMemory(ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN)
+                    appContext.phantomImageLoader.trimMemory(ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN)
                 } else {
-                    appContext.imageLoader.trimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE)
+                    appContext.phantomImageLoader.trimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE)
                 }
             }
         }

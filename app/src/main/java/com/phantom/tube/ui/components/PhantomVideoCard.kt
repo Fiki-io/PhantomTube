@@ -50,9 +50,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.R
 import com.phantom.tube.PhantomApp
 import com.phantom.tube.core.theme.ControlSurfaceMuted
@@ -109,13 +108,10 @@ fun PhantomVideoCard(
     ) {
         // Thumbnail
         val thumbRequest = remember(video.thumbnailUrl, context) {
-            ImageRequest.Builder(context)
+            PhantomImageRequest.Builder(context)
                 .data(video.thumbnailUrl)
                 .size(384, 216)
-                .precision(Precision.INEXACT)
                 .allowRgb565(true)
-                .allowHardware(false)
-                .crossfade(false)
                 .build()
         }
         Box(
@@ -125,7 +121,7 @@ fun PhantomVideoCard(
                 .clip(RoundedCornerShape(8.dp))
                 .background(MediaPlaceholderBg)
         ) {
-            AsyncImage(
+            PhantomAsyncImage(
                 model = thumbRequest,
                 contentDescription = video.title,
                 contentScale = ContentScale.Crop,
@@ -243,16 +239,13 @@ fun PhantomVideoCard(
             ) {
                 if (avatarUrl.isNotBlank()) {
                     val avatarRequest = remember(avatarUrl, context) {
-                        ImageRequest.Builder(context)
+                        PhantomImageRequest.Builder(context)
                             .data(avatarUrl)
                             .size(72, 72)
-                            .precision(Precision.INEXACT)
                             .allowRgb565(true)
-                            .allowHardware(false)
-                            .crossfade(false)
                             .build()
                     }
-                    AsyncImage(
+                    PhantomAsyncImage(
                         model = avatarRequest,
                         contentDescription = video.channelTitle,
                         modifier = Modifier

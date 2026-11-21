@@ -1,4 +1,4 @@
-package coil.compose
+package com.phantom.tube.core.image
 
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.Image
@@ -16,12 +16,9 @@ import androidx.compose.ui.graphics.DefaultAlpha
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
 
 @Composable
-fun AsyncImage(
+fun PhantomAsyncImage(
     model: Any?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
@@ -31,13 +28,13 @@ fun AsyncImage(
     colorFilter: ColorFilter? = null
 ) {
     val context = LocalContext.current
-    val loader = remember(context) { context.imageLoader }
+    val loader = remember(context) { context.phantomImageLoader }
 
     val request = remember(model, context) {
         when (model) {
-            is ImageRequest -> model
-            is String -> ImageRequest.Builder(context).data(model).build()
-            else -> ImageRequest.Builder(context).data(model?.toString() ?: "").build()
+            is PhantomImageRequest -> model
+            is String -> PhantomImageRequest.Builder(context).data(model).build()
+            else -> PhantomImageRequest.Builder(context).data(model?.toString() ?: "").build()
         }
     }
 
@@ -51,7 +48,7 @@ fun AsyncImage(
     LaunchedEffect(cacheKey) {
         if (loadedBitmap == null && request.urlString.isNotBlank()) {
             val res = loader.execute(request)
-            if (res is SuccessResult) {
+            if (res is ImageSuccessResult) {
                 val bmp = (res.drawable as? BitmapDrawable)?.bitmap
                 if (bmp != null && !bmp.isRecycled) {
                     loadedBitmap = bmp

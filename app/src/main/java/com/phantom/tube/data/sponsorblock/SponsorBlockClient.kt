@@ -1,15 +1,16 @@
 package com.phantom.tube.data.sponsorblock
 
+import com.phantom.tube.core.config.PhantomConfig
+import com.phantom.tube.core.network.HttpRequest
+import com.phantom.tube.core.network.PhantomHttpClient
 import com.phantom.tube.data.model.SponsorSegment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.json.JSONArray
 import java.util.concurrent.TimeUnit
 
 class SponsorBlockClient(
-    private val httpClient: OkHttpClient = OkHttpClient.Builder()
+    private val httpClient: PhantomHttpClient = PhantomHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(5, TimeUnit.SECONDS)
         .build()
@@ -17,9 +18,9 @@ class SponsorBlockClient(
     suspend fun getSkipSegments(videoId: String): List<SponsorSegment> = withContext(Dispatchers.IO) {
         if (videoId.isBlank()) return@withContext emptyList()
         try {
-            val url = com.phantom.tube.core.security.PhantomNative.getSponsorBlockRequestUrl(videoId)
+            val url = PhantomConfig.getSponsorBlockRequestUrl(videoId)
 
-            val request = Request.Builder()
+            val request = HttpRequest.Builder()
                 .url(url)
                 .header("User-Agent", "Phantom-Android/2.0")
                 .get()

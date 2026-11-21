@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.phantom.tube.R
-import com.phantom.tube.core.security.PhantomNative
+import com.phantom.tube.core.config.PhantomConfig
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.ObsidianSurface
 import com.phantom.tube.core.theme.TextMuted
@@ -67,7 +67,7 @@ fun UpdateDialog(
     val isForceUpdate = when (state) {
         is UpdateDialogState.Available -> state.info.isForceUpdate
         is UpdateDialogState.Downloading -> state.info.isForceUpdate
-        else -> PhantomNative.isLocked()
+        else -> PhantomConfig.isLocked()
     }
     val isCancellable = !isForceUpdate && state !is UpdateDialogState.Downloading
 

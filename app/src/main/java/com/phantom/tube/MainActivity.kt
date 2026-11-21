@@ -567,7 +567,7 @@ class MainActivity : ComponentActivity() {
                             onDismiss = {
                                 val isForce = (updateDialogState as? UpdateDialogState.Available)?.info?.isForceUpdate == true ||
                                               (updateDialogState as? UpdateDialogState.Downloading)?.info?.isForceUpdate == true ||
-                                              com.phantom.tube.core.security.PhantomNative.isLocked()
+                                              com.phantom.tube.core.config.PhantomConfig.isLocked()
                                 if (!isForce) {
                                     updateDialogState = null
                                 }

@@ -29,18 +29,3 @@ fun Modifier.phantomSurface(
         color = accentGlow?.copy(alpha = 0.45f) ?: DefaultBorderColor,
         shape = shape
     )
-
-/**
- * Modifier tombol dengan feedback saat ditekan.
- */
-fun Modifier.phantomButtonSurface(
-    shape: Shape = RoundedCornerShape(24.dp),
-    isPressed: Boolean = false,
-    accentColor: Color = YouTubeRed
-): Modifier = this.phantomSurface(
-    shape = shape,
-    borderWidth = 1.dp,
-    tintColor = if (isPressed) Color(0xFF333333) else Color(0xFF272727),
-    surfaceAlpha = if (isPressed) 1f else 0.9f,
-    accentGlow = if (isPressed) accentColor else null
-)

@@ -8,21 +8,22 @@ import com.phantom.tube.data.model.VideoItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
+import com.phantom.tube.core.config.PhantomConfig
+import com.phantom.tube.core.network.HttpMediaType.Companion.toMediaType
+import com.phantom.tube.core.network.HttpRequest
+import com.phantom.tube.core.network.HttpRequestBody.Companion.toRequestBody
+import com.phantom.tube.core.network.PhantomHttpClient
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 class InnerTubeClient(
-    private val httpClient: OkHttpClient = OkHttpClient.Builder()
+    private val httpClient: PhantomHttpClient = PhantomHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 ) {
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
-    private val userAgent = com.phantom.tube.core.security.PhantomNative.getDesktopUserAgent()
+    private val userAgent = PhantomConfig.getDesktopUserAgent()
 
     var regionCodeProvider: (() -> String)? = null
     var languageCodeProvider: (() -> String)? = null
@@ -80,8 +81,8 @@ class InnerTubeClient(
                     }
                 }
             }
-            val request = Request.Builder()
-                .url(com.phantom.tube.core.security.PhantomNative.getSearchEndpoint())
+            val request = HttpRequest.Builder()
+                .url(PhantomConfig.getSearchEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -128,8 +129,8 @@ class InnerTubeClient(
                 put("videoId", videoId)
                 put("playlistId", targetPlaylistId)
             }
-            val request = Request.Builder()
-                .url(com.phantom.tube.core.security.PhantomNative.getNextEndpoint())
+            val request = HttpRequest.Builder()
+                .url(PhantomConfig.getNextEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -157,8 +158,8 @@ class InnerTubeClient(
                 put("context", createClientContext())
                 put("continuation", continuation)
             }
-            val request = Request.Builder()
-                .url(com.phantom.tube.core.security.PhantomNative.getNextEndpoint())
+            val request = HttpRequest.Builder()
+                .url(PhantomConfig.getNextEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -187,8 +188,8 @@ class InnerTubeClient(
                 put("context", createClientContext())
                 put("continuation", continuationToken)
             }
-            val request = Request.Builder()
-                .url(com.phantom.tube.core.security.PhantomNative.getNextEndpoint())
+            val request = HttpRequest.Builder()
+                .url(PhantomConfig.getNextEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -223,8 +224,8 @@ class InnerTubeClient(
                 put("context", createClientContext())
                 put("browseId", targetChannelId)
             }
-            val request = Request.Builder()
-                .url(com.phantom.tube.core.security.PhantomNative.getBrowseEndpoint())
+            val request = HttpRequest.Builder()
+                .url(PhantomConfig.getBrowseEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -293,8 +294,8 @@ class InnerTubeClient(
                 }
             }
 
-            val request = Request.Builder()
-                .url(com.phantom.tube.core.security.PhantomNative.getBrowseEndpoint())
+            val request = HttpRequest.Builder()
+                .url(PhantomConfig.getBrowseEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -322,8 +323,8 @@ class InnerTubeClient(
                 put("continuation", continuation)
             }
 
-            val request = Request.Builder()
-                .url(com.phantom.tube.core.security.PhantomNative.getBrowseEndpoint())
+            val request = HttpRequest.Builder()
+                .url(PhantomConfig.getBrowseEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -372,11 +373,11 @@ class InnerTubeClient(
                 else -> lang.lowercase()
             }
             val encoded = java.net.URLEncoder.encode(trimmed, "UTF-8")
-            val endpoints = com.phantom.tube.core.security.PhantomNative.getSuggestEndpoints(encoded, hl, gl)
+            val endpoints = PhantomConfig.getSuggestEndpoints(encoded, hl, gl)
 
             for (url in endpoints) {
                 try {
-                    val request = Request.Builder()
+                    val request = HttpRequest.Builder()
                         .url(url)
                         .header("User-Agent", userAgent)
                         .header("Accept", "*/*")

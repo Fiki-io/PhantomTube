@@ -46,9 +46,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.MediaPlaceholderBg
@@ -180,15 +179,13 @@ fun HistoryScreen(
                                         .background(MediaPlaceholderBg)
                                 ) {
                                     val thumbRequest = remember(entry.thumbnailUrl, context) {
-                                        ImageRequest.Builder(context)
+                                        PhantomImageRequest.Builder(context)
                                             .data(entry.thumbnailUrl)
                                             .size(240, 136)
-                                            .precision(Precision.INEXACT)
                                             .allowRgb565(true)
-                                            .allowHardware(false)
                                             .build()
                                     }
-                                    AsyncImage(
+                                    PhantomAsyncImage(
                                         model = thumbRequest,
                                         contentDescription = entry.title,
                                         contentScale = ContentScale.Crop,

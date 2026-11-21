@@ -42,9 +42,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import com.phantom.tube.core.image.PhantomAsyncImage
+import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
@@ -74,15 +73,13 @@ fun CommentItemRow(
     ) {
         if (comment.authorAvatarUrl.isNotBlank()) {
             val avatarRequest = remember(comment.authorAvatarUrl, context) {
-                ImageRequest.Builder(context)
+                PhantomImageRequest.Builder(context)
                     .data(comment.authorAvatarUrl)
                     .size(72, 72)
-                    .precision(Precision.INEXACT)
                     .allowRgb565(true)
-                    .allowHardware(false)
                     .build()
             }
-            AsyncImage(
+            PhantomAsyncImage(
                 model = avatarRequest,
                 contentDescription = comment.authorName,
                 modifier = Modifier

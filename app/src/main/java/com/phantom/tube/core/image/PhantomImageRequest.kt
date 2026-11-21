@@ -1,32 +1,29 @@
-package coil.request
+package com.phantom.tube.core.image
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
-import coil.size.Precision
 
-sealed class ImageResult {
+sealed class PhantomImageResult {
     abstract val drawable: Drawable?
 }
 
-class SuccessResult(
+class ImageSuccessResult(
     override val drawable: Drawable
-) : ImageResult()
+) : PhantomImageResult()
 
-class ErrorResult(
+class ImageErrorResult(
     override val drawable: Drawable? = null,
     val throwable: Throwable
-) : ImageResult()
+) : PhantomImageResult()
 
-class ImageRequest internal constructor(
+class PhantomImageRequest internal constructor(
     val context: Context,
     val data: Any?,
     val targetWidth: Int,
     val targetHeight: Int,
-    val precision: Precision,
     val bitmapConfig: Bitmap.Config,
-    val allowRgb565: Boolean,
-    val allowHardware: Boolean
+    val allowRgb565: Boolean
 ) {
     val urlString: String
         get() = data?.toString() ?: ""
@@ -42,10 +39,8 @@ class ImageRequest internal constructor(
         private var data: Any? = null
         private var targetWidth: Int = 0
         private var targetHeight: Int = 0
-        private var precision: Precision = Precision.AUTOMATIC
         private var bitmapConfig: Bitmap.Config = Bitmap.Config.RGB_565
         private var allowRgb565: Boolean = true
-        private var allowHardware: Boolean = true
 
         fun data(data: Any?): Builder = apply {
             this.data = data
@@ -61,10 +56,6 @@ class ImageRequest internal constructor(
             this.targetHeight = size
         }
 
-        fun precision(precision: Precision): Builder = apply {
-            this.precision = precision
-        }
-
         fun bitmapConfig(config: Bitmap.Config): Builder = apply {
             this.bitmapConfig = config
         }
@@ -73,21 +64,13 @@ class ImageRequest internal constructor(
             this.allowRgb565 = enable
         }
 
-        fun allowHardware(enable: Boolean): Builder = apply {
-            this.allowHardware = enable
-        }
-
-        fun crossfade(@Suppress("UNUSED_PARAMETER") enable: Boolean): Builder = this
-
-        fun build(): ImageRequest = ImageRequest(
+        fun build(): PhantomImageRequest = PhantomImageRequest(
             context = context,
             data = data,
             targetWidth = targetWidth,
             targetHeight = targetHeight,
-            precision = precision,
             bitmapConfig = bitmapConfig,
-            allowRgb565 = allowRgb565,
-            allowHardware = allowHardware
+            allowRgb565 = allowRgb565
         )
     }
 }

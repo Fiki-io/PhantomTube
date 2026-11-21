@@ -1,4 +1,4 @@
-package okhttp3
+package com.phantom.tube.core.network
 
 import android.net.http.HttpResponseCache
 import java.io.ByteArrayInputStream
@@ -14,26 +14,30 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.GZIPInputStream
 
-class MediaType internal constructor(val value: String) {
+/**
+ * Lightweight internal HTTP client built directly on Android SDK's [HttpURLConnection]
+ * and [HttpResponseCache], with zero third-party networking dependencies.
+ */
+class HttpMediaType internal constructor(val value: String) {
     override fun toString(): String = value
 
     companion object {
-        fun String.toMediaType(): MediaType = MediaType(this)
+        fun String.toMediaType(): HttpMediaType = HttpMediaType(this)
     }
 }
 
-open class RequestBody(
+open class HttpRequestBody(
     val bytes: ByteArray,
-    val contentType: MediaType? = null
+    val contentType: HttpMediaType? = null
 ) {
     companion object {
-        fun String.toRequestBody(contentType: MediaType? = null): RequestBody =
-            RequestBody(this.toByteArray(Charsets.UTF_8), contentType)
+        fun String.toRequestBody(contentType: HttpMediaType? = null): HttpRequestBody =
+            HttpRequestBody(this.toByteArray(Charsets.UTF_8), contentType)
     }
 }
 
-class FormBody private constructor(encodedBytes: ByteArray) :
-    RequestBody(encodedBytes, MediaType("application/x-www-form-urlencoded; charset=UTF-8")) {
+class HttpFormBody private constructor(encodedBytes: ByteArray) :
+    HttpRequestBody(encodedBytes, HttpMediaType("application/x-www-form-urlencoded; charset=UTF-8")) {
 
     class Builder {
         private val pairs = ArrayList<Pair<String, String>>()
@@ -42,22 +46,22 @@ class FormBody private constructor(encodedBytes: ByteArray) :
             pairs.add(name to value)
         }
 
-        fun build(): FormBody {
+        fun build(): HttpFormBody {
             val encoded = pairs.joinToString("&") { (k, v) ->
                 "${URLEncoder.encode(k, "UTF-8")}=${URLEncoder.encode(v, "UTF-8")}"
             }
-            return FormBody(encoded.toByteArray(Charsets.UTF_8))
+            return HttpFormBody(encoded.toByteArray(Charsets.UTF_8))
         }
     }
 }
 
-class CacheControl private constructor(val noCache: Boolean) {
+class HttpCacheControl private constructor(val noCache: Boolean) {
     companion object {
-        val FORCE_NETWORK = CacheControl(noCache = true)
+        val FORCE_NETWORK = HttpCacheControl(noCache = true)
     }
 }
 
-class Cache(val directory: File, val maxSize: Long) {
+class HttpCache(val directory: File, val maxSize: Long) {
     init {
         try {
             if (HttpResponseCache.getInstalled() == null) {
@@ -69,13 +73,7 @@ class Cache(val directory: File, val maxSize: Long) {
     }
 }
 
-class ConnectionPool(
-    val maxIdleConnections: Int = 5,
-    val keepAliveDuration: Long = 5,
-    val timeUnit: TimeUnit = TimeUnit.MINUTES
-)
-
-class Dispatcher {
+class HttpDispatcher {
     var maxRequests: Int = 64
     var maxRequestsPerHost: Int = 5
 
@@ -104,18 +102,18 @@ class Dispatcher {
     }
 }
 
-class Request internal constructor(
+class HttpRequest internal constructor(
     val url: String,
     val method: String,
     val headers: Map<String, String>,
-    val body: RequestBody?,
+    val body: HttpRequestBody?,
     val forceNetwork: Boolean
 ) {
     class Builder {
         private var url: String = ""
         private var method: String = "GET"
         private val headers = LinkedHashMap<String, String>()
-        private var body: RequestBody? = null
+        private var body: HttpRequestBody? = null
         private var forceNetwork: Boolean = false
 
         fun url(url: String): Builder = apply { this.url = url }
@@ -128,7 +126,7 @@ class Request internal constructor(
             headers[name] = value
         }
 
-        fun cacheControl(cacheControl: CacheControl): Builder = apply {
+        fun cacheControl(cacheControl: HttpCacheControl): Builder = apply {
             this.forceNetwork = cacheControl.noCache
         }
 
@@ -137,12 +135,12 @@ class Request internal constructor(
             this.body = null
         }
 
-        fun post(body: RequestBody): Builder = apply {
+        fun post(body: HttpRequestBody): Builder = apply {
             this.method = "POST"
             this.body = body
         }
 
-        fun build(): Request = Request(
+        fun build(): HttpRequest = HttpRequest(
             url = url,
             method = method,
             headers = headers.toMap(),
@@ -152,7 +150,7 @@ class Request internal constructor(
     }
 }
 
-class ResponseBody(
+class HttpResponseBody(
     private val streamProvider: () -> InputStream,
     private val length: Long,
     private val onClose: () -> Unit
@@ -171,10 +169,10 @@ class ResponseBody(
     }
 }
 
-class Response(
+class HttpResponse(
     val code: Int,
     val headers: List<Pair<String, String>>,
-    val body: ResponseBody?,
+    val body: HttpResponseBody?,
     private val connection: HttpURLConnection?
 ) : Closeable {
 
@@ -193,11 +191,11 @@ class Response(
     }
 }
 
-class Call internal constructor(
-    private val client: OkHttpClient,
-    private val request: Request
+class HttpCall internal constructor(
+    private val client: PhantomHttpClient,
+    private val request: HttpRequest
 ) {
-    fun execute(): Response {
+    fun execute(): HttpResponse {
         var currentUrl = request.url
         var currentMethod = request.method
         var currentBody = request.body
@@ -267,9 +265,7 @@ class Call internal constructor(
                     if (!location.isNullOrBlank()) {
                         val nextUrl = URL(targetUrl, location)
                         val schemeChanged = !nextUrl.protocol.equals(targetUrl.protocol, ignoreCase = true)
-                        if (schemeChanged && !client.followSslRedirects) {
-                            // Do not follow protocol-changing redirects when followSslRedirects is false
-                        } else {
+                        if (!schemeChanged || client.followSslRedirects) {
                             conn.disconnect()
                             if (status in 301..303 && currentMethod == "POST") {
                                 currentMethod = "GET"
@@ -320,7 +316,7 @@ class Call internal constructor(
                     rawStream
                 }
 
-                val responseBody = ResponseBody(
+                val responseBody = HttpResponseBody(
                     streamProvider = { decodedStream },
                     length = contentLength,
                     onClose = {
@@ -336,7 +332,7 @@ class Call internal constructor(
                     }
                 )
 
-                return Response(
+                return HttpResponse(
                     code = status,
                     headers = headerPairs,
                     body = responseBody,
@@ -352,26 +348,24 @@ class Call internal constructor(
     }
 }
 
-class OkHttpClient internal constructor(
+class PhantomHttpClient internal constructor(
     val connectTimeoutMs: Int,
     val readTimeoutMs: Int,
     val followRedirects: Boolean,
     val followSslRedirects: Boolean,
-    val dispatcher: Dispatcher,
-    val connectionPool: ConnectionPool?,
-    val cache: Cache?
+    val dispatcher: HttpDispatcher,
+    val cache: HttpCache?
 ) {
     constructor() : this(
         connectTimeoutMs = 10_000,
         readTimeoutMs = 10_000,
         followRedirects = true,
         followSslRedirects = true,
-        dispatcher = Dispatcher(),
-        connectionPool = null,
+        dispatcher = HttpDispatcher(),
         cache = null
     )
 
-    fun newCall(request: Request): Call = Call(this, request)
+    fun newCall(request: HttpRequest): HttpCall = HttpCall(this, request)
 
     fun newBuilder(): Builder = Builder(this)
 
@@ -380,21 +374,19 @@ class OkHttpClient internal constructor(
         private var readTimeoutMs: Int = 10_000
         private var followRedirects: Boolean = true
         private var followSslRedirects: Boolean = true
-        private var dispatcher: Dispatcher = Dispatcher()
-        private var connectionPool: ConnectionPool? = null
-        private var cache: Cache? = null
+        private var dispatcher: HttpDispatcher = HttpDispatcher()
+        private var cache: HttpCache? = null
 
-        internal constructor(client: OkHttpClient) : this() {
+        internal constructor(client: PhantomHttpClient) : this() {
             this.connectTimeoutMs = client.connectTimeoutMs
             this.readTimeoutMs = client.readTimeoutMs
             this.followRedirects = client.followRedirects
             this.followSslRedirects = client.followSslRedirects
             this.dispatcher = client.dispatcher
-            this.connectionPool = client.connectionPool
             this.cache = client.cache
         }
 
-        fun dispatcher(dispatcher: Dispatcher): Builder = apply {
+        fun dispatcher(dispatcher: HttpDispatcher): Builder = apply {
             this.dispatcher = dispatcher
         }
 
@@ -406,11 +398,7 @@ class OkHttpClient internal constructor(
             this.readTimeoutMs = unit.toMillis(timeout).coerceIn(1_000L, 120_000L).toInt()
         }
 
-        fun connectionPool(connectionPool: ConnectionPool): Builder = apply {
-            this.connectionPool = connectionPool
-        }
-
-        fun cache(cache: Cache?): Builder = apply {
+        fun cache(cache: HttpCache?): Builder = apply {
             this.cache = cache
         }
 
@@ -422,19 +410,12 @@ class OkHttpClient internal constructor(
             this.followSslRedirects = followProtocolRedirects
         }
 
-        fun retryOnConnectionFailure(retryOnConnectionFailure: Boolean): Builder = apply {
-        }
-
-        fun writeTimeout(timeout: Long, unit: TimeUnit): Builder = apply {
-        }
-
-        fun build(): OkHttpClient = OkHttpClient(
+        fun build(): PhantomHttpClient = PhantomHttpClient(
             connectTimeoutMs = connectTimeoutMs,
             readTimeoutMs = readTimeoutMs,
             followRedirects = followRedirects,
             followSslRedirects = followSslRedirects,
             dispatcher = dispatcher,
-            connectionPool = connectionPool,
             cache = cache
         )
     }
