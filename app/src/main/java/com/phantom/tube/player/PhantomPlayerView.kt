@@ -28,6 +28,11 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : WebView(context, attrs, defStyleAttr) {
 
+    @Volatile
+    var allowBackgroundExecution: Boolean = false
+
+    private var isIdleSuspended: Boolean = false
+
     init {
         // Render directly to the hardware-accelerated window surface without allocating a duplicate offscreen FBO texture
         setLayerType(View.LAYER_TYPE_NONE, null)
@@ -35,7 +40,7 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
         isHorizontalScrollBarEnabled = false
         overScrollMode = View.OVER_SCROLL_NEVER
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, false)
+            setRendererPriorityPolicy(RENDERER_PRIORITY_BOUND, true)
         }
     }
 
@@ -46,15 +51,45 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
         }
     }
 
+    fun suspendForIdleBackground() {
+        allowBackgroundExecution = false
+        if (isIdleSuspended) return
+        isIdleSuspended = true
+        updateRendererPriority(important = false, waivedWhenNotVisible = true)
+        try {
+            super.onWindowVisibilityChanged(View.GONE)
+            super.onPause()
+            pauseTimers()
+        } catch (_: Exception) {
+        }
+    }
+
+    fun resumeFromIdleBackground() {
+        if (!isIdleSuspended) return
+        isIdleSuspended = false
+        try {
+            super.onWindowVisibilityChanged(View.VISIBLE)
+            super.onResume()
+            resumeTimers()
+        } catch (_: Exception) {
+        }
+    }
+
     override fun onWindowVisibilityChanged(visibility: Int) {
-        // Intercept GONE/INVISIBLE so Chromium WebView WebContents::WasHidden() does not suspend
-        // active <video> playback when the app enters background; JS/CSS 1x1 collapse handles GPU savings.
-        super.onWindowVisibilityChanged(View.VISIBLE)
+        // Only force VISIBLE while actively playing in background; otherwise let Chromium suspend WebContents
+        if (visibility == View.VISIBLE || allowBackgroundExecution) {
+            super.onWindowVisibilityChanged(View.VISIBLE)
+        } else {
+            super.onWindowVisibilityChanged(visibility)
+        }
     }
 
     override fun onPause() {
-        // Do NOT pause Chromium media or timers when activity is in background
-        resumeTimers()
+        if (allowBackgroundExecution) {
+            resumeTimers()
+        } else {
+            super.onPause()
+        }
     }
 }
 
@@ -79,13 +114,41 @@ class PhantomPlayerController(context: Context) {
         isRendererProtected = null
     }
 
+    fun setBackgroundExecutionAllowed(allowed: Boolean) {
+        val target = webView as? PhantomBackgroundWebView ?: return
+        target.allowBackgroundExecution = allowed
+    }
+
+    fun setIdleSuspended(suspended: Boolean) {
+        val target = webView as? PhantomBackgroundWebView ?: return
+        val applyAction = {
+            if (suspended) {
+                isRendererProtected = false
+                target.suspendForIdleBackground()
+                com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                    context = appContext,
+                    aggressiveGraphicsPurge = false
+                )
+            } else {
+                target.resumeFromIdleBackground()
+            }
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            applyAction()
+        } else {
+            target.post(applyAction)
+        }
+    }
+
     fun setBackgroundPriorityProtected(protected: Boolean) {
         if (isRendererProtected == protected) return
         isRendererProtected = protected
         val target = webView as? PhantomBackgroundWebView ?: return
+        target.allowBackgroundExecution = protected
         target.post {
             try {
                 if (protected) {
+                    target.resumeFromIdleBackground()
                     target.updateRendererPriority(important = true, waivedWhenNotVisible = false)
                 } else {
                     target.updateRendererPriority(important = false, waivedWhenNotVisible = true)
@@ -132,6 +195,7 @@ class PhantomPlayerController(context: Context) {
     }
 
     fun loadVideo(videoId: String, startSeconds: Float = 0f) {
+        setIdleSuspended(false)
         if (isReady && webView != null) {
             evaluateJs("window.loadVideo('${escapeJsArg(videoId)}', $startSeconds);")
         } else {
@@ -141,6 +205,7 @@ class PhantomPlayerController(context: Context) {
     }
 
     fun play() {
+        setIdleSuspended(false)
         evaluateJs("window.playVideo();")
     }
 
@@ -149,6 +214,7 @@ class PhantomPlayerController(context: Context) {
     }
 
     fun seekTo(seconds: Float) {
+        setIdleSuspended(false)
         evaluateJs("window.seekTo($seconds);")
     }
 
@@ -273,9 +339,6 @@ fun PhantomGhostSurface(
                     useWideViewPort = false
                     loadWithOverviewMode = false
                     setSupportMultipleWindows(false)
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                        safeBrowsingEnabled = false
-                    }
 
                     // Clean device WebView User-Agent while preserving native OS and Chromium versions
                     userAgentString = PhantomConfig.buildCleanWebViewUserAgent(userAgentString)

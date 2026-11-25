@@ -70,6 +70,8 @@ class PhantomMediaService : Service() {
 
     private lateinit var networkConnectivityObserver: NetworkConnectivityObserver
     private var offlineTimeoutJob: Job? = null
+    private var idleStopJob: Job? = null
+    private var isInForeground: Boolean = false
     private var wasPlayingBeforeDisconnect = false
 
     var onPlayAction: (() -> Unit)? = null
@@ -87,6 +89,11 @@ class PhantomMediaService : Service() {
         const val ACTION_NEXT = "com.phantom.tube.ACTION_NEXT"
         const val ACTION_PREVIOUS = "com.phantom.tube.ACTION_PREVIOUS"
         const val ACTION_STOP = "com.phantom.tube.ACTION_STOP"
+        private const val IDLE_PAUSE_STOP_TIMEOUT_MS = 3 * 60 * 1000L
+        private const val WAKE_LOCK_DEFAULT_MS = 15 * 60 * 1000L
+        private const val WAKE_LOCK_MIN_MS = 2 * 60 * 1000L
+        private const val WAKE_LOCK_MAX_MS = 2 * 60 * 60 * 1000L
+        private const val WAKE_LOCK_BUFFER_MS = 90 * 1000L
     }
 
     inner class LocalBinder : Binder() {
@@ -354,8 +361,13 @@ class PhantomMediaService : Service() {
             this.currentPositionMs = currentPositionMs
         }
         if (keepSessionActive) {
+            cancelIdleStopTimer()
+            mediaSession?.isActive = true
             registerBecomingNoisyReceiver()
             acquireWakeLock()
+            if (!isInForeground) {
+                startForegroundCompat(buildNotification())
+            }
         } else {
             unregisterBecomingNoisyReceiver()
             releaseWakeLock()
@@ -387,6 +399,11 @@ class PhantomMediaService : Service() {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             notificationManager?.notify(NOTIFICATION_ID, buildNotification())
         }
+
+        if (!keepSessionActive) {
+            demoteForegroundIfActive()
+            scheduleIdleStopTimer()
+        }
     }
 
     private fun startForegroundCompat(notification: Notification) {
@@ -400,8 +417,47 @@ class PhantomMediaService : Service() {
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
+            isInForeground = true
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    private fun demoteForegroundIfActive() {
+        if (!isInForeground) return
+        try {
+            stopForeground(STOP_FOREGROUND_DETACH)
+        } catch (_: Exception) {
+        }
+        isInForeground = false
+    }
+
+    private fun cancelIdleStopTimer() {
+        idleStopJob?.cancel()
+        idleStopJob = null
+    }
+
+    private fun scheduleIdleStopTimer() {
+        if (idleStopJob?.isActive == true) return
+        idleStopJob = serviceScope.launch {
+            delay(IDLE_PAUSE_STOP_TIMEOUT_MS)
+            if (!isPlaying) {
+                releaseWakeLock()
+                unregisterBecomingNoisyReceiver()
+                mediaSession?.isActive = false
+                try {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                } catch (_: Exception) {
+                }
+                isInForeground = false
+                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                notificationManager?.cancel(NOTIFICATION_ID)
+                com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                    context = applicationContext,
+                    aggressiveGraphicsPurge = false
+                )
+                stopSelf()
+            }
         }
     }
 
@@ -482,10 +538,14 @@ class PhantomMediaService : Service() {
                 setReferenceCounted(false)
             }
         }
+        val targetTimeoutMs = if (currentDurationMs > 0L) {
+            val remaining = (currentDurationMs - currentPositionMs).coerceAtLeast(0L)
+            (remaining + WAKE_LOCK_BUFFER_MS).coerceIn(WAKE_LOCK_MIN_MS, WAKE_LOCK_MAX_MS)
+        } else {
+            WAKE_LOCK_DEFAULT_MS
+        }
         try {
-            if (wakeLock?.isHeld != true) {
-                wakeLock?.acquire(3 * 60 * 60 * 1000L) // 3 hours safety timeout
-            }
+            wakeLock?.acquire(targetTimeoutMs)
         } catch (_: Exception) {}
     }
 
@@ -503,38 +563,54 @@ class PhantomMediaService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        val action = intent?.action
+        if (action != ACTION_STOP && !isInForeground) {
+            startForegroundCompat(buildNotification())
+        }
+        when (action) {
             ACTION_PLAY -> {
                 if (!networkConnectivityObserver.isConnected()) {
                     showNoInternetToast()
+                    demoteForegroundIfActive()
                 } else {
+                    cancelIdleStopTimer()
                     onPlayAction?.invoke()
                 }
             }
             ACTION_PAUSE -> {
                 wasPlayingBeforeDisconnect = false
                 unregisterBecomingNoisyReceiver()
+                releaseWakeLock()
                 onPauseAction?.invoke()
+                demoteForegroundIfActive()
+                scheduleIdleStopTimer()
             }
             ACTION_NEXT -> {
                 if (!networkConnectivityObserver.isConnected()) {
                     showNoInternetToast()
+                    demoteForegroundIfActive()
                 } else {
+                    cancelIdleStopTimer()
                     onNextAction?.invoke()
                 }
             }
             ACTION_PREVIOUS -> {
                 if (!networkConnectivityObserver.isConnected()) {
                     showNoInternetToast()
+                    demoteForegroundIfActive()
                 } else {
+                    cancelIdleStopTimer()
                     onPreviousAction?.invoke()
                 }
             }
             ACTION_STOP -> {
+                cancelIdleStopTimer()
                 wasPlayingBeforeDisconnect = false
                 unregisterBecomingNoisyReceiver()
+                releaseWakeLock()
                 onPauseAction?.invoke()
                 stopForeground(STOP_FOREGROUND_REMOVE)
+                isInForeground = false
                 stopSelf()
             }
         }
@@ -545,13 +621,17 @@ class PhantomMediaService : Service() {
         super.onTaskRemoved(rootIntent)
         val bgEnabled = (application as? PhantomApp)?.preferences?.backgroundPlaybackEnabled?.value ?: true
         if (!isPlaying || !bgEnabled) {
+            cancelIdleStopTimer()
+            releaseWakeLock()
             unregisterBecomingNoisyReceiver()
             stopForeground(STOP_FOREGROUND_REMOVE)
+            isInForeground = false
             stopSelf()
         }
     }
 
     override fun onDestroy() {
+        cancelIdleStopTimer()
         offlineTimeoutJob?.cancel()
         offlineTimeoutJob = null
         serviceScope.cancel()
@@ -562,6 +642,7 @@ class PhantomMediaService : Service() {
         mediaSession?.release()
         mediaSession = null
         stopForeground(STOP_FOREGROUND_REMOVE)
+        isInForeground = false
         super.onDestroy()
     }
 }

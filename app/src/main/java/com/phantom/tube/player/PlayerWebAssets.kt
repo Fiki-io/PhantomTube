@@ -841,6 +841,7 @@ a[href*="youtube.com/watch"] {
     private const val RAW_CLEAN_SCRIPT = """
 (function() {
     var isIframeBackground = false;
+    var isIframeMediaActive = false;
 
     try {
         Object.defineProperty(document, 'hidden', {
@@ -869,14 +870,39 @@ a[href*="youtube.com/watch"] {
     window.addEventListener('pagehide', function(e) { e.stopImmediatePropagation(); }, true);
     window.addEventListener('freeze', function(e) { e.stopImmediatePropagation(); }, true);
 
+    var bgRafTimers = Object.create(null);
+    var deferredRafQueue = [];
+    function clearBgRafTimers() {
+        for (var k in bgRafTimers) {
+            if (Object.prototype.hasOwnProperty.call(bgRafTimers, k)) {
+                clearTimeout(bgRafTimers[k]);
+                delete bgRafTimers[k];
+            }
+        }
+    }
+    function flushDeferredRafs() {
+        if (!deferredRafQueue.length) return;
+        var pending = deferredRafQueue;
+        deferredRafQueue = [];
+        var ts = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        for (var i = 0; i < pending.length; i++) {
+            try { pending[i](ts); } catch(err) {}
+        }
+    }
+
     try {
         var origRAF = window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : null;
         var origCAF = window.cancelAnimationFrame ? window.cancelAnimationFrame.bind(window) : null;
-        var bgRafTimers = Object.create(null);
         var bgRafSeq = 1;
         window.requestAnimationFrame = function(cb) {
             if (!isIframeBackground && origRAF) {
                 return origRAF(cb);
+            }
+            if (isIframeBackground && !isIframeMediaActive) {
+                if (deferredRafQueue.length < 16) {
+                    deferredRafQueue.push(cb);
+                }
+                return -bgRafSeq++;
             }
             var fakeId = -bgRafSeq++;
             bgRafTimers[fakeId] = setTimeout(function() {
@@ -884,7 +910,7 @@ a[href*="youtube.com/watch"] {
                 try {
                     cb((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now());
                 } catch(err) {}
-            }, isIframeBackground ? 1000 : 16);
+            }, isIframeBackground ? 2500 : 16);
             return fakeId;
         };
         window.cancelAnimationFrame = function(id) {
@@ -898,6 +924,22 @@ a[href*="youtube.com/watch"] {
             }
         };
     } catch(e) {}
+
+    document.addEventListener('play', function() {
+        isIframeMediaActive = true;
+        flushDeferredRafs();
+    }, true);
+    document.addEventListener('playing', function() {
+        isIframeMediaActive = true;
+    }, true);
+    document.addEventListener('pause', function() {
+        isIframeMediaActive = false;
+        if (isIframeBackground) clearBgRafTimers();
+    }, true);
+    document.addEventListener('ended', function() {
+        isIframeMediaActive = false;
+        if (isIframeBackground) clearBgRafTimers();
+    }, true);
 
     try {
         if (window.MediaSource && typeof window.MediaSource.isTypeSupported === 'function') {
@@ -1237,7 +1279,11 @@ a[href*="youtube.com/watch"] {
                         clearInterval(qualityReportInterval);
                         qualityReportInterval = null;
                     }
+                    if (!isIframeMediaActive) {
+                        clearBgRafTimers();
+                    }
                 } else {
+                    flushDeferredRafs();
                     if (document.documentElement) {
                         obs.observe(document.documentElement, {
                             childList: true,

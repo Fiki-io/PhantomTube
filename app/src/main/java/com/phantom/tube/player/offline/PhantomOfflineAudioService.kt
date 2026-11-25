@@ -70,12 +70,15 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var progressJob: Job? = null
+    private var idleStopJob: Job? = null
+    private var isInForeground: Boolean = false
     private var currentBitmap: Bitmap? = null
     private var lastThumbnailUrl: String = ""
 
     companion object {
         const val CHANNEL_ID = "phantom_offline_audio_playback"
         const val NOTIFICATION_ID = 2002
+        private const val IDLE_PAUSE_STOP_TIMEOUT_MS = 3 * 60 * 1000L
 
         const val ACTION_PLAY_QUEUE = "com.phantom.tube.offline.PLAY_QUEUE"
         const val ACTION_TOGGLE_PLAY_PAUSE = "com.phantom.tube.offline.TOGGLE_PLAY_PAUSE"
@@ -293,6 +296,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     }
 
     private fun playTrackAtIndex(index: Int) {
+        idleStopJob?.cancel()
+        idleStopJob = null
         val queue = OfflineAudioPlayerManager.queue.value
         if (queue.isEmpty() || index !in queue.indices) return
 
@@ -400,6 +405,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         val mp = mediaPlayer ?: return
         if (!isPrepared) return
         if (!mp.isPlaying) {
+            idleStopJob?.cancel()
+            idleStopJob = null
             resumeOnFocusGain = false
             requestAudioFocus()
             registerNoisyReceiver()
@@ -412,7 +419,11 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
             val track = OfflineAudioPlayerManager.currentTrack.value
             if (track != null) {
                 updateMediaSessionState(true, mp.currentPosition.toLong())
-                updateNotification(track, true)
+                if (!isInForeground) {
+                    startForegroundCompat(buildNotification(track, true))
+                } else {
+                    updateNotification(track, true)
+                }
             }
         }
     }
@@ -437,6 +448,24 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         } else {
             OfflineAudioPlayerManager.updatePlaybackState(false)
             stopProgressTracker()
+        }
+        if (isInForeground) {
+            try {
+                stopForeground(STOP_FOREGROUND_DETACH)
+            } catch (_: Exception) {
+            }
+            isInForeground = false
+        }
+        if (!fromFocusLoss && idleStopJob?.isActive != true) {
+            idleStopJob = serviceScope.launch {
+                delay(IDLE_PAUSE_STOP_TIMEOUT_MS)
+                if (mediaPlayer?.isPlaying != true) {
+                    releaseWakeLockSafe()
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    isInForeground = false
+                    stopSelf()
+                }
+            }
         }
     }
 
@@ -696,6 +725,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
+            isInForeground = true
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -754,6 +784,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     }
 
     override fun onDestroy() {
+        idleStopJob?.cancel()
+        idleStopJob = null
         stopProgressTracker()
         resumeOnFocusGain = false
         unregisterNoisyReceiver()
@@ -764,6 +796,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         serviceScope.cancel()
         OfflineAudioPlayerManager.updatePlaybackState(false)
         stopForeground(STOP_FOREGROUND_REMOVE)
+        isInForeground = false
         super.onDestroy()
     }
 }

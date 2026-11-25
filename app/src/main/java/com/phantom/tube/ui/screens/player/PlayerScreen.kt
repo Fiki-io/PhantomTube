@@ -1411,6 +1411,8 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                         if (!session.networkObserver.isConnected()) {
                             session.showNotice(context.getString(R.string.player_no_internet_notice))
                         } else {
+                            session.controller.setIdleSuspended(false)
+                            session.controller.setBackgroundExecutionAllowed(true)
                             session.controller.setBackgroundPriorityProtected(true)
                             session.controller.play()
                         }
@@ -1419,6 +1421,7 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                         session.controller.pause()
                         if (session.isAppInBackground) {
                             session.controller.setBackgroundPriorityProtected(false)
+                            session.controller.setIdleSuspended(true)
                         }
                     }
                     onNextAction = { session.playNext() }
@@ -1507,20 +1510,25 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                             session.controller.setBackgroundPriorityProtected(false)
                             session.controller.setBackgroundMode(backgrounded = true, keepSponsorTick = false)
                             session.controller.pause()
+                            session.controller.setIdleSuspended(true)
                         } else {
                             val activePlayback = session.playerState.isPlaying || session.playerState.isBuffering
                             session.controller.setBackgroundPriorityProtected(activePlayback)
                             session.controller.setBackgroundMode(
                                 backgrounded = true,
-                                keepSponsorTick = session.hasPendingSponsorSegments()
+                                keepSponsorTick = activePlayback && session.hasPendingSponsorSegments()
                             )
                             session.controller.setVideoSurfaceActive(false)
+                            if (!activePlayback) {
+                                session.controller.setIdleSuspended(true)
+                            }
                         }
                     }
                 }
                 Lifecycle.Event.ON_START -> {
                     session.isAppInBackground = false
                     session.lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+                    session.controller.setIdleSuspended(false)
                     session.controller.setBackgroundPriorityProtected(true)
                     session.controller.setBackgroundMode(backgrounded = false, keepSponsorTick = false)
                     if (session.storyboardData == null) {

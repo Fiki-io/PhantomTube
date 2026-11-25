@@ -540,6 +540,7 @@ class PlayerSessionState(
                     wasPlayingBeforeOffline = false
                     if (isAppInBackground) {
                         controller.setBackgroundPriorityProtected(false)
+                        controller.setIdleSuspended(true)
                     }
                     playerState = playerState.copy(isPlaying = false, isBuffering = false)
                     mediaService?.updatePlaybackState(
@@ -606,6 +607,7 @@ class PlayerSessionState(
                         controller.pause()
                         if (isAppInBackground) {
                             controller.setBackgroundPriorityProtected(false)
+                            controller.setIdleSuspended(true)
                         }
                         sleepTimerOption = SleepTimerOption.OFF
                         sleepTimerRemainingSec = null
@@ -613,6 +615,7 @@ class PlayerSessionState(
                         playNext()
                     } else if (isAppInBackground) {
                         controller.setBackgroundPriorityProtected(false)
+                        controller.setIdleSuspended(true)
                     }
                 }
             }
@@ -719,6 +722,9 @@ class PlayerSessionState(
             }
             isPlaybackStalled = false
             controller.setBackgroundPriorityProtected(false)
+            if (isAppInBackground) {
+                controller.setIdleSuspended(true)
+            }
             playerState = playerState.copy(isPlaying = false, isBuffering = false, errorCode = msg)
             mediaService?.updatePlaybackState(
                 playing = false,
