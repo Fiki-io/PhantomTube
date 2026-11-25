@@ -1,9 +1,9 @@
 package com.phantom.tube.ui.screens.settings.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,10 +23,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -56,13 +57,18 @@ import androidx.compose.ui.unit.sp
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.GlassBorderDim
 import com.phantom.tube.core.theme.GlassBorderLight
+import com.phantom.tube.core.theme.GlassHandleColor
+import com.phantom.tube.core.theme.GlassSheetScrim
 import com.phantom.tube.core.theme.GlassSurface
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
-import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.phantomGlassSheet
+import com.phantom.tube.ui.components.IosSpringSpecs
+import com.phantom.tube.ui.components.PhantomMotion
+import com.phantom.tube.ui.components.iosBounceClick
 
 @Composable
 private fun GameHubSheetDragHandle() {
@@ -75,8 +81,8 @@ private fun GameHubSheetDragHandle() {
         Box(
             modifier = Modifier
                 .size(width = 38.dp, height = 4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(TextMuted.copy(alpha = 0.45f))
+                .clip(CircleShape)
+                .background(GlassHandleColor)
         )
     }
 }
@@ -91,7 +97,7 @@ private fun GameHubSheetHeader(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 22.dp, vertical = 14.dp)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
             Text(
                 text = title,
@@ -101,21 +107,33 @@ private fun GameHubSheetHeader(
                 ),
                 color = TextPrimary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 52.dp)
             )
-            Icon(
-                imageVector = Icons.Rounded.Close,
-                contentDescription = stringResource(R.string.action_close),
-                tint = TextPrimary,
+            Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .size(22.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onDismiss
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .iosBounceClick(scaleDown = 0.88f, onClick = onDismiss),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(GlassSurface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.action_close),
+                        tint = TextPrimary,
+                        modifier = Modifier.size(18.dp)
                     )
-            )
+                }
+            }
         }
         HorizontalDivider(
             modifier = Modifier.padding(horizontal = 20.dp),
@@ -135,21 +153,24 @@ fun <T> SettingsSingleChoiceDialog(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetShape = remember { RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = YouTubeSurface,
+        containerColor = Color.Transparent,
         contentColor = TextPrimary,
         tonalElevation = 0.dp,
         windowInsets = WindowInsets(0, 0, 0, 0),
-        scrimColor = Color.Black.copy(alpha = 0.62f),
-        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+        scrimColor = GlassSheetScrim,
+        shape = sheetShape,
         dragHandle = null
     ) {
         val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .phantomGlassSheet(shape = sheetShape)
         ) {
             GameHubSheetHeader(
                 title = title,
@@ -165,10 +186,15 @@ fun <T> SettingsSingleChoiceDialog(
             ) {
                 itemsIndexed(options) { index, (optionValue, label) ->
                     val isSelected = optionValue == selectedValue
+                    val optionColor by animateColorAsState(
+                        targetValue = if (isSelected) TextPrimary else TextSecondary,
+                        animationSpec = IosSpringSpecs.ColorFade,
+                        label = "settings_choice_color"
+                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
+                            .iosBounceClick(scaleDown = 0.985f) {
                                 onSelect(optionValue)
                                 onDismiss()
                             }
@@ -178,13 +204,17 @@ fun <T> SettingsSingleChoiceDialog(
                         Text(
                             text = label,
                             style = MaterialTheme.typography.bodyLarge.copy(
-                                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                 fontSize = 15.5.sp
                             ),
-                            color = TextPrimary,
+                            color = optionColor,
                             modifier = Modifier.weight(1f)
                         )
-                        if (isSelected) {
+                        AnimatedVisibility(
+                            visible = isSelected,
+                            enter = PhantomMotion.PopScaleEnter,
+                            exit = PhantomMotion.PopScaleExit
+                        ) {
                             Icon(
                                 imageVector = Icons.Rounded.Check,
                                 contentDescription = stringResource(R.string.player_selected),
@@ -217,21 +247,24 @@ fun SettingsConfirmDialog(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetShape = remember { RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp) }
+    val actionShape = remember { RoundedCornerShape(14.dp) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = YouTubeSurface,
+        containerColor = Color.Transparent,
         contentColor = TextPrimary,
         tonalElevation = 0.dp,
         windowInsets = WindowInsets(0, 0, 0, 0),
-        scrimColor = Color.Black.copy(alpha = 0.62f),
-        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+        scrimColor = GlassSheetScrim,
+        shape = sheetShape,
         dragHandle = null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .phantomGlassSheet(shape = sheetShape)
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
                 .padding(bottom = 28.dp)
@@ -264,10 +297,11 @@ fun SettingsConfirmDialog(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(14.dp))
+                        .heightIn(min = 48.dp)
+                        .clip(actionShape)
                         .background(GlassSurface)
-                        .border(0.5.dp, GlassBorderLight, RoundedCornerShape(14.dp))
-                        .clickable(onClick = onDismiss)
+                        .border(0.75.dp, GlassBorderLight, actionShape)
+                        .iosBounceClick(scaleDown = 0.95f, onClick = onDismiss)
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -284,9 +318,10 @@ fun SettingsConfirmDialog(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(14.dp))
+                        .heightIn(min = 48.dp)
+                        .clip(actionShape)
                         .background(if (isDestructive) YouTubeRed else TextPrimary)
-                        .clickable {
+                        .iosBounceClick(scaleDown = 0.95f) {
                             onConfirm()
                             onDismiss()
                         }
@@ -314,6 +349,9 @@ fun SettingsFeedbackDialog(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetShape = remember { RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp) }
+    val chipShape = remember { RoundedCornerShape(12.dp) }
+    val actionShape = remember { RoundedCornerShape(14.dp) }
     var selectedType by remember { mutableIntStateOf(0) }
     var message by remember { mutableStateOf("") }
     val types = listOf(
@@ -325,17 +363,18 @@ fun SettingsFeedbackDialog(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = YouTubeSurface,
+        containerColor = Color.Transparent,
         contentColor = TextPrimary,
         tonalElevation = 0.dp,
         windowInsets = WindowInsets(0, 0, 0, 0),
-        scrimColor = Color.Black.copy(alpha = 0.62f),
-        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+        scrimColor = GlassSheetScrim,
+        shape = sheetShape,
         dragHandle = null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .phantomGlassSheet(shape = sheetShape)
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
@@ -359,17 +398,29 @@ fun SettingsFeedbackDialog(
                 ) {
                     types.forEachIndexed { idx, label ->
                         val isSelected = selectedType == idx
+                        val chipBg by animateColorAsState(
+                            targetValue = if (isSelected) TextPrimary else GlassSurface,
+                            animationSpec = IosSpringSpecs.ColorFade,
+                            label = "feedback_type_bg"
+                        )
+                        val chipBorder by animateColorAsState(
+                            targetValue = if (isSelected) TextPrimary else GlassBorderLight,
+                            animationSpec = IosSpringSpecs.ColorFade,
+                            label = "feedback_type_border"
+                        )
+                        val chipText by animateColorAsState(
+                            targetValue = if (isSelected) YouTubeDark else TextSecondary,
+                            animationSpec = IosSpringSpecs.ColorFade,
+                            label = "feedback_type_text"
+                        )
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) TextPrimary else GlassSurface)
-                                .border(
-                                    0.5.dp,
-                                    if (isSelected) TextPrimary else GlassBorderLight,
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .clickable { selectedType = idx }
+                                .heightIn(min = 42.dp)
+                                .clip(chipShape)
+                                .background(chipBg)
+                                .border(0.75.dp, chipBorder, chipShape)
+                                .iosBounceClick(scaleDown = 0.94f) { selectedType = idx }
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -379,7 +430,7 @@ fun SettingsFeedbackDialog(
                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                                     fontSize = 12.sp
                                 ),
-                                color = if (isSelected) YouTubeDark else TextSecondary,
+                                color = chipText,
                                 maxLines = 1
                             )
                         }
@@ -392,9 +443,9 @@ fun SettingsFeedbackDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(120.dp)
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(actionShape)
                         .background(GlassSurface)
-                        .border(0.5.dp, GlassBorderLight, RoundedCornerShape(14.dp))
+                        .border(0.75.dp, GlassBorderLight, actionShape)
                         .padding(14.dp)
                 ) {
                     if (message.isEmpty()) {
@@ -426,6 +477,18 @@ fun SettingsFeedbackDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                val canSend = message.isNotBlank()
+                val sendBg by animateColorAsState(
+                    targetValue = if (canSend) TextPrimary else GlassSurface,
+                    animationSpec = IosSpringSpecs.ColorFade,
+                    label = "feedback_send_bg"
+                )
+                val sendText by animateColorAsState(
+                    targetValue = if (canSend) YouTubeDark else TextMuted,
+                    animationSpec = IosSpringSpecs.ColorFade,
+                    label = "feedback_send_text"
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -433,10 +496,11 @@ fun SettingsFeedbackDialog(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(14.dp))
+                            .heightIn(min = 48.dp)
+                            .clip(actionShape)
                             .background(GlassSurface)
-                            .border(0.5.dp, GlassBorderLight, RoundedCornerShape(14.dp))
-                            .clickable(onClick = onDismiss)
+                            .border(0.75.dp, GlassBorderLight, actionShape)
+                            .iosBounceClick(scaleDown = 0.95f, onClick = onDismiss)
                             .padding(vertical = 14.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -453,11 +517,10 @@ fun SettingsFeedbackDialog(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(
-                                if (message.isNotBlank()) TextPrimary else GlassSurface
-                            )
-                            .clickable(enabled = message.isNotBlank()) {
+                            .heightIn(min = 48.dp)
+                            .clip(actionShape)
+                            .background(sendBg)
+                            .iosBounceClick(scaleDown = 0.95f, enabled = canSend) {
                                 onSendFeedback(selectedType, message.trim())
                                 onDismiss()
                             }
@@ -470,7 +533,7 @@ fun SettingsFeedbackDialog(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.5.sp
                             ),
-                            color = if (message.isNotBlank()) YouTubeDark else TextMuted
+                            color = sendText
                         )
                     }
                 }
@@ -478,3 +541,4 @@ fun SettingsFeedbackDialog(
         }
     }
 }
+

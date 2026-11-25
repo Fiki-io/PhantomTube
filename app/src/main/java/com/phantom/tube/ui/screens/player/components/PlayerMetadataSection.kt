@@ -1,6 +1,9 @@
 package com.phantom.tube.ui.screens.player.components
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,8 +57,14 @@ import com.phantom.tube.core.image.PhantomAsyncImage
 import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.R
 import com.phantom.tube.core.database.SubscriptionEntity
+import com.phantom.tube.core.theme.ActionActiveGreen
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
+import com.phantom.tube.core.theme.ChapterActiveBg
+import com.phantom.tube.core.theme.ControlBorderSubtle
+import com.phantom.tube.core.theme.ControlSurfaceMuted
+import com.phantom.tube.core.theme.GlassSurface
+import com.phantom.tube.core.theme.PlayerOverlayControlBorder
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -67,6 +76,8 @@ import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoComment
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
+import com.phantom.tube.ui.components.IosSpringSpecs
+import com.phantom.tube.ui.components.PhantomMotion
 import com.phantom.tube.ui.components.iosBounceClick
 import kotlinx.coroutines.launch
 
@@ -153,17 +164,17 @@ fun PlayerMetadataSection(
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF242424))
-                    .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-                    .clickable(onClick = onOpenDescription)
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(GlassSurface)
+                    .border(0.75.dp, ControlBorderSubtle, RoundedCornerShape(10.dp))
+                    .iosBounceClick(scaleDown = 0.94f, onClick = onOpenDescription)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
-                    tint = Color(0xFF0A78D2),
+                    tint = ChapterActiveBg,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -259,10 +270,29 @@ fun PlayerMetadataSection(
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            val subBg by animateColorAsState(
+                targetValue = if (isSubscribed) ControlSurfaceMuted else Color.White,
+                animationSpec = IosSpringSpecs.ColorFade,
+                label = "player_sub_bg"
+            )
+            val subTextColor by animateColorAsState(
+                targetValue = if (isSubscribed) Color.White else Color.Black,
+                animationSpec = IosSpringSpecs.ColorFade,
+                label = "player_sub_text"
+            )
+            val subBorder by animateColorAsState(
+                targetValue = if (isSubscribed) ControlBorderSubtle else Color.Transparent,
+                animationSpec = IosSpringSpecs.ColorFade,
+                label = "player_sub_border"
+            )
+            val actionPillShape = remember { RoundedCornerShape(20.dp) }
+
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(if (isSubscribed) Color(0xFF272727) else Color.White)
+                    .clip(actionPillShape)
+                    .background(subBg)
+                    .border(0.75.dp, subBorder, actionPillShape)
+                    .animateContentSize(animationSpec = IosSpringSpecs.TopBarSize)
                     .iosBounceClick(scaleDown = 0.90f) {
                         scope.launch {
                             if (isSubscribed) {
@@ -284,7 +314,7 @@ fun PlayerMetadataSection(
             ) {
                 Text(
                     text = if (isSubscribed) stringResource(R.string.channel_subscribed) else stringResource(R.string.channel_subscribe),
-                    color = if (isSubscribed) Color.White else Color.Black,
+                    color = subTextColor,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -306,6 +336,17 @@ fun PlayerMetadataSection(
         }
 
         // 4. Action Buttons Row (Like/Dislike, Share, Download)
+        val pillShape = remember { RoundedCornerShape(20.dp) }
+        val likeTint by animateColorAsState(
+            targetValue = if (isFavorite) ChapterActiveBg else TextPrimary,
+            animationSpec = IosSpringSpecs.ColorFade,
+            label = "player_like_tint"
+        )
+        val dislikeTint by animateColorAsState(
+            targetValue = if (isDisliked) ChapterActiveBg else TextPrimary,
+            animationSpec = IosSpringSpecs.ColorFade,
+            label = "player_dislike_tint"
+        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -315,8 +356,9 @@ fun PlayerMetadataSection(
         ) {
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF272727)),
+                    .clip(pillShape)
+                    .background(ControlSurfaceMuted)
+                    .border(0.6.dp, ControlBorderSubtle, pillShape),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
@@ -338,16 +380,22 @@ fun PlayerMetadataSection(
                         .padding(start = 12.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.ThumbUp,
-                        contentDescription = stringResource(R.string.player_like),
-                        tint = if (isFavorite) Color(0xFF0A78D2) else TextPrimary,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    AnimatedContent(
+                        targetState = isFavorite,
+                        transitionSpec = { PhantomMotion.IconSwapTransition },
+                        label = "player_like_icon"
+                    ) { _ ->
+                        Icon(
+                            imageVector = Icons.Default.ThumbUp,
+                            contentDescription = stringResource(R.string.player_like),
+                            tint = likeTint,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = activeLikeCount.ifBlank { stringResource(R.string.player_like) },
-                        color = if (isFavorite) Color(0xFF0A78D2) else TextPrimary,
+                        color = likeTint,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -356,7 +404,7 @@ fun PlayerMetadataSection(
                     modifier = Modifier
                         .width(1.dp)
                         .height(16.dp)
-                        .background(Color(0x33FFFFFF))
+                        .background(PlayerOverlayControlBorder)
                 )
                 Box(
                     modifier = Modifier
@@ -372,19 +420,26 @@ fun PlayerMetadataSection(
                         .padding(start = 10.dp, end = 12.dp, top = 7.dp, bottom = 7.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.ThumbDown,
-                        contentDescription = stringResource(R.string.player_dislike),
-                        tint = if (isDisliked) Color(0xFF0A78D2) else TextPrimary,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    AnimatedContent(
+                        targetState = isDisliked,
+                        transitionSpec = { PhantomMotion.IconSwapTransition },
+                        label = "player_dislike_icon"
+                    ) { _ ->
+                        Icon(
+                            imageVector = Icons.Default.ThumbDown,
+                            contentDescription = stringResource(R.string.player_dislike),
+                            tint = dislikeTint,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF272727))
+                    .clip(pillShape)
+                    .background(ControlSurfaceMuted)
+                    .border(0.6.dp, ControlBorderSubtle, pillShape)
                     .iosBounceClick(scaleDown = 0.92f) {
                         val sendIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
@@ -412,24 +467,42 @@ fun PlayerMetadataSection(
             }
 
             val isDownloaded by repository.isDownloaded(video.id).collectAsState(initial = false)
+            val downloadTint by animateColorAsState(
+                targetValue = if (isDownloaded) ActionActiveGreen else TextPrimary,
+                animationSpec = IosSpringSpecs.ColorFade,
+                label = "player_download_tint"
+            )
+            val downloadBorder by animateColorAsState(
+                targetValue = if (isDownloaded) ActionActiveGreen.copy(alpha = 0.45f) else ControlBorderSubtle,
+                animationSpec = IosSpringSpecs.ColorFade,
+                label = "player_download_border"
+            )
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF272727))
+                    .clip(pillShape)
+                    .background(ControlSurfaceMuted)
+                    .border(0.6.dp, downloadBorder, pillShape)
+                    .animateContentSize(animationSpec = IosSpringSpecs.TopBarSize)
                     .iosBounceClick(scaleDown = 0.92f, onClick = onOpenDownload)
                     .padding(horizontal = 14.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = if (isDownloaded) Icons.Default.Check else Icons.Default.Download,
-                    contentDescription = stringResource(if (isDownloaded) R.string.player_downloaded else R.string.player_download),
-                    tint = if (isDownloaded) Color(0xFF4CAF50) else TextPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
+                AnimatedContent(
+                    targetState = isDownloaded,
+                    transitionSpec = { PhantomMotion.IconSwapTransition },
+                    label = "player_download_icon"
+                ) { downloaded ->
+                    Icon(
+                        imageVector = if (downloaded) Icons.Default.Check else Icons.Default.Download,
+                        contentDescription = stringResource(if (downloaded) R.string.player_downloaded else R.string.player_download),
+                        tint = downloadTint,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = stringResource(if (isDownloaded) R.string.player_downloaded else R.string.player_download),
-                    color = if (isDownloaded) Color(0xFF4CAF50) else TextPrimary,
+                    color = downloadTint,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -455,6 +528,7 @@ fun PlayerMetadataSection(
                 .clip(RoundedCornerShape(12.dp))
                 .background(CardBackground)
                 .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                .animateContentSize(animationSpec = IosSpringSpecs.TopBarSize)
                 .iosBounceClick(scaleDown = 0.97f, onClick = onOpenComments)
                 .padding(12.dp)
         ) {

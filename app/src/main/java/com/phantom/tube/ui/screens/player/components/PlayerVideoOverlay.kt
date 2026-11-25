@@ -1,18 +1,12 @@
 package com.phantom.tube.ui.screens.player.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
@@ -29,12 +23,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.filled.CropFree
@@ -68,7 +59,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -76,20 +66,29 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.phantom.tube.R
+import com.phantom.tube.core.theme.AudioOnlyBackdrop
+import com.phantom.tube.core.theme.MenuBorderSubtle
+import com.phantom.tube.core.theme.MenuSurfaceDark
+import com.phantom.tube.core.theme.PlayerErrorSurface
+import com.phantom.tube.core.theme.PlayerOverlayControlActiveBg
+import com.phantom.tube.core.theme.PlayerOverlayControlBg
+import com.phantom.tube.core.theme.PlayerOverlayControlBorder
+import com.phantom.tube.core.theme.PlayerOverlayZoomActiveBg
+import com.phantom.tube.core.theme.PlayerSeekRippleScrim
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.YouTubeRed
-import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.phantomGlassSurface
 import com.phantom.tube.core.theme.phantomSurface
 import com.phantom.tube.player.PlayerState
 import com.phantom.tube.ui.components.ALL_STANDARD_QUALITIES
 import com.phantom.tube.ui.components.IosSpringSpecs
 import com.phantom.tube.ui.components.PhantomIconButton
+import com.phantom.tube.ui.components.PhantomMotion
 import com.phantom.tube.ui.components.VideoQualityOption
 import com.phantom.tube.ui.components.getLocalizedQualityLabel
 import com.phantom.tube.ui.components.iosBounceClick
@@ -104,16 +103,23 @@ fun BoxScope.AudioOnlyViewportOverlay(
     if (!isAudioOnly) return
     val haptic = LocalHapticFeedback.current
 
+    val pillBottomPadding by animateDpAsState(
+        targetValue = if (isControlsVisible) 48.dp else 18.dp,
+        animationSpec = IosSpringSpecs.TopBarDp,
+        label = "audio_only_pill_bottom"
+    )
+    val pillShape = remember { RoundedCornerShape(20.dp) }
+
     Box(
         modifier = Modifier
             .matchParentSize()
-            .background(Color(0xFF07070A)),
+            .background(AudioOnlyBackdrop),
         contentAlignment = Alignment.Center
     ) {
         AnimatedVisibility(
             visible = !isControlsVisible,
-            enter = fadeIn(tween(180)),
-            exit = fadeOut(tween(150))
+            enter = PhantomMotion.PlayerControlsEnter,
+            exit = PhantomMotion.PlayerControlsExit
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -123,13 +129,7 @@ fun BoxScope.AudioOnlyViewportOverlay(
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .phantomSurface(
-                            shape = CircleShape,
-                            borderWidth = 1.dp,
-                            tintColor = YouTubeSurface,
-                            surfaceAlpha = 0.95f,
-                            accentGlow = Color.Transparent
-                        ),
+                        .phantomGlassSurface(shape = CircleShape, shadowElevation = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -157,11 +157,9 @@ fun BoxScope.AudioOnlyViewportOverlay(
     Box(
         modifier = Modifier
             .align(Alignment.BottomCenter)
-            .padding(bottom = if (isControlsVisible) 48.dp else 18.dp)
+            .padding(bottom = pillBottomPadding.coerceAtLeast(0.dp))
             .zIndex(28f)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xE61F1F24))
-            .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(20.dp))
+            .phantomGlassSurface(shape = pillShape, shadowElevation = 10.dp)
             .iosBounceClick(scaleDown = 0.92f) {
                 onDisableAudioOnly()
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -195,10 +193,11 @@ fun BoxScope.PlayerLockedOverlay(
     onUnlock: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val unlockPillShape = remember { RoundedCornerShape(24.dp) }
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.88f, animationSpec = IosSpringSpecs.Bouncy),
-        exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.88f, animationSpec = tween(150)),
+        enter = PhantomMotion.OverlayPillEnter,
+        exit = PhantomMotion.OverlayPillExit,
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .padding(bottom = 24.dp)
@@ -206,10 +205,7 @@ fun BoxScope.PlayerLockedOverlay(
     ) {
         Box(
             modifier = Modifier
-                .shadow(16.dp, RoundedCornerShape(24.dp))
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xE61A1A1E))
-                .border(1.dp, Color.White.copy(alpha = 0.28f), RoundedCornerShape(24.dp))
+                .phantomGlassSurface(shape = unlockPillShape, shadowElevation = 14.dp)
                 .iosBounceClick(scaleDown = 0.92f) {
                     onUnlock()
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -244,13 +240,13 @@ fun BoxScope.DoubleTapSeekFeedbackOverlay(
     seekAnimationSide: SeekFeedbackDirection?,
     seekAccumulatedSeconds: Int
 ) {
+    val rewindShape = remember { RoundedCornerShape(topEndPercent = 100, bottomEndPercent = 100) }
+    val forwardShape = remember { RoundedCornerShape(topStartPercent = 100, bottomStartPercent = 100) }
+
     AnimatedVisibility(
         visible = seekAnimationSide == SeekFeedbackDirection.REWIND,
-        enter = fadeIn(tween(100)) + scaleIn(
-            initialScale = 0.85f,
-            animationSpec = IosSpringSpecs.Bouncy
-        ),
-        exit = fadeOut(tween(200)) + scaleOut(targetScale = 0.95f, animationSpec = tween(200)),
+        enter = PhantomMotion.SeekFeedbackEnter,
+        exit = PhantomMotion.SeekFeedbackExit,
         modifier = Modifier
             .fillMaxHeight()
             .fillMaxWidth(0.42f)
@@ -259,9 +255,9 @@ fun BoxScope.DoubleTapSeekFeedbackOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(topEndPercent = 100, bottomEndPercent = 100))
-                .background(Color(0x66000000))
-                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(topEndPercent = 100, bottomEndPercent = 100)),
+                .clip(rewindShape)
+                .background(PlayerSeekRippleScrim)
+                .border(1.dp, PlayerOverlayControlBorder, rewindShape),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -275,23 +271,26 @@ fun BoxScope.DoubleTapSeekFeedbackOverlay(
                     modifier = Modifier.size(34.dp)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "-${stringResource(R.string.settings_seek_seconds, seekAccumulatedSeconds.toString())}",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                AnimatedContent(
+                    targetState = seekAccumulatedSeconds,
+                    transitionSpec = { PhantomMotion.IconSwapTransition },
+                    label = "seek_rewind_seconds"
+                ) { seconds ->
+                    Text(
+                        text = "-${stringResource(R.string.settings_seek_seconds, seconds.toString())}",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
 
     AnimatedVisibility(
         visible = seekAnimationSide == SeekFeedbackDirection.FORWARD,
-        enter = fadeIn(tween(100)) + scaleIn(
-            initialScale = 0.85f,
-            animationSpec = IosSpringSpecs.Bouncy
-        ),
-        exit = fadeOut(tween(200)) + scaleOut(targetScale = 0.95f, animationSpec = tween(200)),
+        enter = PhantomMotion.SeekFeedbackEnter,
+        exit = PhantomMotion.SeekFeedbackExit,
         modifier = Modifier
             .fillMaxHeight()
             .fillMaxWidth(0.42f)
@@ -300,9 +299,9 @@ fun BoxScope.DoubleTapSeekFeedbackOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(topStartPercent = 100, bottomStartPercent = 100))
-                .background(Color(0x66000000))
-                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(topStartPercent = 100, bottomStartPercent = 100)),
+                .clip(forwardShape)
+                .background(PlayerSeekRippleScrim)
+                .border(1.dp, PlayerOverlayControlBorder, forwardShape),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -316,12 +315,18 @@ fun BoxScope.DoubleTapSeekFeedbackOverlay(
                     modifier = Modifier.size(34.dp)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "+${stringResource(R.string.settings_seek_seconds, seekAccumulatedSeconds.toString())}",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                AnimatedContent(
+                    targetState = seekAccumulatedSeconds,
+                    transitionSpec = { PhantomMotion.IconSwapTransition },
+                    label = "seek_forward_seconds"
+                ) { seconds ->
+                    Text(
+                        text = "+${stringResource(R.string.settings_seek_seconds, seconds.toString())}",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
@@ -332,28 +337,37 @@ fun BoxScope.PlayerBufferingErrorOverlay(
     isBuffering: Boolean,
     errorCode: String?
 ) {
-    if (isBuffering) {
+    AnimatedVisibility(
+        visible = isBuffering,
+        enter = PhantomMotion.PopScaleEnter,
+        exit = PhantomMotion.PopScaleExit,
+        modifier = Modifier.align(Alignment.Center)
+    ) {
         CircularProgressIndicator(
             color = YouTubeRed,
             strokeWidth = 3.dp,
-            modifier = Modifier
-                .size(48.dp)
-                .align(Alignment.Center)
+            modifier = Modifier.size(48.dp)
         )
-    } else if (errorCode != null) {
+    }
+
+    AnimatedVisibility(
+        visible = !isBuffering && errorCode != null,
+        enter = PhantomMotion.OverlayPillEnter,
+        exit = PhantomMotion.OverlayPillExit,
+        modifier = Modifier.align(Alignment.Center)
+    ) {
         Box(
             modifier = Modifier
-                .align(Alignment.Center)
                 .phantomSurface(
                     shape = RoundedCornerShape(16.dp),
                     borderWidth = 1.dp,
-                    tintColor = Color(0xFF261010),
-                    surfaceAlpha = 0.85f
+                    tintColor = PlayerErrorSurface,
+                    surfaceAlpha = 0.90f
                 )
                 .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             Text(
-                text = errorCode,
+                text = errorCode.orEmpty(),
                 color = Color.White,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
@@ -367,25 +381,28 @@ fun BoxScope.PlayerToastNoticeOverlay(
     noticeText: String?,
     isFullscreen: Boolean
 ) {
+    val toastTopPadding by animateDpAsState(
+        targetValue = if (isFullscreen) 60.dp else 44.dp,
+        animationSpec = IosSpringSpecs.TopBarDp,
+        label = "player_toast_top"
+    )
+    val toastShape = remember { RoundedCornerShape(20.dp) }
     AnimatedVisibility(
         visible = noticeText != null,
-        enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.88f, animationSpec = IosSpringSpecs.Bouncy),
-        exit = fadeOut(tween(180)) + scaleOut(targetScale = 0.88f, animationSpec = tween(180)),
+        enter = PhantomMotion.OverlayPillEnter,
+        exit = PhantomMotion.OverlayPillExit,
         modifier = Modifier
             .align(Alignment.TopCenter)
-            .padding(top = if (isFullscreen) 60.dp else 44.dp)
+            .padding(top = toastTopPadding.coerceAtLeast(0.dp))
             .zIndex(50f)
     ) {
         Box(
             modifier = Modifier
-                .shadow(16.dp, RoundedCornerShape(20.dp), ambientColor = Color(0x99000000))
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xEE1A1A1D))
-                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)), RoundedCornerShape(20.dp))
+                .phantomGlassSurface(shape = toastShape, shadowElevation = 12.dp)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Text(
-                text = noticeText ?: "",
+                text = noticeText.orEmpty(),
                 color = Color.White,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold
@@ -435,8 +452,8 @@ fun BoxScope.PlayerControlsOverlay(
 
     AnimatedVisibility(
         visible = isControlsVisible,
-        enter = fadeIn(tween(180, easing = LinearOutSlowInEasing)),
-        exit = fadeOut(tween(150, easing = FastOutLinearInEasing)),
+        enter = PhantomMotion.PlayerControlsEnter,
+        exit = PhantomMotion.PlayerControlsExit,
         modifier = Modifier.matchParentSize()
     ) {
         Box(
@@ -455,6 +472,8 @@ fun BoxScope.PlayerControlsOverlay(
             // Top Bar Controls
             val controlBtnSize = if (isFullscreen) 36.dp else 32.dp
             val controlIconSize = if (isFullscreen) 19.dp else 17.dp
+            val controlShape = remember { RoundedCornerShape(10.dp) }
+            val menuShape = remember { RoundedCornerShape(14.dp) }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -484,15 +503,35 @@ fun BoxScope.PlayerControlsOverlay(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Closed Captions Toggle
+                    val ccActive = isCaptionsEnabled && hasCaptions
+                    val ccBg by animateColorAsState(
+                        targetValue = if (ccActive) PlayerOverlayControlActiveBg else PlayerOverlayControlBg,
+                        animationSpec = IosSpringSpecs.ColorFade,
+                        label = "cc_bg"
+                    )
+                    val ccBorder by animateColorAsState(
+                        targetValue = if (ccActive) YouTubeRed else PlayerOverlayControlBorder,
+                        animationSpec = IosSpringSpecs.ColorFade,
+                        label = "cc_border"
+                    )
+                    val ccTint by animateColorAsState(
+                        targetValue = when {
+                            ccActive -> YouTubeRed
+                            !hasCaptions -> Color.White.copy(alpha = 0.35f)
+                            else -> Color.White.copy(alpha = 0.80f)
+                        },
+                        animationSpec = IosSpringSpecs.ColorFade,
+                        label = "cc_tint"
+                    )
                     Box(
                         modifier = Modifier
                             .size(controlBtnSize)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (isCaptionsEnabled && hasCaptions) Color(0x33FF0033) else Color(0x44272727))
+                            .clip(controlShape)
+                            .background(ccBg)
                             .border(
-                                width = if (isCaptionsEnabled && hasCaptions) 1.2.dp else 0.5.dp,
-                                color = if (isCaptionsEnabled && hasCaptions) YouTubeRed else Color.White.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(10.dp)
+                                width = if (ccActive) 1.2.dp else 0.75.dp,
+                                color = ccBorder,
+                                shape = controlShape
                             )
                             .iosBounceClick(scaleDown = 0.90f, onClick = onToggleCaptions),
                         contentAlignment = Alignment.Center
@@ -500,9 +539,7 @@ fun BoxScope.PlayerControlsOverlay(
                         Icon(
                             imageVector = Icons.Default.ClosedCaption,
                             contentDescription = stringResource(if (isCaptionsEnabled) R.string.player_captions_turn_off else R.string.player_captions_turn_on),
-                            tint = if (isCaptionsEnabled && hasCaptions) YouTubeRed
-                            else if (!hasCaptions) Color.White.copy(alpha = 0.35f)
-                            else Color.White.copy(alpha = 0.75f),
+                            tint = ccTint,
                             modifier = Modifier.size(controlIconSize)
                         )
                     }
@@ -513,22 +550,37 @@ fun BoxScope.PlayerControlsOverlay(
                             getShortQualityBadge(playerState.currentQuality)
                         }
                         val isHighQuality = playerState.currentQuality in listOf("highres", "hd2160", "hd1440", "hd1080", "hd720")
+                        val qualityBg by animateColorAsState(
+                            targetValue = when {
+                                isQualityMenuExpanded -> PlayerOverlayControlActiveBg
+                                isHighQuality -> PlayerOverlayZoomActiveBg
+                                else -> PlayerOverlayControlBg
+                            },
+                            animationSpec = IosSpringSpecs.ColorFade,
+                            label = "quality_bg"
+                        )
+                        val qualityBorder by animateColorAsState(
+                            targetValue = if (isQualityMenuExpanded) YouTubeRed else PlayerOverlayControlBorder,
+                            animationSpec = IosSpringSpecs.ColorFade,
+                            label = "quality_border"
+                        )
+                        val qualityContentColor by animateColorAsState(
+                            targetValue = if (isQualityMenuExpanded) YouTubeRed else Color.White,
+                            animationSpec = IosSpringSpecs.ColorFade,
+                            label = "quality_color"
+                        )
 
                         Box(
                             modifier = Modifier
                                 .height(controlBtnSize)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(
-                                    if (isQualityMenuExpanded) Color(0x33FF0033)
-                                    else if (isHighQuality) Color(0x33FFFFFF)
-                                    else Color(0x44272727)
-                                )
+                                .clip(controlShape)
+                                .background(qualityBg)
                                 .border(
-                                    width = if (isQualityMenuExpanded) 1.2.dp else 0.5.dp,
-                                    color = if (isQualityMenuExpanded) YouTubeRed else Color.White.copy(alpha = 0.2f),
-                                    shape = RoundedCornerShape(10.dp)
+                                    width = if (isQualityMenuExpanded) 1.2.dp else 0.75.dp,
+                                    color = qualityBorder,
+                                    shape = controlShape
                                 )
-                                .clickable {
+                                .iosBounceClick(scaleDown = 0.90f) {
                                     onToggleQualityMenu(!isQualityMenuExpanded)
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 }
@@ -542,12 +594,12 @@ fun BoxScope.PlayerControlsOverlay(
                                 Icon(
                                     imageVector = Icons.Default.HighQuality,
                                     contentDescription = stringResource(R.string.player_quality_format, currentQualityBadge),
-                                    tint = if (isQualityMenuExpanded) YouTubeRed else if (isHighQuality) Color.White else Color.White.copy(alpha = 0.85f),
+                                    tint = if (isQualityMenuExpanded || isHighQuality) qualityContentColor else Color.White.copy(alpha = 0.85f),
                                     modifier = Modifier.size(if (isFullscreen) 17.dp else 15.dp)
                                 )
                                 Text(
                                     text = currentQualityBadge,
-                                    color = if (isQualityMenuExpanded) YouTubeRed else Color.White,
+                                    color = qualityContentColor,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -558,8 +610,8 @@ fun BoxScope.PlayerControlsOverlay(
                             expanded = isQualityMenuExpanded,
                             onDismissRequest = { onToggleQualityMenu(false) },
                             modifier = Modifier
-                                .background(Color(0xFF212121), RoundedCornerShape(12.dp))
-                                .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                .background(MenuSurfaceDark, menuShape)
+                                .border(0.75.dp, MenuBorderSubtle, menuShape)
                         ) {
                             val autoQualityLabel = stringResource(R.string.settings_quality_auto)
                             val qualityOptions = remember(playerState.availableQualities, autoQualityLabel) {
@@ -604,41 +656,62 @@ fun BoxScope.PlayerControlsOverlay(
                     }
 
                     // Zoom to Fill Toggle
+                    val zoomBg by animateColorAsState(
+                        targetValue = if (isZoomToFill) PlayerOverlayZoomActiveBg else PlayerOverlayControlBg,
+                        animationSpec = IosSpringSpecs.ColorFade,
+                        label = "zoom_bg"
+                    )
+                    val zoomBorder by animateColorAsState(
+                        targetValue = if (isZoomToFill) Color.White else PlayerOverlayControlBorder,
+                        animationSpec = IosSpringSpecs.ColorFade,
+                        label = "zoom_border"
+                    )
+                    val zoomTint by animateColorAsState(
+                        targetValue = if (isZoomToFill) Color.White else Color.White.copy(alpha = 0.70f),
+                        animationSpec = IosSpringSpecs.ColorFade,
+                        label = "zoom_tint"
+                    )
                     Box(
                         modifier = Modifier
                             .size(controlBtnSize)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (isZoomToFill) Color.White.copy(alpha = 0.22f) else Color(0x44272727))
+                            .clip(controlShape)
+                            .background(zoomBg)
                             .border(
-                                width = if (isZoomToFill) 1.2.dp else 0.5.dp,
-                                color = if (isZoomToFill) Color.White else Color.White.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(10.dp)
+                                width = if (isZoomToFill) 1.2.dp else 0.75.dp,
+                                color = zoomBorder,
+                                shape = controlShape
                             )
                             .iosBounceClick(scaleDown = 0.90f, onClick = onToggleZoom),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = if (isZoomToFill) Icons.Default.FitScreen else Icons.Default.CropFree,
-                            contentDescription = stringResource(if (isZoomToFill) R.string.player_zoom_original else R.string.player_zoom_fill),
-                            tint = if (isZoomToFill) Color.White else Color.White.copy(alpha = 0.65f),
-                            modifier = Modifier.size(controlIconSize)
-                        )
+                        AnimatedContent(
+                            targetState = isZoomToFill,
+                            transitionSpec = { PhantomMotion.IconSwapTransition },
+                            label = "zoom_icon"
+                        ) { zoomed ->
+                            Icon(
+                                imageVector = if (zoomed) Icons.Default.FitScreen else Icons.Default.CropFree,
+                                contentDescription = stringResource(if (zoomed) R.string.player_zoom_original else R.string.player_zoom_fill),
+                                tint = zoomTint,
+                                modifier = Modifier.size(controlIconSize)
+                            )
+                        }
                     }
 
                     // Screen Lock Button
                     Box(
                         modifier = Modifier
                             .size(controlBtnSize)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0x44272727))
-                            .border(0.5.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                            .clip(controlShape)
+                            .background(PlayerOverlayControlBg)
+                            .border(0.75.dp, PlayerOverlayControlBorder, controlShape)
                             .iosBounceClick(scaleDown = 0.90f, onClick = onLockControls),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Lock,
                             contentDescription = stringResource(R.string.player_lock_screen),
-                            tint = Color.White.copy(alpha = 0.75f),
+                            tint = Color.White.copy(alpha = 0.80f),
                             modifier = Modifier.size(if (isFullscreen) 17.dp else 15.dp)
                         )
                     }
@@ -652,19 +725,25 @@ fun BoxScope.PlayerControlsOverlay(
                     Box(
                         modifier = Modifier
                             .height(controlBtnSize)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0x44272727))
-                            .border(0.5.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                            .clip(controlShape)
+                            .background(PlayerOverlayControlBg)
+                            .border(0.75.dp, PlayerOverlayControlBorder, controlShape)
                             .iosBounceClick(scaleDown = 0.90f, onClick = onCycleSpeed)
                             .padding(horizontal = if (isFullscreen) 8.dp else 7.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = formattedSpeed,
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        AnimatedContent(
+                            targetState = formattedSpeed,
+                            transitionSpec = { PhantomMotion.IconSwapTransition },
+                            label = "speed_badge"
+                        ) { speedLabel ->
+                            Text(
+                                text = speedLabel,
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     // Settings Button
@@ -719,13 +798,31 @@ fun BoxScope.PlayerControlsOverlay(
                     onClick = onRewind10s
                 )
 
-                PhantomIconButton(
-                    icon = if (playerState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = stringResource(if (playerState.isPlaying) R.string.player_pause else R.string.player_play),
-                    size = 64.dp,
-                    iconSize = 36.dp,
-                    onClick = onTogglePlayPause
-                )
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .phantomGlassSurface(shape = CircleShape, shadowElevation = 10.dp)
+                        .iosBounceClick(scaleDown = 0.88f) {
+                            try {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            } catch (_: Exception) {}
+                            onTogglePlayPause()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    AnimatedContent(
+                        targetState = playerState.isPlaying,
+                        transitionSpec = { PhantomMotion.IconSwapTransition },
+                        label = "player_main_play_pause"
+                    ) { playing ->
+                        Icon(
+                            imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = stringResource(if (playing) R.string.player_pause else R.string.player_play),
+                            tint = TextPrimary,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                }
 
                 PhantomIconButton(
                     icon = forwardIcon,

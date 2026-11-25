@@ -235,6 +235,28 @@ object PhantomMotion {
             scaleIn(initialScale = 0.985f, animationSpec = IosSpringSpecs.Gentle)) togetherWith
             fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutLinearInEasing))
 
+    val PlayerControlsEnter: EnterTransition =
+        fadeIn(animationSpec = tween(durationMillis = 180, easing = LinearOutSlowInEasing))
+
+    val PlayerControlsExit: ExitTransition =
+        fadeOut(animationSpec = tween(durationMillis = 150, easing = FastOutLinearInEasing))
+
+    val OverlayPillEnter: EnterTransition =
+        fadeIn(animationSpec = tween(durationMillis = 160, easing = SmoothOutEasing)) +
+            scaleIn(initialScale = 0.88f, animationSpec = IosSpringSpecs.Bouncy)
+
+    val OverlayPillExit: ExitTransition =
+        fadeOut(animationSpec = tween(durationMillis = 150, easing = FastOutLinearInEasing)) +
+            scaleOut(targetScale = 0.88f, animationSpec = tween(durationMillis = 150, easing = FastOutLinearInEasing))
+
+    val SeekFeedbackEnter: EnterTransition =
+        fadeIn(animationSpec = tween(durationMillis = 100, easing = SmoothOutEasing)) +
+            scaleIn(initialScale = 0.86f, animationSpec = IosSpringSpecs.Bouncy)
+
+    val SeekFeedbackExit: ExitTransition =
+        fadeOut(animationSpec = tween(durationMillis = 200, easing = FastOutLinearInEasing)) +
+            scaleOut(targetScale = 0.94f, animationSpec = tween(durationMillis = 200, easing = FastOutLinearInEasing))
+
     fun slideInFromRight(): EnterTransition = ScreenSlideEnter
     fun slideOutToRight(): ExitTransition = ScreenSlideExit
     fun fadeThroughEnter(): EnterTransition =

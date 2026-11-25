@@ -1,8 +1,8 @@
 package com.phantom.tube.ui.screens.settings.components
 
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -12,23 +12,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -42,7 +45,9 @@ import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeDark
-import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.phantomGlassSheet
+import com.phantom.tube.ui.components.IosSpringSpecs
+import com.phantom.tube.ui.components.iosBounceClick
 
 @Composable
 fun SettingsSubScreenHeader(
@@ -53,27 +58,38 @@ fun SettingsSubScreenHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-            contentDescription = stringResource(R.string.action_back),
-            tint = TextPrimary,
+        Box(
             modifier = Modifier
-                .size(28.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onBack
+                .size(48.dp)
+                .clip(CircleShape)
+                .testTag("settings_back_btn")
+                .iosBounceClick(scaleDown = 0.88f, onClick = onBack),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(GlassSurface),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = stringResource(R.string.action_back),
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
                 )
-        )
-        Spacer(modifier = Modifier.width(8.dp))
+            }
+        }
+        Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 21.sp,
+                fontSize = 20.sp,
                 letterSpacing = (-0.2).sp
             ),
             color = TextPrimary,
@@ -118,18 +134,12 @@ fun SettingsGroupCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
+    val cardShape = remember { RoundedCornerShape(20.dp) }
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .border(
-                width = 0.5.dp,
-                color = GlassBorderLight,
-                shape = RoundedCornerShape(18.dp)
-            ),
-        shape = RoundedCornerShape(18.dp),
-        color = YouTubeSurface,
-        tonalElevation = 0.dp
+            .phantomGlassSheet(shape = cardShape)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -157,17 +167,35 @@ fun SettingsToggleRow(
     enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val resolvedIconTint by animateColorAsState(
+        targetValue = if (enabled) iconTint else TextMuted,
+        animationSpec = IosSpringSpecs.ColorFade,
+        label = "settings_toggle_icon_tint"
+    )
+    val resolvedTitleColor by animateColorAsState(
+        targetValue = if (enabled) TextPrimary else TextMuted,
+        animationSpec = IosSpringSpecs.ColorFade,
+        label = "settings_toggle_title_color"
+    )
+    val resolvedSubtitleColor by animateColorAsState(
+        targetValue = if (enabled) TextSecondary else TextMuted.copy(alpha = 0.6f),
+        animationSpec = IosSpringSpecs.ColorFade,
+        label = "settings_toggle_sub_color"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .iosBounceClick(scaleDown = 0.985f, enabled = enabled) {
+                onCheckedChange(!checked)
+            }
             .padding(horizontal = 18.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (enabled) TextPrimary else TextMuted,
+            tint = resolvedIconTint,
             modifier = Modifier.size(21.dp)
         )
         Spacer(modifier = Modifier.width(14.dp))
@@ -178,14 +206,14 @@ fun SettingsToggleRow(
                     fontWeight = FontWeight.Normal,
                     fontSize = 15.5.sp
                 ),
-                color = if (enabled) TextPrimary else TextMuted
+                color = resolvedTitleColor
             )
             if (subtitle.isNotBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = if (enabled) TextSecondary else TextMuted.copy(alpha = 0.6f)
+                    color = resolvedSubtitleColor
                 )
             }
         }
@@ -221,7 +249,7 @@ fun SettingsValueRow(
     val rowModifier = if (onClick != null) {
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .iosBounceClick(scaleDown = 0.985f, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 17.dp)
     } else {
         Modifier
@@ -236,7 +264,7 @@ fun SettingsValueRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = TextPrimary,
+            tint = iconTint,
             modifier = Modifier.size(21.dp)
         )
         Spacer(modifier = Modifier.width(14.dp))
@@ -280,3 +308,4 @@ fun SettingsValueRow(
         }
     }
 }
+

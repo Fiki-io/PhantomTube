@@ -4,40 +4,40 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.MoreVert
@@ -50,19 +50,12 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.VideoLibrary
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -72,43 +65,63 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import com.phantom.tube.R
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.phantom.tube.R
+import com.phantom.tube.core.database.DownloadEntity
 import com.phantom.tube.core.image.PhantomAsyncImage
 import com.phantom.tube.core.image.PhantomImageRequest
-import com.phantom.tube.core.database.DownloadEntity
 import com.phantom.tube.core.theme.BubbleDockBorder
+import com.phantom.tube.core.theme.BubblePillGlassBorderBottom
+import com.phantom.tube.core.theme.BubblePillGlassBorderTop
+import com.phantom.tube.core.theme.BubblePillGlassBottom
+import com.phantom.tube.core.theme.BubblePillGlassTop
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBorder
+import com.phantom.tube.core.theme.DownloadActiveRowBg
+import com.phantom.tube.core.theme.GlassBorderLight
 import com.phantom.tube.core.theme.GlassSurface
+import com.phantom.tube.core.theme.MediaPlaceholderBg
+import com.phantom.tube.core.theme.MenuBorderSubtle
+import com.phantom.tube.core.theme.MenuSurfaceDark
 import com.phantom.tube.core.theme.ObsidianDark
-import com.phantom.tube.core.theme.SystemStatusBarColor
+import com.phantom.tube.core.theme.OverlayBadgeScrim
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.theme.phantomGlassSurface
 import com.phantom.tube.core.util.LocalNotificationPermissionRequester
 import com.phantom.tube.core.util.safeStartActivity
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.player.offline.OfflineAudioPlayerManager
+import com.phantom.tube.player.offline.OfflineRepeatMode
+import com.phantom.tube.ui.components.IosSpringSpecs
+import com.phantom.tube.ui.components.PhantomMotion
+import com.phantom.tube.ui.components.iosBounceClick
 import com.phantom.tube.ui.screens.player.components.OfflineVideoPlayerDialog
-import androidx.compose.foundation.layout.heightIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 enum class DownloadFilter {
     ALL, AUDIO, VIDEO
@@ -186,15 +199,31 @@ fun DownloadsScreen(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = stringResource(R.string.action_back),
-                    tint = TextPrimary
-                )
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .testTag("downloads_back_btn")
+                    .iosBounceClick(scaleDown = 0.88f, onClick = onBackClick),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(GlassSurface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back),
+                        tint = TextPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(6.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -210,24 +239,55 @@ fun DownloadsScreen(
                 )
             }
 
-            IconButton(onClick = {
-                isSearchActive = !isSearchActive
-                if (!isSearchActive) {
-                    searchQuery = ""
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
+            val searchIconTint by animateColorAsState(
+                targetValue = if (isSearchActive) YouTubeRed else TextPrimary,
+                animationSpec = IosSpringSpecs.ColorFade,
+                label = "downloads_search_tint"
+            )
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .testTag("downloads_search_btn")
+                    .iosBounceClick(scaleDown = 0.88f) {
+                        isSearchActive = !isSearchActive
+                        if (!isSearchActive) {
+                            searchQuery = ""
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(GlassSurface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AnimatedContent(
+                        targetState = isSearchActive,
+                        transitionSpec = { PhantomMotion.IconSwapTransition },
+                        label = "downloads_search_icon"
+                    ) { active ->
+                        Icon(
+                            imageVector = if (active) Icons.Default.Clear else Icons.Default.Search,
+                            contentDescription = stringResource(R.string.nav_search),
+                            tint = searchIconTint,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
-            }) {
-                Icon(
-                    imageVector = if (isSearchActive) Icons.Default.Clear else Icons.Default.Search,
-                    contentDescription = stringResource(R.string.nav_search),
-                    tint = if (isSearchActive) YouTubeRed else TextSecondary
-                )
             }
         }
 
         // SEARCH BAR FIELD
-        AnimatedVisibility(visible = isSearchActive) {
+        AnimatedVisibility(
+            visible = isSearchActive,
+            enter = PhantomMotion.TopBarEnter,
+            exit = PhantomMotion.TopBarExit
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -245,63 +305,27 @@ fun DownloadsScreen(
                         unfocusedBorderColor = BubbleDockBorder,
                         cursorColor = YouTubeRed
                     ),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         }
 
-        // FILTER CHIPS ROW (Horizontally Scrollable)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FilterChip(
-                selected = selectedFilter == DownloadFilter.ALL,
-                onClick = { selectedFilter = DownloadFilter.ALL },
-                label = { Text(stringResource(R.string.downloads_filter_all, downloads.size), fontSize = 12.sp) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = YouTubeRed,
-                    selectedLabelColor = Color.White,
-                    containerColor = GlassSurface,
-                    labelColor = TextSecondary
-                ),
-                border = null
-            )
-
-            FilterChip(
-                selected = selectedFilter == DownloadFilter.AUDIO,
-                onClick = { selectedFilter = DownloadFilter.AUDIO },
-                label = { Text(stringResource(R.string.downloads_filter_audio, audioCount), fontSize = 12.sp) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = YouTubeRed,
-                    selectedLabelColor = Color.White,
-                    containerColor = GlassSurface,
-                    labelColor = TextSecondary
-                ),
-                border = null
-            )
-
-            FilterChip(
-                selected = selectedFilter == DownloadFilter.VIDEO,
-                onClick = { selectedFilter = DownloadFilter.VIDEO },
-                label = { Text(stringResource(R.string.downloads_filter_video, videoCount), fontSize = 12.sp) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = YouTubeRed,
-                    selectedLabelColor = Color.White,
-                    containerColor = GlassSurface,
-                    labelColor = TextSecondary
-                ),
-                border = null
-            )
-        }
+        // LIQUID GLASS SEGMENTED FILTER BAR
+        DownloadFilterBar(
+            selectedFilter = selectedFilter,
+            totalCount = downloads.size,
+            audioCount = audioCount,
+            videoCount = videoCount,
+            onSelectFilter = { selectedFilter = it }
+        )
 
         // PLAYBACK ACTION BAR (Putar Semua, Acak, Ulangi)
-        if (audioTracks.isNotEmpty() && (selectedFilter == DownloadFilter.ALL || selectedFilter == DownloadFilter.AUDIO)) {
+        AnimatedVisibility(
+            visible = audioTracks.isNotEmpty() && (selectedFilter == DownloadFilter.ALL || selectedFilter == DownloadFilter.AUDIO),
+            enter = PhantomMotion.TopBarEnter,
+            exit = PhantomMotion.TopBarExit
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -310,44 +334,83 @@ fun DownloadsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Sleek Pill-shaped "Putar Semua" Button
-                Button(
-                    onClick = {
-                        requestNotificationPermission()
-                        val tracksToPlay = if (isShuffle) audioTracks.shuffled() else audioTracks
-                        OfflineAudioPlayerManager.playQueue(context, tracksToPlay, 0)
-                        Toast.makeText(context, context.getString(R.string.downloads_toast_playing, tracksToPlay.size), Toast.LENGTH_SHORT).show()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = YouTubeRed),
-                    shape = RoundedCornerShape(24.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    modifier = Modifier.heightIn(min = 48.dp)
+                Box(
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(YouTubeRed)
+                        .testTag("downloads_play_all_btn")
+                        .iosBounceClick(scaleDown = 0.94f) {
+                            requestNotificationPermission()
+                            val tracksToPlay = if (isShuffle) audioTracks.shuffled() else audioTracks
+                            OfflineAudioPlayerManager.playQueue(context, tracksToPlay, 0)
+                            Toast.makeText(context, context.getString(R.string.downloads_toast_playing, tracksToPlay.size), Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = stringResource(R.string.downloads_play_all_count, audioTracks.size),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.downloads_play_all_count, audioTracks.size),
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 // Shuffle & Repeat Quick Action Toggles
+                val shuffleBg by animateColorAsState(
+                    targetValue = if (isShuffle) YouTubeRed.copy(alpha = 0.22f) else GlassSurface,
+                    animationSpec = IosSpringSpecs.ColorFade,
+                    label = "downloads_shuffle_bg"
+                )
+                val shuffleBorder by animateColorAsState(
+                    targetValue = if (isShuffle) YouTubeRed else BubbleDockBorder,
+                    animationSpec = IosSpringSpecs.ColorFade,
+                    label = "downloads_shuffle_border"
+                )
+                val shuffleTint by animateColorAsState(
+                    targetValue = if (isShuffle) YouTubeRed else TextSecondary,
+                    animationSpec = IosSpringSpecs.ColorFade,
+                    label = "downloads_shuffle_tint"
+                )
+                val isRepeatActive = repeatMode != OfflineRepeatMode.OFF
+                val repeatBg by animateColorAsState(
+                    targetValue = if (isRepeatActive) YouTubeRed.copy(alpha = 0.22f) else GlassSurface,
+                    animationSpec = IosSpringSpecs.ColorFade,
+                    label = "downloads_repeat_bg"
+                )
+                val repeatBorder by animateColorAsState(
+                    targetValue = if (isRepeatActive) YouTubeRed else BubbleDockBorder,
+                    animationSpec = IosSpringSpecs.ColorFade,
+                    label = "downloads_repeat_border"
+                )
+                val repeatTint by animateColorAsState(
+                    targetValue = if (isRepeatActive) YouTubeRed else TextSecondary,
+                    animationSpec = IosSpringSpecs.ColorFade,
+                    label = "downloads_repeat_tint"
+                )
+
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Quick Shuffle Button
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(if (isShuffle) YouTubeRed.copy(alpha = 0.22f) else GlassSurface)
-                            .border(1.dp, if (isShuffle) YouTubeRed else BubbleDockBorder, CircleShape)
-                            .clickable {
+                            .background(shuffleBg)
+                            .border(1.dp, shuffleBorder, CircleShape)
+                            .testTag("downloads_shuffle_btn")
+                            .iosBounceClick(scaleDown = 0.90f) {
                                 OfflineAudioPlayerManager.toggleShuffle(context)
                                 Toast.makeText(
                                     context,
@@ -360,118 +423,129 @@ fun DownloadsScreen(
                         Icon(
                             imageVector = Icons.Default.Shuffle,
                             contentDescription = stringResource(R.string.downloads_shuffle_on),
-                            tint = if (isShuffle) YouTubeRed else TextSecondary,
+                            tint = shuffleTint,
                             modifier = Modifier.size(20.dp)
                         )
                     }
 
-                    // Quick Repeat Button
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed.copy(alpha = 0.22f) else GlassSurface)
-                            .border(1.dp, if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed else BubbleDockBorder, CircleShape)
-                            .clickable {
+                            .background(repeatBg)
+                            .border(1.dp, repeatBorder, CircleShape)
+                            .testTag("downloads_repeat_btn")
+                            .iosBounceClick(scaleDown = 0.90f) {
                                 OfflineAudioPlayerManager.toggleRepeatMode(context)
                                 val msg = when (OfflineAudioPlayerManager.repeatMode.value) {
-                                    com.phantom.tube.player.offline.OfflineRepeatMode.OFF -> context.getString(R.string.downloads_repeat_off)
-                                    com.phantom.tube.player.offline.OfflineRepeatMode.ALL -> context.getString(R.string.downloads_repeat_all)
-                                    com.phantom.tube.player.offline.OfflineRepeatMode.ONE -> context.getString(R.string.downloads_repeat_one)
+                                    OfflineRepeatMode.OFF -> context.getString(R.string.downloads_repeat_off)
+                                    OfflineRepeatMode.ALL -> context.getString(R.string.downloads_repeat_all)
+                                    OfflineRepeatMode.ONE -> context.getString(R.string.downloads_repeat_one)
                                 }
                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = if (repeatMode == com.phantom.tube.player.offline.OfflineRepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
-                            contentDescription = stringResource(R.string.downloads_repeat_all),
-                            tint = if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed else TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        AnimatedContent(
+                            targetState = repeatMode == OfflineRepeatMode.ONE,
+                            transitionSpec = { PhantomMotion.IconSwapTransition },
+                            label = "downloads_repeat_icon"
+                        ) { isOne ->
+                            Icon(
+                                imageVector = if (isOne) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                                contentDescription = stringResource(R.string.downloads_repeat_all),
+                                tint = repeatTint,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
         }
 
         // DOWNLOADS LIST / EMPTY STATE
-        if (filteredList.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+        AnimatedContent(
+            targetState = filteredList.isEmpty(),
+            transitionSpec = { PhantomMotion.ContentStateTransition },
+            modifier = Modifier.weight(1f),
+            label = "downloads_content_state"
+        ) { isEmpty ->
+            if (isEmpty) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .background(GlassSurface, CircleShape),
-                        contentAlignment = Alignment.Center
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.FileDownload,
-                            contentDescription = null,
-                            tint = TextMuted,
-                            modifier = Modifier.size(36.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .phantomGlassSurface(shape = CircleShape, shadowElevation = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FileDownload,
+                                contentDescription = null,
+                                tint = TextMuted,
+                                modifier = Modifier.size(34.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = if (searchQuery.isNotBlank()) stringResource(R.string.downloads_search_no_results) else stringResource(R.string.downloads_empty_title),
+                            color = TextPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (searchQuery.isNotBlank()) stringResource(R.string.downloads_search_try_again) else stringResource(R.string.downloads_empty_desc),
+                            color = TextSecondary,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
                         )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = if (searchQuery.isNotBlank()) stringResource(R.string.downloads_search_no_results) else stringResource(R.string.downloads_empty_title),
-                        color = TextPrimary,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = if (searchQuery.isNotBlank()) stringResource(R.string.downloads_search_try_again) else stringResource(R.string.downloads_empty_desc),
-                        color = TextSecondary,
-                        fontSize = 13.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
                 }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(top = 8.dp, bottom = bottomNavInset + 140.dp)
-            ) {
-                items(filteredList, key = { it.id }) { item ->
-                    val isAudio = item.format.equals("MP3", ignoreCase = true)
-                    val isCurrentActive = isAudio && activeTrack?.id == item.id
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = bottomNavInset + 140.dp)
+                ) {
+                    items(filteredList, key = { it.id }) { item ->
+                        val isAudio = item.format.equals("MP3", ignoreCase = true)
+                        val isCurrentActive = isAudio && activeTrack?.id == item.id
 
-                    DownloadItemRow(
-                        item = item,
-                        isCurrentActive = isCurrentActive,
-                        isPlaying = isAudioPlaying && isCurrentActive,
-                        onItemClick = {
-                            if (isAudio) {
-                                requestNotificationPermission()
-                                // Putar musik dengan antrean dari semua audio yang ada
-                                val startIdx = audioTracks.indexOfFirst { it.id == item.id }.coerceAtLeast(0)
-                                OfflineAudioPlayerManager.playQueue(context, audioTracks, startIdx)
-                            } else {
-                                // Buka pemutar video MP4 offline
-                                videoToPlayOffline = item
+                        DownloadItemRow(
+                            item = item,
+                            isCurrentActive = isCurrentActive,
+                            isPlaying = isAudioPlaying && isCurrentActive,
+                            onItemClick = {
+                                if (isAudio) {
+                                    requestNotificationPermission()
+                                    val startIdx = audioTracks.indexOfFirst { it.id == item.id }.coerceAtLeast(0)
+                                    OfflineAudioPlayerManager.playQueue(context, audioTracks, startIdx)
+                                } else {
+                                    videoToPlayOffline = item
+                                }
+                            },
+                            onPlayExternal = {
+                                openInExternalPlayer(context, item)
+                            },
+                            onShare = {
+                                shareMediaFile(context, item)
+                            },
+                            onDelete = {
+                                itemToDelete = item
                             }
-                        },
-                        onPlayExternal = {
-                            openInExternalPlayer(context, item)
-                        },
-                        onShare = {
-                            shareMediaFile(context, item)
-                        },
-                        onDelete = {
-                            itemToDelete = item
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -488,44 +562,180 @@ fun DownloadsScreen(
         )
     }
 
-    // Delete Confirmation Dialog
+    // Delete Confirmation Dialog (Liquid Glass)
     itemToDelete?.let { item ->
-        AlertDialog(
-            onDismissRequest = { itemToDelete = null },
-            title = { Text(stringResource(R.string.downloads_delete_title), color = TextPrimary, fontWeight = FontWeight.Bold) },
-            text = {
-                Text(
-                    text = stringResource(R.string.downloads_delete_confirm_desc, item.title),
-                    color = TextSecondary
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            withContext(Dispatchers.IO) {
-                                deleteDownloadedFile(context, item)
-                            }
-                            repository.deleteDownload(item.id)
-                            if (activeTrack?.id == item.id) {
-                                OfflineAudioPlayerManager.stop(context)
-                            }
-                            itemToDelete = null
-                            Toast.makeText(context, context.getString(R.string.downloads_toast_deleted), Toast.LENGTH_SHORT).show()
+        val dialogShape = remember { RoundedCornerShape(24.dp) }
+        val actionShape = remember { RoundedCornerShape(14.dp) }
+        Dialog(onDismissRequest = { itemToDelete = null }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .phantomGlassSurface(shape = dialogShape, shadowElevation = 18.dp)
+                    .padding(22.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.downloads_delete_title),
+                        color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = stringResource(R.string.downloads_delete_confirm_desc, item.title),
+                        color = TextSecondary,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    )
+                    Spacer(modifier = Modifier.height(22.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp)
+                                .clip(actionShape)
+                                .background(GlassSurface)
+                                .border(0.75.dp, GlassBorderLight, actionShape)
+                                .testTag("downloads_delete_cancel_btn")
+                                .iosBounceClick(scaleDown = 0.95f) { itemToDelete = null },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.dialog_cancel),
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = YouTubeRed)
-                ) {
-                    Text(stringResource(R.string.dialog_delete), color = Color.White)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp)
+                                .clip(actionShape)
+                                .background(YouTubeRed)
+                                .testTag("downloads_delete_confirm_btn")
+                                .iosBounceClick(scaleDown = 0.95f) {
+                                    scope.launch {
+                                        withContext(Dispatchers.IO) {
+                                            deleteDownloadedFile(context, item)
+                                        }
+                                        repository.deleteDownload(item.id)
+                                        if (activeTrack?.id == item.id) {
+                                            OfflineAudioPlayerManager.stop(context)
+                                        }
+                                        itemToDelete = null
+                                        Toast.makeText(context, context.getString(R.string.downloads_toast_deleted), Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.dialog_delete),
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { itemToDelete = null }) {
-                    Text(stringResource(R.string.dialog_cancel), color = TextSecondary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DownloadFilterBar(
+    selectedFilter: DownloadFilter,
+    totalCount: Int,
+    audioCount: Int,
+    videoCount: Int,
+    onSelectFilter: (DownloadFilter) -> Unit
+) {
+    val filters = DownloadFilter.entries
+    val activeIndex = filters.indexOf(selectedFilter).coerceAtLeast(0)
+    val trackShape = remember { RoundedCornerShape(24.dp) }
+    val pillShape = remember { RoundedCornerShape(20.dp) }
+    val activePillBrush = remember {
+        Brush.verticalGradient(colors = listOf(BubblePillGlassTop, BubblePillGlassBottom))
+    }
+    val activePillBorderBrush = remember {
+        Brush.verticalGradient(colors = listOf(BubblePillGlassBorderTop, BubblePillGlassBorderBottom))
+    }
+    val animatedIndex by animateFloatAsState(
+        targetValue = activeIndex.toFloat(),
+        animationSpec = IosSpringSpecs.DockPillGlide,
+        label = "downloads_filter_pill_pos"
+    )
+    val travelStretch = abs(activeIndex.toFloat() - animatedIndex).coerceIn(0f, 1f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 520.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .height(48.dp)
+            .phantomGlassSurface(shape = trackShape, shadowElevation = 6.dp)
+            .padding(horizontal = 4.dp, vertical = 3.dp)
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val totalWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
+            val tabWidthPx = totalWidthPx / filters.size
+
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset((animatedIndex * tabWidthPx).roundToInt(), 0) }
+                    .width(maxWidth / filters.size)
+                    .fillMaxHeight()
+                    .padding(horizontal = 2.dp, vertical = 1.dp)
+                    .graphicsLayer {
+                        scaleX = 1f + (travelStretch * 0.10f)
+                        scaleY = 1f - (travelStretch * 0.06f)
+                    }
+                    .clip(pillShape)
+                    .background(activePillBrush)
+                    .border(0.75.dp, activePillBorderBrush, pillShape)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                filters.forEach { filter ->
+                    val isSelected = filter == selectedFilter
+                    val txtColor by animateColorAsState(
+                        targetValue = if (isSelected) TextPrimary else TextSecondary,
+                        animationSpec = IosSpringSpecs.ColorFade,
+                        label = "dl_filter_txt"
+                    )
+                    val label = when (filter) {
+                        DownloadFilter.ALL -> stringResource(R.string.downloads_filter_all, totalCount)
+                        DownloadFilter.AUDIO -> stringResource(R.string.downloads_filter_audio, audioCount)
+                        DownloadFilter.VIDEO -> stringResource(R.string.downloads_filter_video, videoCount)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(pillShape)
+                            .testTag("downloads_filter_${filter.name.lowercase()}")
+                            .iosBounceClick(scaleDown = 0.94f) { onSelectFilter(filter) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            color = txtColor,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
-            },
-            containerColor = YouTubeDark
-        )
+            }
+        }
     }
 }
 
@@ -543,18 +753,32 @@ private fun DownloadItemRow(
     var showMenu by remember { mutableStateOf(false) }
     val isAudio = item.format.equals("MP3", ignoreCase = true)
     val sizeMb = String.format(Locale.getDefault(), "%.1f MB", item.fileSize / (1024f * 1024f))
+    val rowShape = remember { RoundedCornerShape(14.dp) }
+    val menuShape = remember { RoundedCornerShape(14.dp) }
+
+    val rowBg by animateColorAsState(
+        targetValue = if (isCurrentActive) DownloadActiveRowBg else CardBackground,
+        animationSpec = IosSpringSpecs.ColorFade,
+        label = "dl_row_bg"
+    )
+    val rowBorder by animateColorAsState(
+        targetValue = if (isCurrentActive) YouTubeRed.copy(alpha = 0.5f) else CardBorder,
+        animationSpec = IosSpringSpecs.ColorFade,
+        label = "dl_row_border"
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (isCurrentActive) YouTubeRed else TextPrimary,
+        animationSpec = IosSpringSpecs.ColorFade,
+        label = "dl_row_title"
+    )
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isCurrentActive) Color(0xFF261818) else CardBackground)
-            .border(
-                1.dp,
-                if (isCurrentActive) YouTubeRed.copy(alpha = 0.5f) else CardBorder,
-                RoundedCornerShape(12.dp)
-            )
-            .clickable(onClick = onItemClick)
+            .clip(rowShape)
+            .background(rowBg)
+            .border(1.dp, rowBorder, rowShape)
+            .iosBounceClick(scaleDown = 0.985f, onClick = onItemClick)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -563,7 +787,7 @@ private fun DownloadItemRow(
             modifier = Modifier
                 .size(width = 68.dp, height = 52.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF181818)),
+                .background(MediaPlaceholderBg),
             contentAlignment = Alignment.Center
         ) {
             if (item.thumbnailUrl.isNotBlank()) {
@@ -609,7 +833,7 @@ private fun DownloadItemRow(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(2.dp)
-                        .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
+                        .background(OverlayBadgeScrim, RoundedCornerShape(4.dp))
                         .padding(horizontal = 4.dp, vertical = 1.dp)
                 ) {
                     Text(
@@ -628,7 +852,7 @@ private fun DownloadItemRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title,
-                color = if (isCurrentActive) YouTubeRed else TextPrimary,
+                color = titleColor,
                 fontSize = 13.sp,
                 fontWeight = if (isCurrentActive) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
@@ -652,7 +876,13 @@ private fun DownloadItemRow(
 
         // Action menu
         Box {
-            IconButton(onClick = { showMenu = true }) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .iosBounceClick(scaleDown = 0.88f) { showMenu = true },
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.action_more_options),
@@ -664,7 +894,9 @@ private fun DownloadItemRow(
             DropdownMenu(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false },
-                modifier = Modifier.background(YouTubeDark)
+                modifier = Modifier
+                    .background(MenuSurfaceDark, menuShape)
+                    .border(0.75.dp, MenuBorderSubtle, menuShape)
             ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.downloads_play_external), color = TextPrimary, fontSize = 13.sp) },
