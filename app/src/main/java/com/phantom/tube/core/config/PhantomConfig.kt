@@ -14,6 +14,10 @@ object PhantomConfig {
     private const val WEB_USER_AGENT =
         "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
 
+    private val WEBVIEW_WV_TOKEN_REGEX = Regex(";\\s*wv(?=\\s*[;)])", RegexOption.IGNORE_CASE)
+    private val WEBVIEW_VERSION_TOKEN_REGEX = Regex("\\s+Version/[\\d.]+", RegexOption.IGNORE_CASE)
+    private val MULTI_SPACE_REGEX = Regex("\\s{2,}")
+
     private const val DESKTOP_USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
@@ -42,6 +46,17 @@ object PhantomConfig {
     fun getOrigin(): String = VIRTUAL_ORIGIN
 
     fun getUserAgent(): String = WEB_USER_AGENT
+
+    fun buildCleanWebViewUserAgent(defaultUserAgent: String?): String {
+        val raw = defaultUserAgent?.trim().orEmpty()
+        if (raw.isBlank()) return WEB_USER_AGENT
+        val cleaned = raw
+            .replace(WEBVIEW_WV_TOKEN_REGEX, "")
+            .replace(WEBVIEW_VERSION_TOKEN_REGEX, "")
+            .replace(MULTI_SPACE_REGEX, " ")
+            .trim()
+        return cleaned.ifBlank { WEB_USER_AGENT }
+    }
 
     fun getDesktopUserAgent(): String = DESKTOP_USER_AGENT
 

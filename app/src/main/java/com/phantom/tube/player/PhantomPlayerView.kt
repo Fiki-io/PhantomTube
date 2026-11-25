@@ -277,8 +277,8 @@ fun PhantomGhostSurface(
                         safeBrowsingEnabled = false
                     }
 
-                    // Clean Chrome User-Agent
-                    userAgentString = PhantomConfig.getUserAgent()
+                    // Clean device WebView User-Agent while preserving native OS and Chromium versions
+                    userAgentString = PhantomConfig.buildCleanWebViewUserAgent(userAgentString)
                 }
 
                 webChromeClient = WebChromeClient()

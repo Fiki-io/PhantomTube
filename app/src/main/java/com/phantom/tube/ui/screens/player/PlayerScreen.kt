@@ -1078,6 +1078,7 @@ private fun PlayerLifecycleEffects(
             playbackSpeed = session.playerState.playbackSpeed
         )
         session.appliedDefaultsVideoId = null
+        session.recordedHistoryVideoId = null
         session.dismissSponsorPill()
         session.sponsorSegments = emptyList()
         session.lastRecordedPositionSec = 0f
@@ -1167,15 +1168,20 @@ private fun PlayerLifecycleEffects(
                     channelAvatarUrl = nextData.currentVideo.channelAvatarUrl.ifBlank { video.channelAvatarUrl },
                     durationText = nextData.currentVideo.durationText.ifBlank { video.durationText }
                 )
-                if (video.title.isBlank() && enrichedVideo.title.isNotBlank()) {
-                    if (session.currentPositionSec > 0.5f || lastPos > 0L) {
-                        val posMs = if (session.currentPositionSec > 0.5f) (session.currentPositionSec * 1000).toLong() else lastPos
-                        repository.recordWatch(
-                            video = enrichedVideo,
-                            positionMs = posMs,
-                            durationMs = (session.currentDurationSec * 1000).toLong()
-                        )
-                    }
+                val shouldUpdateEnrichedHistory = enrichedVideo.title.isNotBlank() &&
+                    repository.preferences?.pauseWatchHistory?.value != true && (
+                    session.recordedHistoryVideoId == video.id ||
+                        session.playerState.isPlaying ||
+                        (video.title.isBlank() && (session.currentPositionSec > 0.5f || lastPos > 0L))
+                    )
+                if (shouldUpdateEnrichedHistory) {
+                    val posMs = if (session.currentPositionSec > 0.5f) (session.currentPositionSec * 1000).toLong() else lastPos
+                    session.recordedHistoryVideoId = video.id
+                    repository.recordWatch(
+                        video = enrichedVideo,
+                        positionMs = posMs,
+                        durationMs = (session.currentDurationSec * 1000).toLong()
+                    )
                 }
                 session.mediaService?.updateMediaInfo(
                     title = enrichedVideo.title,

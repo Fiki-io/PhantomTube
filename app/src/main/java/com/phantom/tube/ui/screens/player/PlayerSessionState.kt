@@ -89,6 +89,7 @@ class PlayerSessionState(
     var skippedSegmentUuids: MutableSet<String> = ConcurrentHashMap.newKeySet()
     var undoneSegmentUuids: MutableSet<String> = ConcurrentHashMap.newKeySet()
     var appliedDefaultsVideoId by mutableStateOf<String?>(null)
+    var recordedHistoryVideoId by mutableStateOf<String?>(null)
     var hasSyncedMediaSessionInitialPosition by mutableStateOf(false)
     var lastSyncedMediaSessionSec by mutableFloatStateOf(0f)
 
@@ -173,7 +174,7 @@ class PlayerSessionState(
 
     val currentVideo: VideoItem by derivedStateOf {
         val v = activeVideo
-        nextQueueData?.currentVideo?.let { fetched ->
+        nextQueueData?.currentVideo?.takeIf { it.id == v.id }?.let { fetched ->
             v.copy(
                 title = fetched.title.ifBlank { v.title },
                 channelTitle = fetched.channelTitle.ifBlank { v.channelTitle },
@@ -516,6 +517,23 @@ class PlayerSessionState(
                             }
                         }
                     }
+                    val activeVid = currentVideo
+                    if (playerState.videoId == activeVid.id &&
+                        recordedHistoryVideoId != activeVid.id &&
+                        activeVid.title.isNotBlank() &&
+                        repository.preferences?.pauseWatchHistory?.value != true
+                    ) {
+                        recordedHistoryVideoId = activeVid.id
+                        val posMs = (currentPositionSec * 1000).toLong()
+                        val durMs = (currentDurationSec * 1000).toLong()
+                        scope.launch {
+                            repository.recordWatch(
+                                video = activeVid,
+                                positionMs = posMs,
+                                durationMs = durMs
+                            )
+                        }
+                    }
                 }
                 2 -> {
                     isPlaybackStalled = false
@@ -562,9 +580,24 @@ class PlayerSessionState(
                     wasPlayingBeforeOffline = false
                     playerState = playerState.copy(isPlaying = false, isEnded = true)
                     mediaService?.updatePlaybackState(false, 0L, forceNotify = false, isBuffering = false)
-                    val endedVidId = activeVideo.id
+                    val endedVid = currentVideo
+                    val endedDurMs = (currentDurationSec * 1000).toLong()
+                    val shouldRecordEnded = playerState.videoId == endedVid.id &&
+                        endedVid.title.isNotBlank() &&
+                        repository.preferences?.pauseWatchHistory?.value != true
+                    if (shouldRecordEnded) {
+                        recordedHistoryVideoId = endedVid.id
+                    }
                     scope.launch {
-                        repository.resetWatchPosition(endedVidId)
+                        if (shouldRecordEnded) {
+                            repository.recordWatch(
+                                video = endedVid,
+                                positionMs = 0L,
+                                durationMs = endedDurMs
+                            )
+                        } else {
+                            repository.resetWatchPosition(endedVid.id)
+                        }
                     }
                     if (isLoopEnabled) {
                         controller.seekTo(0f)
