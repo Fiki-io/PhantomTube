@@ -15,6 +15,11 @@ val PlusJakartaSansFontFamily = FontFamily(
     Font(R.font.plus_jakarta_sans, FontWeight.Bold)
 )
 
+val PhantomBrandFontFamily = FontFamily(
+    Font(R.font.syne, FontWeight.Bold),
+    Font(R.font.syne, FontWeight.ExtraBold)
+)
+
 val PhantomTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = PlusJakartaSansFontFamily,

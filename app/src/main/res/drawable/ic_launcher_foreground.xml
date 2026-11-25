@@ -3,15 +3,19 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Offset crimson-tinted phantom afterimage -->
     <path
-        android:fillColor="#0A0A0C"
-        android:pathData="M0,0h108v108h-108z"/>
-    <!-- Phantom glowing ghost play triangle -->
+        android:fillColor="#5CE53935"
+        android:fillType="evenOdd"
+        android:pathData="M36.5,79.5 L36.5,36.2 Q36.5,33 39.7,33 L58.2,33 Q61.5,33 64.2,34.8 L80.8,46 Q83.8,48.2 80.8,50.4 L64.2,61.6 Q61.5,63.4 58.2,63.4 L47.8,63.4 L47.8,71.8 Q47.8,73.6 46.2,74.8 L39.2,79.6 Q36.5,81.4 36.5,79.5 Z M47.8,41.6 L47.8,54.8 L67.2,48.2 Z" />
+
+    <!-- Primary Phantom geometric P + Play negative-space monogram -->
     <path
-        android:fillColor="#6C5CE7"
-        android:pathData="M40,32 L76,54 L40,76 Z" />
-    <path
-        android:strokeColor="#00CEC9"
-        android:strokeWidth="2.5"
-        android:pathData="M40,32 L76,54 L40,76 Z" />
+        android:fillColor="#F2F2F7"
+        android:fillType="evenOdd"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.2"
+        android:strokeLineJoin="round"
+        android:pathData="M33.2,77.2 L33.2,33.9 Q33.2,30.7 36.4,30.7 L54.9,30.7 Q58.2,30.7 60.9,32.5 L77.5,43.7 Q80.5,45.9 77.5,48.1 L60.9,59.3 Q58.2,61.1 54.9,61.1 L44.5,61.1 L44.5,69.5 Q44.5,71.3 42.9,72.5 L35.9,77.3 Q33.2,79.1 33.2,77.2 Z M44.5,39.3 L44.5,52.5 L63.9,45.9 Z" />
 </vector>

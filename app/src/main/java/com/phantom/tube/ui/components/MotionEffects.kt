@@ -114,6 +114,7 @@ object PhantomMotion {
     const val DockScrollThresholdPx = 22f
     const val ImageFadeInDurationMs = 180
     const val PressAlphaDurationMs = 90
+    const val BrandSheenDurationMs = 4800
 
     val ScreenSlideEnter: EnterTransition =
         slideInHorizontally(
