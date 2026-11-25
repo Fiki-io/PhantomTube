@@ -13,8 +13,9 @@
 -dontwarn javax.annotation.**
 -dontwarn kotlinx.coroutines.**
 
-# 3. Transparent Bytecode Shrinking (Shrink unused code/resources without obfuscating class names)
--dontobfuscate
+# 3. Safe Bytecode Shrinking (Repackage into legitimate app namespace, no aggressive overloading)
+-repackageclasses 'com.phantom.tube.internal'
+-allowaccessmodification
 -optimizationpasses 5
 
 # Eliminate Kotlin null-check assertions, Compose trace/source markers, and debug logs in release bytecode
