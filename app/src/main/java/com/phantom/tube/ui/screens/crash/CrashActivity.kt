@@ -27,9 +27,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -140,7 +139,7 @@ fun CrashScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.BugReport,
+                        imageVector = PhantomIcons.BugReport,
                         contentDescription = stringResource(R.string.crash_icon_desc),
                         tint = YouTubeRed,
                         modifier = Modifier.size(24.dp)
@@ -263,7 +262,7 @@ fun CrashScreen(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ContentCopy,
+                    imageVector = PhantomIcons.ContentCopy,
                     contentDescription = stringResource(R.string.crash_copy_log),
                     tint = TextPrimary,
                     modifier = Modifier.size(18.dp)

@@ -30,9 +30,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.FastForward
-import androidx.compose.material.icons.rounded.WifiOff
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableFloatStateOf
@@ -523,7 +521,7 @@ fun BoxScope.PlayerVideoViewportBox(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.FastForward,
+                        imageVector = PhantomIcons.FastForward,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)
@@ -669,7 +667,7 @@ fun BoxScope.PlayerVideoViewportBox(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.WifiOff,
+                        imageVector = PhantomIcons.WifiOff,
                         contentDescription = null,
                         tint = OfflineNoticeIcon,
                         modifier = Modifier.size(16.dp)

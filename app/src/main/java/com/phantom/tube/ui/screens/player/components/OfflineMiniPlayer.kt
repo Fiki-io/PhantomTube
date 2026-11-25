@@ -16,12 +16,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -107,7 +105,7 @@ fun OfflineMiniPlayer(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Default.MusicNote,
+                            imageVector = PhantomIcons.MusicNote,
                             contentDescription = null,
                             tint = Color.White.copy(alpha = 0.7f),
                             modifier = Modifier.size(22.dp)
@@ -152,7 +150,7 @@ fun OfflineMiniPlayer(
                         label = "offline_play_pause_icon"
                     ) { playing ->
                         Icon(
-                            imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            imageVector = if (playing) PhantomIcons.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (playing) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
                             tint = TextPrimary,
                             modifier = Modifier.size(24.dp)
@@ -171,7 +169,7 @@ fun OfflineMiniPlayer(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.SkipNext,
+                        imageVector = PhantomIcons.SkipNext,
                         contentDescription = stringResource(R.string.player_next_video),
                         tint = TextPrimary,
                         modifier = Modifier.size(24.dp)

@@ -25,29 +25,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ClosedCaption
-import androidx.compose.material.icons.filled.CropFree
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.FastRewind
-import androidx.compose.material.icons.filled.FitScreen
-import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.Forward30
-import androidx.compose.material.icons.filled.Forward5
-import androidx.compose.material.icons.filled.Headphones
-import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.Replay30
-import androidx.compose.material.icons.filled.Replay5
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -133,7 +117,7 @@ fun BoxScope.AudioOnlyViewportOverlay(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Headphones,
+                        imageVector = PhantomIcons.Headphones,
                         contentDescription = null,
                         tint = YouTubeRed,
                         modifier = Modifier.size(24.dp)
@@ -172,7 +156,7 @@ fun BoxScope.AudioOnlyViewportOverlay(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Headphones,
+                imageVector = PhantomIcons.Headphones,
                 contentDescription = null,
                 tint = YouTubeRed,
                 modifier = Modifier.size(15.dp)
@@ -218,7 +202,7 @@ fun BoxScope.PlayerLockedOverlay(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.LockOpen,
+                    imageVector = PhantomIcons.LockOpen,
                     contentDescription = stringResource(R.string.player_unlock_screen),
                     tint = YouTubeRed,
                     modifier = Modifier.size(18.dp)
@@ -265,7 +249,7 @@ fun BoxScope.DoubleTapSeekFeedbackOverlay(
                 verticalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.FastRewind,
+                    imageVector = PhantomIcons.FastRewind,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(34.dp)
@@ -309,7 +293,7 @@ fun BoxScope.DoubleTapSeekFeedbackOverlay(
                 verticalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.FastForward,
+                    imageVector = PhantomIcons.FastForward,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(34.dp)
@@ -487,7 +471,7 @@ fun BoxScope.PlayerControlsOverlay(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 PhantomIconButton(
-                    icon = Icons.Default.ExpandMore,
+                    icon = Icons.Default.KeyboardArrowDown,
                     contentDescription = stringResource(R.string.player_minimize),
                     size = if (isFullscreen) 38.dp else 34.dp,
                     iconSize = if (isFullscreen) 24.dp else 22.dp,
@@ -537,7 +521,7 @@ fun BoxScope.PlayerControlsOverlay(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ClosedCaption,
+                            imageVector = PhantomIcons.ClosedCaption,
                             contentDescription = stringResource(if (isCaptionsEnabled) R.string.player_captions_turn_off else R.string.player_captions_turn_on),
                             tint = ccTint,
                             modifier = Modifier.size(controlIconSize)
@@ -592,7 +576,7 @@ fun BoxScope.PlayerControlsOverlay(
                                 horizontalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.HighQuality,
+                                    imageVector = PhantomIcons.HighQuality,
                                     contentDescription = stringResource(R.string.player_quality_format, currentQualityBadge),
                                     tint = if (isQualityMenuExpanded || isHighQuality) qualityContentColor else Color.White.copy(alpha = 0.85f),
                                     modifier = Modifier.size(if (isFullscreen) 17.dp else 15.dp)
@@ -690,7 +674,7 @@ fun BoxScope.PlayerControlsOverlay(
                             label = "zoom_icon"
                         ) { zoomed ->
                             Icon(
-                                imageVector = if (zoomed) Icons.Default.FitScreen else Icons.Default.CropFree,
+                                imageVector = if (zoomed) PhantomIcons.FitScreen else PhantomIcons.CropFree,
                                 contentDescription = stringResource(if (zoomed) R.string.player_zoom_original else R.string.player_zoom_fill),
                                 tint = zoomTint,
                                 modifier = Modifier.size(controlIconSize)
@@ -769,7 +753,7 @@ fun BoxScope.PlayerControlsOverlay(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 PhantomIconButton(
-                    icon = Icons.Default.SkipPrevious,
+                    icon = PhantomIcons.SkipPrevious,
                     contentDescription = stringResource(R.string.player_prev_video),
                     size = 42.dp,
                     iconSize = 22.dp,
@@ -778,16 +762,16 @@ fun BoxScope.PlayerControlsOverlay(
                 )
 
                 val rewindIcon = when (doubleTapSeekSeconds) {
-                    5 -> Icons.Default.Replay5
-                    10 -> Icons.Default.Replay10
-                    30 -> Icons.Default.Replay30
-                    else -> Icons.Default.FastRewind
+                    5 -> PhantomIcons.Replay5
+                    10 -> PhantomIcons.Replay10
+                    30 -> PhantomIcons.Replay30
+                    else -> PhantomIcons.FastRewind
                 }
                 val forwardIcon = when (doubleTapSeekSeconds) {
-                    5 -> Icons.Default.Forward5
-                    10 -> Icons.Default.Forward10
-                    30 -> Icons.Default.Forward30
-                    else -> Icons.Default.FastForward
+                    5 -> PhantomIcons.Forward5
+                    10 -> PhantomIcons.Forward10
+                    30 -> PhantomIcons.Forward30
+                    else -> PhantomIcons.FastForward
                 }
 
                 PhantomIconButton(
@@ -816,7 +800,7 @@ fun BoxScope.PlayerControlsOverlay(
                         label = "player_main_play_pause"
                     ) { playing ->
                         Icon(
-                            imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            imageVector = if (playing) PhantomIcons.Pause else Icons.Default.PlayArrow,
                             contentDescription = stringResource(if (playing) R.string.player_pause else R.string.player_play),
                             tint = TextPrimary,
                             modifier = Modifier.size(36.dp)
@@ -833,7 +817,7 @@ fun BoxScope.PlayerControlsOverlay(
                 )
 
                 PhantomIconButton(
-                    icon = Icons.Default.SkipNext,
+                    icon = PhantomIcons.SkipNext,
                     contentDescription = stringResource(R.string.player_next_video),
                     size = 42.dp,
                     iconSize = 22.dp,

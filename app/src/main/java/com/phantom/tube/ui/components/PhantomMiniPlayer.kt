@@ -22,9 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -275,7 +273,7 @@ fun PhantomMiniPlayer(
                             label = "miniplayer_play_pause_icon"
                         ) { playing ->
                             Icon(
-                                imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                imageVector = if (playing) PhantomIcons.Pause else Icons.Default.PlayArrow,
                                 contentDescription = stringResource(if (playing) R.string.player_pause else R.string.player_play),
                                 tint = Color.White,
                                 modifier = Modifier.size(22.dp)
@@ -295,7 +293,7 @@ fun PhantomMiniPlayer(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.SkipNext,
+                            imageVector = PhantomIcons.SkipNext,
                             contentDescription = stringResource(R.string.player_next_video),
                             tint = TextPrimary,
                             modifier = Modifier.size(22.dp)

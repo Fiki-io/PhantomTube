@@ -29,11 +29,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -185,7 +183,7 @@ fun SubscriptionScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Default.Subscriptions,
+                imageVector = PhantomIcons.Subscriptions,
                 contentDescription = null,
                 tint = YouTubeRed,
                 modifier = Modifier.size(24.dp)
@@ -219,7 +217,7 @@ fun SubscriptionScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.FileDownload,
+                    imageVector = PhantomIcons.Download,
                     contentDescription = null,
                     tint = YouTubeRed,
                     modifier = Modifier.size(22.dp)
@@ -246,7 +244,7 @@ fun SubscriptionScreen(
             }
 
             Icon(
-                imageVector = Icons.Default.ChevronRight,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = TextSecondary,
                 modifier = Modifier.size(20.dp)
@@ -268,11 +266,11 @@ fun SubscriptionScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     PhantomEmptyStateView(
-                        icon = Icons.Default.Subscriptions,
+                        icon = PhantomIcons.Subscriptions,
                         title = stringResource(R.string.empty_subscriptions_title),
                         subtitle = stringResource(R.string.empty_subscriptions_desc),
                         actionLabel = stringResource(R.string.explore_home),
-                        actionIcon = Icons.Default.Explore,
+                        actionIcon = PhantomIcons.Explore,
                         onActionClick = onExploreClick,
                         actionTestTag = "subs_explore_home_btn"
                     )

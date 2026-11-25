@@ -29,22 +29,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.FastRewind
-import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.Forward30
-import androidx.compose.material.icons.filled.Forward5
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.OpenInNew
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.Replay30
-import androidx.compose.material.icons.filled.Replay5
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -449,7 +438,7 @@ fun OfflineVideoPlayerDialog(
                                 .testTag("offline_video_external_btn")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.OpenInNew,
+                                imageVector = PhantomIcons.OpenInNew,
                                 contentDescription = stringResource(R.string.downloads_play_external),
                                 tint = TextSecondary
                             )
@@ -512,7 +501,7 @@ fun OfflineVideoPlayerDialog(
                                     modifier = Modifier.heightIn(min = 48.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.OpenInNew,
+                                        imageVector = PhantomIcons.OpenInNew,
                                         contentDescription = null,
                                         tint = TextPrimary,
                                         modifier = Modifier.size(18.dp)
@@ -532,16 +521,16 @@ fun OfflineVideoPlayerDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                         val rewindIcon = when (doubleTapSeekSeconds) {
-                            5 -> Icons.Default.Replay5
-                            10 -> Icons.Default.Replay10
-                            30 -> Icons.Default.Replay30
-                            else -> Icons.Default.FastRewind
+                            5 -> PhantomIcons.Replay5
+                            10 -> PhantomIcons.Replay10
+                            30 -> PhantomIcons.Replay30
+                            else -> PhantomIcons.FastRewind
                         }
                         val forwardIcon = when (doubleTapSeekSeconds) {
-                            5 -> Icons.Default.Forward5
-                            10 -> Icons.Default.Forward10
-                            30 -> Icons.Default.Forward30
-                            else -> Icons.Default.FastForward
+                            5 -> PhantomIcons.Forward5
+                            10 -> PhantomIcons.Forward10
+                            30 -> PhantomIcons.Forward30
+                            else -> PhantomIcons.FastForward
                         }
 
                         // Rewind Button
@@ -589,7 +578,7 @@ fun OfflineVideoPlayerDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                imageVector = if (isPlaying) PhantomIcons.Pause else Icons.Default.PlayArrow,
                                 contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.player_play),
                                 tint = Color.White,
                                 modifier = Modifier.size(38.dp)
@@ -693,7 +682,7 @@ fun OfflineVideoPlayerDialog(
                                     .testTag("offline_video_fullscreen_btn")
                             ) {
                                 Icon(
-                                    imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                    imageVector = if (isLandscape) PhantomIcons.FullscreenExit else PhantomIcons.Fullscreen,
                                     contentDescription = stringResource(if (isLandscape) R.string.player_exit_fullscreen else R.string.player_fullscreen),
                                     tint = TextPrimary,
                                     modifier = Modifier.size(24.dp)

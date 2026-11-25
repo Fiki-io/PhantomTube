@@ -18,12 +18,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -224,7 +223,7 @@ internal fun SpeedSubPage(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Remove,
+                            imageVector = PhantomIcons.Remove,
                             contentDescription = stringResource(R.string.player_speed),
                             tint = TextPrimary,
                             modifier = Modifier.size(18.dp)
@@ -267,7 +266,7 @@ internal fun SpeedSubPage(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Add,
+                            imageVector = Icons.Default.Add,
                             contentDescription = stringResource(R.string.player_speed),
                             tint = TextPrimary,
                             modifier = Modifier.size(18.dp)
@@ -383,7 +382,7 @@ internal fun PlayerSheetSubHeader(
                 .size(48.dp)
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = stringResource(R.string.action_back),
                 tint = TextPrimary,
                 modifier = Modifier.size(20.dp)
@@ -471,7 +470,7 @@ internal fun PlayerSheetCheckRow(
             }
             if (isSelected) {
                 Icon(
-                    imageVector = Icons.Rounded.Check,
+                    imageVector = Icons.Default.Check,
                     contentDescription = stringResource(R.string.player_selected),
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
@@ -534,7 +533,7 @@ internal fun PlayerSheetActionItem(
         )
         Spacer(modifier = Modifier.width(4.dp))
         Icon(
-            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
             tint = TextMuted,
             modifier = Modifier.size(18.dp)

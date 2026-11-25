@@ -24,9 +24,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -192,7 +192,7 @@ fun FloatingMixBar(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                    imageVector = PhantomIcons.QueueMusic,
                     contentDescription = null,
                     tint = YouTubeRed,
                     modifier = Modifier.size(18.dp)
@@ -223,7 +223,7 @@ fun FloatingMixBar(
             Spacer(modifier = Modifier.width(8.dp))
 
             Icon(
-                imageVector = Icons.Default.ExpandLess,
+                imageVector = Icons.Default.KeyboardArrowUp,
                 contentDescription = stringResource(R.string.player_mix_open_queue),
                 tint = TextSecondary,
                 modifier = Modifier.size(22.dp)

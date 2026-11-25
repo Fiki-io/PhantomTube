@@ -15,9 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -140,7 +139,7 @@ fun PhantomErrorStateView(
     retryLabel: String,
     onRetry: () -> Unit,
     retryTestTag: String = "error_retry_button",
-    icon: ImageVector = Icons.Rounded.WifiOff,
+    icon: ImageVector = PhantomIcons.WifiOff,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -200,7 +199,7 @@ fun PhantomErrorStateView(
                 .testTag(retryTestTag)
         ) {
             Icon(
-                imageVector = Icons.Rounded.Refresh,
+                imageVector = Icons.Default.Refresh,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp)
             )

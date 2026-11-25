@@ -14,12 +14,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -98,7 +96,7 @@ fun BoxScope.FloatingMiniPlayerOverlay(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.Fullscreen,
+                imageVector = PhantomIcons.Fullscreen,
                 contentDescription = stringResource(R.string.player_expand),
                 tint = Color.White,
                 modifier = Modifier.size(18.dp)
@@ -159,7 +157,7 @@ fun BoxScope.FloatingMiniPlayerOverlay(
                     label = "floating_play_pause_icon"
                 ) { playing ->
                     Icon(
-                        imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        imageVector = if (playing) PhantomIcons.Pause else Icons.Default.PlayArrow,
                         contentDescription = stringResource(if (playing) R.string.player_pause else R.string.player_play),
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)
@@ -184,7 +182,7 @@ fun BoxScope.FloatingMiniPlayerOverlay(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.SkipNext,
+                        imageVector = PhantomIcons.SkipNext,
                         contentDescription = stringResource(R.string.player_next_video),
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)

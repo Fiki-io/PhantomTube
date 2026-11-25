@@ -34,22 +34,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -215,7 +208,7 @@ fun DownloadsScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.action_back),
                         tint = TextPrimary,
                         modifier = Modifier.size(20.dp)
@@ -272,7 +265,7 @@ fun DownloadsScreen(
                         label = "downloads_search_icon"
                     ) { active ->
                         Icon(
-                            imageVector = if (active) Icons.Default.Clear else Icons.Default.Search,
+                            imageVector = if (active) Icons.Default.Close else Icons.Default.Search,
                             contentDescription = stringResource(R.string.nav_search),
                             tint = searchIconTint,
                             modifier = Modifier.size(20.dp)
@@ -421,7 +414,7 @@ fun DownloadsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Shuffle,
+                            imageVector = PhantomIcons.Shuffle,
                             contentDescription = stringResource(R.string.downloads_shuffle_on),
                             tint = shuffleTint,
                             modifier = Modifier.size(20.dp)
@@ -452,7 +445,7 @@ fun DownloadsScreen(
                             label = "downloads_repeat_icon"
                         ) { isOne ->
                             Icon(
-                                imageVector = if (isOne) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                                imageVector = if (isOne) PhantomIcons.RepeatOne else PhantomIcons.Repeat,
                                 contentDescription = stringResource(R.string.downloads_repeat_all),
                                 tint = repeatTint,
                                 modifier = Modifier.size(20.dp)
@@ -488,7 +481,7 @@ fun DownloadsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.FileDownload,
+                                imageVector = PhantomIcons.Download,
                                 contentDescription = null,
                                 tint = TextMuted,
                                 modifier = Modifier.size(34.dp)
@@ -806,7 +799,7 @@ private fun DownloadItemRow(
                 )
             } else {
                 Icon(
-                    imageVector = if (isAudio) Icons.Default.MusicNote else Icons.Default.VideoLibrary,
+                    imageVector = if (isAudio) PhantomIcons.MusicNote else PhantomIcons.VideoLibrary,
                     contentDescription = null,
                     tint = TextMuted,
                     modifier = Modifier.size(24.dp)
@@ -821,7 +814,7 @@ private fun DownloadItemRow(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.GraphicEq,
+                        imageVector = PhantomIcons.GraphicEq,
                         contentDescription = null,
                         tint = YouTubeRed,
                         modifier = Modifier.size(26.dp)
@@ -900,7 +893,7 @@ private fun DownloadItemRow(
             ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.downloads_play_external), color = TextPrimary, fontSize = 13.sp) },
-                    leadingIcon = { Icon(Icons.Default.OpenInNew, null, tint = TextSecondary, modifier = Modifier.size(18.dp)) },
+                    leadingIcon = { Icon(PhantomIcons.OpenInNew, null, tint = TextSecondary, modifier = Modifier.size(18.dp)) },
                     onClick = {
                         showMenu = false
                         onPlayExternal()

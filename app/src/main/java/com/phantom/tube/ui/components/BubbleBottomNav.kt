@@ -24,14 +24,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Subscriptions
-import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -82,9 +77,9 @@ enum class NavTab(
     val unselectedIcon: ImageVector
 ) {
     HOME(R.string.nav_home, Icons.Filled.Home, Icons.Outlined.Home),
-    SEARCH(R.string.nav_search, Icons.Filled.Search, Icons.Outlined.Search),
-    HISTORY(R.string.nav_history, Icons.Filled.History, Icons.Outlined.History),
-    SUBSCRIPTION(R.string.nav_library, Icons.Filled.Subscriptions, Icons.Outlined.Subscriptions)
+    SEARCH(R.string.nav_search, Icons.Filled.Search, Icons.Filled.Search),
+    HISTORY(R.string.nav_history, PhantomIcons.History, PhantomIcons.History),
+    SUBSCRIPTION(R.string.nav_library, PhantomIcons.Subscriptions, PhantomIcons.SubscriptionsOutlined)
 }
 
 private val DOCK_MAX_WIDTH = 420.dp

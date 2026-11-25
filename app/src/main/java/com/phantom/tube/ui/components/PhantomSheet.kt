@@ -25,8 +25,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -285,7 +285,7 @@ fun PhantomAnchoredPlayerSheet(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Rounded.Close,
+                                            imageVector = Icons.Default.Close,
                                             contentDescription = stringResource(R.string.action_close),
                                             tint = TextSecondary,
                                             modifier = Modifier.size(20.dp)

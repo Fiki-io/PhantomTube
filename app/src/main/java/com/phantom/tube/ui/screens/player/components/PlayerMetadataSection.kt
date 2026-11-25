@@ -22,12 +22,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -426,7 +425,7 @@ fun PlayerMetadataSection(
                         label = "player_dislike_icon"
                     ) { _ ->
                         Icon(
-                            imageVector = Icons.Default.ThumbDown,
+                            imageVector = PhantomIcons.ThumbDown,
                             contentDescription = stringResource(R.string.player_dislike),
                             tint = dislikeTint,
                             modifier = Modifier.size(16.dp)
@@ -493,7 +492,7 @@ fun PlayerMetadataSection(
                     label = "player_download_icon"
                 ) { downloaded ->
                     Icon(
-                        imageVector = if (downloaded) Icons.Default.Check else Icons.Default.Download,
+                        imageVector = if (downloaded) Icons.Default.Check else PhantomIcons.Download,
                         contentDescription = stringResource(if (downloaded) R.string.player_downloaded else R.string.player_download),
                         tint = downloadTint,
                         modifier = Modifier.size(16.dp)

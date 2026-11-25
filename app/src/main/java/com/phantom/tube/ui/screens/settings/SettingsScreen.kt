@@ -18,26 +18,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.filled.Info
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.BugReport
-import androidx.compose.material.icons.rounded.CleaningServices
-import androidx.compose.material.icons.rounded.Code
-import androidx.compose.material.icons.rounded.DeleteSweep
-import androidx.compose.material.icons.rounded.FastForward
-import androidx.compose.material.icons.rounded.Hd
-import androidx.compose.material.icons.rounded.Headphones
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.PictureInPicture
-import androidx.compose.material.icons.rounded.PictureInPictureAlt
-import androidx.compose.material.icons.rounded.Public
-import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.Shield
-import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.SystemUpdate
-import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -166,14 +149,14 @@ fun SettingsScreen(
                 SettingsSectionHeader(stringResource(R.string.settings_section_general))
                 SettingsGroupCard {
                     SettingsValueRow(
-                        icon = Icons.Rounded.Language,
+                        icon = PhantomIcons.Language,
                         title = stringResource(R.string.settings_app_language),
                         valueText = currentLanguageLabel,
                         onClick = { showLanguageDialog = true }
                     )
                     SettingsDivider()
                     SettingsValueRow(
-                        icon = Icons.Rounded.Public,
+                        icon = PhantomIcons.Public,
                         title = stringResource(R.string.settings_content_region),
                         valueText = currentRegionLabel,
                         onClick = { showRegionDialog = true }
@@ -185,14 +168,14 @@ fun SettingsScreen(
                 SettingsSectionHeader(stringResource(R.string.settings_section_playback))
                 SettingsGroupCard {
                     SettingsValueRow(
-                        icon = Icons.Rounded.Hd,
+                        icon = PhantomIcons.Hd,
                         title = stringResource(R.string.settings_default_quality),
                         valueText = currentQualityLabel,
                         onClick = { showQualityDialog = true }
                     )
                     SettingsDivider()
                     SettingsValueRow(
-                        icon = Icons.Rounded.Speed,
+                        icon = PhantomIcons.Speed,
                         title = stringResource(R.string.settings_default_speed),
                         valueText = if (defaultSpeed == 1.0f) {
                             stringResource(R.string.settings_speed_normal)
@@ -203,14 +186,14 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SettingsValueRow(
-                        icon = Icons.Rounded.FastForward,
+                        icon = PhantomIcons.FastForward,
                         title = stringResource(R.string.settings_double_tap_seek),
                         valueText = stringResource(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString()),
                         onClick = { showSeekDialog = true }
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.Headphones,
+                        icon = PhantomIcons.Headphones,
                         title = stringResource(R.string.settings_bg_playback),
                         subtitle = stringResource(R.string.settings_bg_playback_desc),
                         checked = bgPlayback,
@@ -218,7 +201,7 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.PictureInPictureAlt,
+                        icon = PhantomIcons.PictureInPictureAlt,
                         title = stringResource(R.string.settings_auto_pip),
                         subtitle = stringResource(R.string.settings_auto_pip_desc),
                         checked = autoPip,
@@ -226,7 +209,7 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SettingsValueRow(
-                        icon = Icons.Rounded.PictureInPicture,
+                        icon = PhantomIcons.PictureInPicture,
                         title = stringResource(R.string.settings_miniplayer_style),
                         valueText = if (miniPlayerStyle == com.phantom.tube.data.settings.PhantomPreferences.MINIPLAYER_STYLE_FLOATING) {
                             stringResource(R.string.settings_miniplayer_floating)
@@ -242,7 +225,7 @@ fun SettingsScreen(
                 SettingsSectionHeader(stringResource(R.string.settings_section_sponsorblock))
                 SettingsGroupCard {
                     SettingsToggleRow(
-                        icon = Icons.Rounded.Shield,
+                        icon = PhantomIcons.Shield,
                         title = stringResource(R.string.settings_sponsorblock_enable),
                         subtitle = stringResource(R.string.settings_sponsorblock_desc),
                         checked = sbEnabled,
@@ -250,7 +233,7 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.AutoAwesome,
+                        icon = PhantomIcons.AutoAwesome,
                         title = stringResource(R.string.settings_sponsorblock_auto_skip),
                         subtitle = if (sbAutoSkip) {
                             stringResource(R.string.settings_sponsorblock_auto_skip_desc)
@@ -263,7 +246,7 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.Shield,
+                        icon = PhantomIcons.Shield,
                         title = stringResource(R.string.settings_skip_sponsor),
                         checked = skipSponsor,
                         enabled = sbEnabled,
@@ -271,7 +254,7 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.Shield,
+                        icon = PhantomIcons.Shield,
                         title = stringResource(R.string.settings_skip_selfpromo),
                         checked = skipSelfPromo,
                         enabled = sbEnabled,
@@ -279,7 +262,7 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.Shield,
+                        icon = PhantomIcons.Shield,
                         title = stringResource(R.string.settings_skip_interaction),
                         checked = skipInteraction,
                         enabled = sbEnabled,
@@ -287,7 +270,7 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.Shield,
+                        icon = PhantomIcons.Shield,
                         title = stringResource(R.string.settings_skip_intro),
                         checked = skipIntro,
                         enabled = sbEnabled,
@@ -295,7 +278,7 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SettingsToggleRow(
-                        icon = Icons.Rounded.Shield,
+                        icon = PhantomIcons.Shield,
                         title = stringResource(R.string.settings_skip_outro),
                         checked = skipOutro,
                         enabled = sbEnabled,
@@ -308,7 +291,7 @@ fun SettingsScreen(
                 SettingsSectionHeader(stringResource(R.string.settings_section_privacy))
                 SettingsGroupCard {
                     SettingsToggleRow(
-                        icon = Icons.Rounded.VisibilityOff,
+                        icon = PhantomIcons.VisibilityOff,
                         title = stringResource(R.string.settings_pause_history),
                         subtitle = stringResource(R.string.settings_pause_history_desc),
                         checked = pauseWatchHistory,
@@ -316,14 +299,14 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SettingsValueRow(
-                        icon = Icons.Rounded.DeleteSweep,
+                        icon = PhantomIcons.DeleteSweep,
                         title = stringResource(R.string.settings_clear_watch_history),
                         valueText = "",
                         onClick = { showClearWatchHistoryConfirm = true }
                     )
                     SettingsDivider()
                     SettingsValueRow(
-                        icon = Icons.Rounded.History,
+                        icon = PhantomIcons.History,
                         title = stringResource(R.string.settings_clear_search_history),
                         valueText = "",
                         onClick = { showClearSearchHistoryConfirm = true }
@@ -334,14 +317,14 @@ fun SettingsScreen(
                         String.format(Locale.getDefault(), "%.1f MB", mb)
                     }
                     SettingsValueRow(
-                        icon = Icons.Rounded.CleaningServices,
+                        icon = PhantomIcons.CleaningServices,
                         title = stringResource(R.string.settings_clear_cache),
                         valueText = formattedCache,
                         onClick = { showClearCacheConfirm = true }
                     )
                     SettingsDivider()
                     SettingsValueRow(
-                        icon = Icons.Rounded.Security,
+                        icon = PhantomIcons.Security,
                         title = stringResource(R.string.settings_privacy_policy_title),
                         valueText = "",
                         onClick = {
@@ -355,27 +338,27 @@ fun SettingsScreen(
                 SettingsSectionHeader(stringResource(R.string.settings_section_about))
                 SettingsGroupCard {
                     SettingsValueRow(
-                        icon = Icons.Rounded.Info,
+                        icon = Icons.Default.Info,
                         title = stringResource(R.string.settings_app_version),
                         valueText = "v${BuildConfig.VERSION_NAME}"
                     )
                     SettingsDivider()
                     SettingsValueRow(
-                        icon = Icons.Rounded.SystemUpdate,
+                        icon = PhantomIcons.SystemUpdate,
                         title = stringResource(R.string.settings_check_update),
                         valueText = "",
                         onClick = onCheckUpdateClick
                     )
                     SettingsDivider()
                     SettingsValueRow(
-                        icon = Icons.Rounded.BugReport,
+                        icon = PhantomIcons.BugReport,
                         title = stringResource(R.string.settings_feedback),
                         valueText = "",
                         onClick = { showFeedbackDialog = true }
                     )
                     SettingsDivider()
                     SettingsValueRow(
-                        icon = Icons.Rounded.Code,
+                        icon = PhantomIcons.Code,
                         title = stringResource(R.string.settings_github),
                         valueText = "GitHub",
                         onClick = {

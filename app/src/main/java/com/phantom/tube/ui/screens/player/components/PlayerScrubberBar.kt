@@ -9,9 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.FullscreenExit
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -102,7 +100,7 @@ fun PlayerScrubberControls(
             }
 
             PhantomIconButton(
-                icon = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                icon = if (isFullscreen) PhantomIcons.FullscreenExit else PhantomIcons.Fullscreen,
                 contentDescription = stringResource(
                     if (isFullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen
                 ),

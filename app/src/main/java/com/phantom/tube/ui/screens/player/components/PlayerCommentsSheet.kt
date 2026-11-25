@@ -21,9 +21,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Reply
-import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -177,13 +176,13 @@ fun CommentItemRow(
                     }
                 }
                 Icon(
-                    imageVector = Icons.Default.ThumbDown,
+                    imageVector = PhantomIcons.ThumbDown,
                     contentDescription = stringResource(R.string.player_dislike),
                     tint = TextMuted,
                     modifier = Modifier.size(14.dp)
                 )
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Reply,
+                    imageVector = PhantomIcons.Reply,
                     contentDescription = stringResource(R.string.player_reply),
                     tint = TextMuted,
                     modifier = Modifier.size(14.dp)

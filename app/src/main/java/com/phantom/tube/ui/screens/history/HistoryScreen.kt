@@ -22,9 +22,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.History
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -94,7 +92,7 @@ fun HistoryScreen(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.History,
+                    imageVector = PhantomIcons.History,
                     contentDescription = null,
                     tint = TextPrimary,
                     modifier = Modifier.size(24.dp)
@@ -109,7 +107,7 @@ fun HistoryScreen(
 
             if (historyList.isNotEmpty()) {
                 PhantomIconButton(
-                    icon = Icons.Default.DeleteSweep,
+                    icon = PhantomIcons.DeleteSweep,
                     contentDescription = stringResource(R.string.library_clear_history),
                     modifier = Modifier.testTag("history_clear_btn"),
                     size = 48.dp,
@@ -137,7 +135,7 @@ fun HistoryScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         PhantomEmptyStateView(
-                            icon = Icons.Default.History,
+                            icon = PhantomIcons.History,
                             title = stringResource(R.string.empty_history)
                         )
                     }

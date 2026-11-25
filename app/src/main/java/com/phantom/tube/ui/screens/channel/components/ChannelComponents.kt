@@ -29,16 +29,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Verified
-import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -143,7 +141,7 @@ fun ChannelTopBar(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.action_back),
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
@@ -183,7 +181,7 @@ fun ChannelTopBar(
                     label = "channel_search_icon"
                 ) { active ->
                     Icon(
-                        imageVector = if (active) Icons.Rounded.Close else Icons.Rounded.Search,
+                        imageVector = if (active) Icons.Default.Close else Icons.Default.Search,
                         contentDescription = stringResource(R.string.search_hint),
                         tint = TextPrimary,
                         modifier = Modifier.size(20.dp)
@@ -207,7 +205,7 @@ fun ChannelTopBar(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Share,
+                    imageVector = Icons.Default.Share,
                     contentDescription = stringResource(R.string.player_share),
                     tint = TextPrimary,
                     modifier = Modifier.size(19.dp)
@@ -319,7 +317,7 @@ fun ChannelHeaderSection(
                     if (profile.isVerified) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Icon(
-                            imageVector = Icons.Rounded.Verified,
+                            imageVector = PhantomIcons.Verified,
                             contentDescription = stringResource(R.string.channel_verified),
                             tint = TextSecondary,
                             modifier = Modifier.size(18.dp)
@@ -378,7 +376,7 @@ fun ChannelHeaderSection(
                     color = TextPrimary
                 )
                 Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
                     tint = TextSecondary,
                     modifier = Modifier.size(16.dp)
@@ -427,7 +425,7 @@ fun ChannelHeaderSection(
                         label = "channel_sub_icon"
                     ) { subscribed ->
                         Icon(
-                            imageVector = if (subscribed) Icons.Rounded.NotificationsActive else Icons.Rounded.Check,
+                            imageVector = if (subscribed) PhantomIcons.NotificationsActive else Icons.Default.Check,
                             contentDescription = null,
                             tint = subTextColor,
                             modifier = Modifier.size(17.dp)
@@ -790,7 +788,7 @@ fun ChannelEmptyStateBox(message: String) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
-                imageVector = Icons.Rounded.VideoLibrary,
+                imageVector = PhantomIcons.VideoLibrary,
                 contentDescription = null,
                 tint = TextMuted,
                 modifier = Modifier.size(40.dp)

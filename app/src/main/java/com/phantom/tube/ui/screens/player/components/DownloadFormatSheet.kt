@@ -34,13 +34,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -223,7 +220,7 @@ fun DownloadFormatSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Download,
+                            imageVector = PhantomIcons.Download,
                             contentDescription = null,
                             tint = YouTubeRed,
                             modifier = Modifier.size(18.dp)
@@ -350,7 +347,7 @@ fun DownloadFormatSheet(
                             ) {
                                 FormatTabItem(
                                     title = stringResource(R.string.download_audio_tab),
-                                    icon = Icons.Default.MusicNote,
+                                    icon = PhantomIcons.MusicNote,
                                     isSelected = selectedFormatTab == 0,
                                     onClick = { selectedFormatTab = 0 },
                                     modifier = Modifier.weight(1f)
@@ -360,7 +357,7 @@ fun DownloadFormatSheet(
 
                                 FormatTabItem(
                                     title = stringResource(R.string.download_video_tab),
-                                    icon = Icons.Default.Movie,
+                                    icon = PhantomIcons.Movie,
                                     isSelected = selectedFormatTab == 1,
                                     onClick = { selectedFormatTab = 1 },
                                     modifier = Modifier.weight(1f)
@@ -573,7 +570,7 @@ fun DownloadFormatSheet(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
-                                            imageVector = Icons.Default.FolderOpen,
+                                            imageVector = PhantomIcons.FolderOpen,
                                             contentDescription = null,
                                             tint = Color.White,
                                             modifier = Modifier.size(16.dp)
@@ -798,7 +795,7 @@ private fun QualityCardItem(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.Download,
+                imageVector = PhantomIcons.Download,
                 contentDescription = stringResource(R.string.player_download),
                 tint = TextPrimary,
                 modifier = Modifier.size(15.dp)

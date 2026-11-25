@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -77,7 +77,7 @@ fun SettingsSubScreenHeader(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.action_back),
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
@@ -300,7 +300,7 @@ fun SettingsValueRow(
         if (onClick != null) {
             Spacer(modifier = Modifier.width(6.dp))
             Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = TextMuted,
                 modifier = Modifier.size(18.dp)

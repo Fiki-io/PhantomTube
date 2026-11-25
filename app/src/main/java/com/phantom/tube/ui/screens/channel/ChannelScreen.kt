@@ -33,9 +33,9 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Clear
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -402,7 +402,7 @@ fun ChannelScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Search,
+                    imageVector = Icons.Default.Search,
                     contentDescription = null,
                     tint = TextSecondary,
                     modifier = Modifier.size(18.dp)
@@ -437,7 +437,7 @@ fun ChannelScreen(
                             .testTag("channel_search_clear_btn")
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Clear,
+                            imageVector = Icons.Default.Close,
                             contentDescription = stringResource(R.string.search_clear_query),
                             tint = TextSecondary,
                             modifier = Modifier.size(18.dp)

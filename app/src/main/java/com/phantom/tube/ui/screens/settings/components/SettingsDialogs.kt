@@ -27,9 +27,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -127,7 +127,7 @@ private fun GameHubSheetHeader(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Close,
+                        imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.action_close),
                         tint = TextPrimary,
                         modifier = Modifier.size(18.dp)
@@ -216,7 +216,7 @@ fun <T> SettingsSingleChoiceDialog(
                             exit = PhantomMotion.PopScaleExit
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Check,
+                                imageVector = Icons.Default.Check,
                                 contentDescription = stringResource(R.string.player_selected),
                                 tint = TextPrimary,
                                 modifier = Modifier.size(20.dp)

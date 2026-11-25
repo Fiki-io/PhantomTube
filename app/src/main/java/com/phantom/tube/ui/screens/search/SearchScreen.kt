@@ -40,14 +40,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -606,7 +603,7 @@ fun SearchScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Clear,
+                                imageVector = Icons.Default.Close,
                                 contentDescription = stringResource(R.string.search_clear_query),
                                 tint = TextSecondary,
                                 modifier = Modifier.size(18.dp)
@@ -809,7 +806,7 @@ fun SearchScreen(
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Icon(
-                                                        imageVector = Icons.Default.NorthWest,
+                                                        imageVector = PhantomIcons.NorthWest,
                                                         contentDescription = stringResource(R.string.search_open_channel),
                                                         tint = TextMuted,
                                                         modifier = Modifier.size(16.dp)
@@ -829,7 +826,7 @@ fun SearchScreen(
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Icon(
-                                                    imageVector = if (item.isHistory) Icons.Default.History else Icons.Default.Search,
+                                                    imageVector = if (item.isHistory) PhantomIcons.History else Icons.Default.Search,
                                                     contentDescription = stringResource(if (item.isHistory) R.string.search_history_tag else R.string.search_suggestion_tag),
                                                     tint = if (item.isHistory) TextSecondary else TextMuted,
                                                     modifier = Modifier.size(18.dp)
@@ -853,7 +850,7 @@ fun SearchScreen(
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Icon(
-                                                        imageVector = Icons.Default.NorthWest,
+                                                        imageVector = PhantomIcons.NorthWest,
                                                         contentDescription = stringResource(R.string.search_insert_query),
                                                         tint = TextMuted,
                                                         modifier = Modifier.size(16.dp)
@@ -1000,7 +997,7 @@ fun SearchScreen(
                     SearchContentState.EMPTY_RESULTS -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             PhantomEmptyStateView(
-                                icon = Icons.Rounded.SearchOff,
+                                icon = PhantomIcons.SearchOff,
                                 title = stringResource(R.string.search_no_results_for, searchQuery.trim())
                             )
                         }
@@ -1021,7 +1018,7 @@ fun SearchScreen(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = Icons.Default.History,
+                                        imageVector = PhantomIcons.History,
                                         contentDescription = null,
                                         tint = TextSecondary,
                                         modifier = Modifier.size(16.dp)
@@ -1077,7 +1074,7 @@ fun SearchScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.History,
+                                            imageVector = PhantomIcons.History,
                                             contentDescription = null,
                                             tint = TextMuted,
                                             modifier = Modifier.size(18.dp)
@@ -1101,7 +1098,7 @@ fun SearchScreen(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.NorthWest,
+                                                imageVector = PhantomIcons.NorthWest,
                                                 contentDescription = stringResource(R.string.search_insert_query),
                                                 tint = TextMuted,
                                                 modifier = Modifier.size(16.dp)

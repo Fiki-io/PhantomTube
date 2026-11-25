@@ -21,10 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import android.content.Intent
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -145,7 +143,7 @@ fun PhantomVideoCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.QueueMusic,
+                            imageVector = PhantomIcons.QueueMusic,
                             contentDescription = stringResource(R.string.player_playlist_badge),
                             tint = Color.White,
                             modifier = Modifier.size(12.dp)
@@ -362,7 +360,7 @@ fun PhantomVideoCard(
                         },
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.Download,
+                                imageVector = PhantomIcons.Download,
                                 contentDescription = stringResource(R.string.player_download),
                                 tint = TextPrimary,
                                 modifier = Modifier.size(18.dp)

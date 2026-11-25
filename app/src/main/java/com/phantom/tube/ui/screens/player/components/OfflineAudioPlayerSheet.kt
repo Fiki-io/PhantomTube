@@ -29,20 +29,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import com.phantom.tube.ui.components.PhantomIcons
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.GraphicEq
 import android.widget.Toast
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.RepeatOne
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -179,7 +170,7 @@ fun OfflineAudioPlayerSheet(
                         .testTag("offline_audio_queue_btn")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.QueueMusic,
+                        imageVector = PhantomIcons.QueueMusic,
                         contentDescription = stringResource(R.string.player_mix_open_queue),
                         tint = if (showQueue) YouTubeRed else TextSecondary,
                         modifier = Modifier.size(24.dp)
@@ -216,7 +207,7 @@ fun OfflineAudioPlayerSheet(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Default.MusicNote,
+                            imageVector = PhantomIcons.MusicNote,
                             contentDescription = null,
                             tint = TextMuted,
                             modifier = Modifier.size(72.dp)
@@ -303,7 +294,7 @@ fun OfflineAudioPlayerSheet(
                         ).show()
                     }) {
                         Icon(
-                            imageVector = Icons.Default.Shuffle,
+                            imageVector = PhantomIcons.Shuffle,
                             contentDescription = stringResource(R.string.downloads_shuffle_button),
                             tint = if (isShuffle) YouTubeRed else TextMuted,
                             modifier = Modifier.size(24.dp)
@@ -318,7 +309,7 @@ fun OfflineAudioPlayerSheet(
                             .testTag("offline_audio_prev_btn")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.SkipPrevious,
+                            imageVector = PhantomIcons.SkipPrevious,
                             contentDescription = stringResource(R.string.player_prev_video),
                             tint = TextPrimary,
                             modifier = Modifier.size(32.dp)
@@ -336,7 +327,7 @@ fun OfflineAudioPlayerSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            imageVector = if (isPlaying) PhantomIcons.Pause else Icons.Default.PlayArrow,
                             contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.player_play),
                             tint = Color.White,
                             modifier = Modifier.size(36.dp)
@@ -351,7 +342,7 @@ fun OfflineAudioPlayerSheet(
                             .testTag("offline_audio_next_btn")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.SkipNext,
+                            imageVector = PhantomIcons.SkipNext,
                             contentDescription = stringResource(R.string.player_next_video),
                             tint = TextPrimary,
                             modifier = Modifier.size(32.dp)
@@ -369,7 +360,7 @@ fun OfflineAudioPlayerSheet(
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     }) {
                         Icon(
-                            imageVector = if (repeatMode == com.phantom.tube.player.offline.OfflineRepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                            imageVector = if (repeatMode == com.phantom.tube.player.offline.OfflineRepeatMode.ONE) PhantomIcons.RepeatOne else PhantomIcons.Repeat,
                             contentDescription = stringResource(R.string.downloads_repeat_all),
                             tint = if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed else TextMuted,
                             modifier = Modifier.size(24.dp)
@@ -452,7 +443,7 @@ fun OfflineAudioPlayerSheet(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.GraphicEq,
+                                                imageVector = PhantomIcons.GraphicEq,
                                                 contentDescription = null,
                                                 tint = YouTubeRed,
                                                 modifier = Modifier.size(20.dp)

@@ -16,9 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,7 +68,7 @@ fun SponsorSkipPill(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.FastForward,
+                    imageVector = PhantomIcons.FastForward,
                     contentDescription = null,
                     tint = Color(0xFFFFB142),
                     modifier = Modifier.size(16.dp)
@@ -120,7 +117,7 @@ fun SponsorSkipPill(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Undo,
+                            imageVector = PhantomIcons.Undo,
                             contentDescription = stringResource(R.string.player_cancel),
                             tint = Color.White,
                             modifier = Modifier.size(13.dp)

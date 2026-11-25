@@ -37,15 +37,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Bedtime
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.FastForward
-import androidx.compose.material.icons.rounded.Hd
-import androidx.compose.material.icons.rounded.Headphones
-import androidx.compose.material.icons.rounded.PlayCircle
-import androidx.compose.material.icons.rounded.Repeat
-import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -473,7 +466,7 @@ private fun PlayerSettingsMainPage(
                     .size(48.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Close,
+                    imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.action_close),
                     tint = TextPrimary,
                     modifier = Modifier.size(22.dp)
@@ -488,7 +481,7 @@ private fun PlayerSettingsMainPage(
         )
 
         PlayerSheetActionItem(
-            icon = Icons.Rounded.Hd,
+            icon = PhantomIcons.Hd,
             label = stringResource(R.string.player_quality),
             value = if (isAudioOnly) stringResource(R.string.settings_audio_only_player_title) else qualityLabel,
             valueAccent = !currentQuality.equals("auto", ignoreCase = true) || isAudioOnly,
@@ -501,7 +494,7 @@ private fun PlayerSettingsMainPage(
         )
 
         PlayerSheetActionItem(
-            icon = Icons.Rounded.Speed,
+            icon = PhantomIcons.Speed,
             label = stringResource(R.string.player_speed),
             value = speedLabel,
             valueAccent = kotlin.math.abs(currentSpeed - 1.0f) >= 0.01f,
@@ -514,7 +507,7 @@ private fun PlayerSettingsMainPage(
         )
 
         PlayerSheetActionItem(
-            icon = Icons.Rounded.FastForward,
+            icon = PhantomIcons.FastForward,
             label = stringResource(R.string.settings_double_tap_seek),
             value = stringResource(R.string.settings_seek_seconds, doubleTapSeekSeconds.toString()),
             valueAccent = doubleTapSeekSeconds != 10,
@@ -527,7 +520,7 @@ private fun PlayerSettingsMainPage(
         )
 
         PlayerSheetActionItem(
-            icon = Icons.Rounded.Bedtime,
+            icon = PhantomIcons.Bedtime,
             label = stringResource(R.string.settings_sleep_timer),
             value = sleepValueLabel,
             valueAccent = sleepTimerOption != SleepTimerOption.OFF,
@@ -541,7 +534,7 @@ private fun PlayerSettingsMainPage(
         )
 
         PlayerSheetToggleItem(
-            icon = Icons.Rounded.Headphones,
+            icon = PhantomIcons.Headphones,
             label = stringResource(R.string.settings_audio_only),
             subtitle = stringResource(R.string.settings_audio_only_desc),
             checked = isAudioOnly,
@@ -554,7 +547,7 @@ private fun PlayerSettingsMainPage(
         )
 
         PlayerSheetToggleItem(
-            icon = Icons.Rounded.Repeat,
+            icon = PhantomIcons.Repeat,
             label = stringResource(R.string.settings_loop_video),
             subtitle = stringResource(R.string.settings_loop_video_desc),
             checked = isLoopEnabled,
@@ -567,7 +560,7 @@ private fun PlayerSettingsMainPage(
         )
 
         PlayerSheetToggleItem(
-            icon = Icons.Rounded.PlayCircle,
+            icon = PhantomIcons.PlayCircle,
             label = stringResource(R.string.player_auto_play),
             subtitle = stringResource(R.string.settings_auto_play_next_desc),
             checked = isAutoplayNext,
