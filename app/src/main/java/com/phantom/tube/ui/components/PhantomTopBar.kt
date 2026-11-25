@@ -1,13 +1,7 @@
 package com.phantom.tube.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -32,6 +26,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -157,21 +152,22 @@ fun PhantomTopBar(
     isVisible: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val bottomPadding by animateDpAsState(
+        targetValue = if (isVisible) 6.dp else 0.dp,
+        animationSpec = IosSpringSpecs.TopBarDp,
+        label = "top_bar_bottom_padding"
+    )
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = if (isVisible) 6.dp else 0.dp)
+            .padding(bottom = bottomPadding.coerceAtLeast(0.dp))
     ) {
         PhantomStatusBarStrip()
 
         AnimatedVisibility(
             visible = isVisible,
-            enter = expandVertically(
-                animationSpec = tween(durationMillis = 200, easing = LinearOutSlowInEasing)
-            ) + fadeIn(animationSpec = tween(durationMillis = 180)),
-            exit = shrinkVertically(
-                animationSpec = tween(durationMillis = 180, easing = FastOutLinearInEasing)
-            ) + fadeOut(animationSpec = tween(durationMillis = 140))
+            enter = PhantomMotion.TopBarEnter,
+            exit = PhantomMotion.TopBarExit
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Baris Atas: Logo & Aksi

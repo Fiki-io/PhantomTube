@@ -1,5 +1,6 @@
 package com.phantom.tube.ui.screens.home
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,12 +62,15 @@ import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.PhantomErrorStateView
+import com.phantom.tube.ui.components.PhantomMotion
 import com.phantom.tube.ui.components.PhantomTopBar
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.VideoFeedSkeleton
 import com.phantom.tube.ui.screens.player.components.DownloadFormatSheet
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+
+private enum class HomeFeedUiState { LOADING, ERROR, CONTENT }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -380,25 +384,35 @@ fun HomeScreen(
                 .clipToBounds()
                 .nestedScroll(pullRefreshState.nestedScrollConnection)
         ) {
-            when {
-                isLoading -> {
-                    VideoFeedSkeleton()
-                }
-                hasError && videos.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        PhantomErrorStateView(
-                            title = stringResource(R.string.home_failed_load_video),
-                            detail = errorDetail,
-                            retryLabel = stringResource(R.string.common_retry),
-                            onRetry = { loadFeed(selectedCategory) },
-                            retryTestTag = "home_error_retry"
-                        )
+            val feedUiState = when {
+                isLoading -> HomeFeedUiState.LOADING
+                hasError && videos.isEmpty() -> HomeFeedUiState.ERROR
+                else -> HomeFeedUiState.CONTENT
+            }
+            AnimatedContent(
+                targetState = feedUiState,
+                transitionSpec = { PhantomMotion.ContentStateTransition },
+                label = "home_feed_state"
+            ) { state ->
+                when (state) {
+                    HomeFeedUiState.LOADING -> {
+                        VideoFeedSkeleton()
                     }
-                }
-                else -> {
+                    HomeFeedUiState.ERROR -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            PhantomErrorStateView(
+                                title = stringResource(R.string.home_failed_load_video),
+                                detail = errorDetail,
+                                retryLabel = stringResource(R.string.common_retry),
+                                onRetry = { loadFeed(selectedCategory) },
+                                retryTestTag = "home_error_retry"
+                            )
+                        }
+                    }
+                    HomeFeedUiState.CONTENT -> {
                     val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                         val columns = when {
@@ -476,6 +490,7 @@ fun HomeScreen(
                         }
                     }
                 }
+            }
             }
 
             if (pullRefreshState.verticalOffset > 0f || pullRefreshState.isRefreshing) {

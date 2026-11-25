@@ -21,10 +21,30 @@ val TopBarBackground = SystemStatusBarColor
 val StatusBarBezelBorderEdge = Color(0x24FFFFFF)
 val StatusBarBezelBorderCenter = Color(0x12FFFFFF)
 
-// Bubble Dock Palette (Translucent floating frosted pill)
-val BubbleDockBg = Color(0xD9161618)
+// Bubble Dock Palette (Translucent floating liquid glass pill)
+val BubbleDockBg = Color(0xCC131316)
+val BubbleDockBgBottom = Color(0xE00E0E11)
 val BubbleDockBorder = Color(0xFF2A2A2D)
+val BubbleDockTopHighlight = Color(0x42FFFFFF)
+val BubbleDockEdgeHighlight = Color(0x1AFFFFFF)
+val BubbleDockBottomRim = Color(0x0DFFFFFF)
+val BubbleDockInnerSheen = Color(0x16FFFFFF)
+val BubbleDockAmbientShadow = Color(0x7A000000)
 val BubbleDockActive = Color(0xFFF2F2F7)
+val BubblePillGlassTop = Color(0x36FFFFFF)
+val BubblePillGlassBottom = Color(0x16FFFFFF)
+val BubblePillGlassBorderTop = Color(0x4DFFFFFF)
+val BubblePillGlassBorderBottom = Color(0x14FFFFFF)
+
+// Translucent Glass Sheet & Miniplayer Palette
+val GlassSheetBgTop = Color(0xEB18181C)
+val GlassSheetBgBottom = Color(0xF6101013)
+val GlassSheetTopRim = Color(0x3BFFFFFF)
+val GlassSheetEdgeRim = Color(0x16FFFFFF)
+val GlassSheetBottomRim = Color(0x0AFFFFFF)
+val GlassSheetInnerSheen = Color(0x13FFFFFF)
+val GlassSheetScrim = Color(0x9E000000)
+val GlassHandleColor = Color(0x4DFFFFFF)
 
 // Clean dark surface tokens
 val GlassSurface = Color(0xFF242427)

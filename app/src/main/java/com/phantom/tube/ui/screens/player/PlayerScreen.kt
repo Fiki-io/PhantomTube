@@ -13,6 +13,7 @@ import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -65,6 +66,7 @@ import com.phantom.tube.player.offline.OfflineAudioPlayerManager
 import com.phantom.tube.player.service.PhantomMediaService
 import com.phantom.tube.ui.components.IosSpringSpecs
 import com.phantom.tube.ui.components.PhantomMiniPlayer
+import com.phantom.tube.ui.components.PhantomMotion
 import com.phantom.tube.ui.components.SleepTimerOption
 import com.phantom.tube.ui.screens.player.components.PlayerAmbientBackdrop
 import com.phantom.tube.ui.screens.player.components.PlayerPortraitSheetContent
@@ -87,6 +89,7 @@ fun PlayerScreen(
     isMinimized: Boolean = false,
     isInPipMode: Boolean = false,
     isBottomNavVisible: Boolean = true,
+    isBottomDockCompact: Boolean = false,
     onMinimize: () -> Unit = {},
     onExpand: () -> Unit = {},
     onClose: () -> Unit = {},
@@ -319,21 +322,25 @@ fun PlayerScreen(
             )
         }
 
+        val miniPlayerBottomPadding by animateDpAsState(
+            targetValue = when {
+                !isBottomNavVisible -> 12.dp
+                isBottomDockCompact -> 62.dp
+                else -> 80.dp
+            },
+            animationSpec = IosSpringSpecs.DockMorphDp,
+            label = "mini_player_bottom_padding"
+        )
+
         AnimatedVisibility(
             visible = isMinimized && !isInPipMode && !isFloatingMiniPlayer,
-            enter = slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = IosSpringSpecs.GentleOffset
-            ) + fadeIn(animationSpec = tween(200)),
-            exit = slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = IosSpringSpecs.GentleOffset
-            ) + fadeOut(animationSpec = tween(160)),
+            enter = PhantomMotion.MiniPlayerEnter,
+            exit = PhantomMotion.MiniPlayerExit,
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = if (isBottomNavVisible) 76.dp else 12.dp)
+                .padding(bottom = miniPlayerBottomPadding.coerceAtLeast(0.dp))
                 .zIndex(20f)
         ) {
             PhantomMiniPlayer(

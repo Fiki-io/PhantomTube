@@ -1,7 +1,7 @@
 package com.phantom.tube.ui.screens.history
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -61,6 +61,8 @@ import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.PhantomEmptyStateView
 import com.phantom.tube.ui.components.PhantomIconButton
+import com.phantom.tube.ui.components.PhantomMotion
+import com.phantom.tube.ui.components.iosBounceClick
 import com.phantom.tube.ui.screens.settings.components.SettingsConfirmDialog
 import kotlinx.coroutines.launch
 
@@ -124,52 +126,57 @@ fun HistoryScreen(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
         ) {
-            if (historyList.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    PhantomEmptyStateView(
-                        icon = Icons.Default.History,
-                        title = stringResource(R.string.empty_history)
-                    )
-                }
-            } else {
-                val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                    val columns = if (maxWidth >= 600.dp) 2 else 1
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(columns),
+            AnimatedContent(
+                targetState = historyList.isEmpty(),
+                transitionSpec = { PhantomMotion.ContentStateTransition },
+                label = "history_content_state"
+            ) { isEmpty ->
+                if (isEmpty) {
+                    Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(top = 4.dp, bottom = bottomNavInset + 140.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        contentAlignment = Alignment.Center
                     ) {
-                        itemsIndexed(
-                            items = historyList,
-                            key = { index, entry -> "hist_${entry.videoId}_$index" },
-                            contentType = { _, _ -> "history_card" }
-                        ) { _, entry ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("history_item_${entry.videoId}")
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        onVideoClick(
-                                            VideoItem(
-                                                id = entry.videoId,
-                                                title = entry.title,
-                                                channelTitle = entry.channelTitle,
-                                                channelId = entry.channelId,
-                                                thumbnailUrl = entry.thumbnailUrl,
-                                                durationText = entry.durationText
+                        PhantomEmptyStateView(
+                            icon = Icons.Default.History,
+                            title = stringResource(R.string.empty_history)
+                        )
+                    }
+                } else {
+                    val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        val columns = if (maxWidth >= 600.dp) 2 else 1
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(columns),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = 4.dp, bottom = bottomNavInset + 140.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            itemsIndexed(
+                                items = historyList,
+                                key = { index, entry -> "hist_${entry.videoId}_$index" },
+                                contentType = { _, _ -> "history_card" }
+                            ) { _, entry ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("history_item_${entry.videoId}")
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .iosBounceClick(scaleDown = 0.975f, alphaDown = 0.95f) {
+                                            onVideoClick(
+                                                VideoItem(
+                                                    id = entry.videoId,
+                                                    title = entry.title,
+                                                    channelTitle = entry.channelTitle,
+                                                    channelId = entry.channelId,
+                                                    thumbnailUrl = entry.thumbnailUrl,
+                                                    durationText = entry.durationText
+                                                )
                                             )
-                                        )
-                                    }
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                                        }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                 // Thumbnail with Resume Progress Indicator
                                 Box(
                                     modifier = Modifier
@@ -246,6 +253,7 @@ fun HistoryScreen(
                         }
                     }
                 }
+            }
             }
         }
     }

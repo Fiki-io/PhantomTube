@@ -80,9 +80,11 @@ import androidx.compose.ui.unit.sp
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.GlassBorderDim
 import com.phantom.tube.core.theme.GlassBorderLight
+import com.phantom.tube.core.theme.GlassHandleColor
+import com.phantom.tube.core.theme.GlassSheetScrim
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
-import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.phantomGlassSheet
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -165,7 +167,7 @@ fun PlayerSettingsSheet(
                 dragOffsetY.snapTo(total)
                 dragOffsetY.animateTo(
                     targetValue = 0f,
-                    animationSpec = IosSpringSpecs.Gentle
+                    animationSpec = IosSpringSpecs.SheetSpringFloat
                 )
             }
         }
@@ -221,34 +223,28 @@ fun PlayerSettingsSheet(
                 scope.launch(start = CoroutineStart.UNDISPATCHED) {
                     rawDragOffsetY = 0f
                     dragOffsetY.snapTo(total)
-                    dragOffsetY.animateTo(0f, IosSpringSpecs.Gentle)
+                    dragOffsetY.animateTo(0f, IosSpringSpecs.SheetSpringFloat)
                 }
             }
         )
     }
 
     val sheetEnterTransition = if (isFullscreen) {
-        slideInHorizontally(
-            initialOffsetX = { it },
-            animationSpec = IosSpringSpecs.GentleOffset
-        )
+        PhantomMotion.SheetSideEnter
     } else {
         PhantomMotion.SheetSlideEnter
     }
 
     val sheetExitTransition = if (isFullscreen) {
-        slideOutHorizontally(
-            targetOffsetX = { it },
-            animationSpec = IosSpringSpecs.GentleOffset
-        )
+        PhantomMotion.SheetSideExit
     } else {
         PhantomMotion.SheetSlideExit
     }
 
     AnimatedVisibility(
         visibleState = transitionState,
-        enter = fadeIn(tween(180)),
-        exit = fadeOut(tween(150)),
+        enter = PhantomMotion.SheetScrimEnter,
+        exit = PhantomMotion.SheetScrimExit,
         modifier = modifier.fillMaxSize()
     ) {
         val screenHeightDp = configuration.screenHeightDp.dp
@@ -259,7 +255,7 @@ fun PlayerSettingsSheet(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.62f))
+                .background(GlassSheetScrim)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -293,13 +289,12 @@ fun PlayerSettingsSheet(
                                 .heightIn(max = maxPortraitSheetHeight)
                         }
                     )
-                    .clip(sheetShape)
-                    .border(0.75.dp, GlassBorderLight, sheetShape)
+                    .phantomGlassSheet(shape = sheetShape)
                     .pointerInput(Unit) {
                         detectTapGestures { /* Consume surface tap */ }
                     }
                     .nestedScroll(nestedScrollConnection),
-                color = YouTubeSurface,
+                color = Color.Transparent,
                 shape = sheetShape
             ) {
                 Column(
@@ -317,7 +312,7 @@ fun PlayerSettingsSheet(
                                 .width(38.dp)
                                 .height(4.dp)
                                 .clip(CircleShape)
-                                .background(TextMuted.copy(alpha = 0.45f))
+                                .background(GlassHandleColor)
                         )
                     }
 

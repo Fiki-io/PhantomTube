@@ -1,5 +1,6 @@
 package com.phantom.tube.ui.screens.player.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,7 +23,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,13 +46,14 @@ import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import com.phantom.tube.core.image.PhantomAsyncImage
 import com.phantom.tube.core.image.PhantomImageRequest
-import com.phantom.tube.core.theme.CardBorder
+import com.phantom.tube.core.theme.MediaPlaceholderBg
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
-import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.phantomGlassSurface
 import com.phantom.tube.player.offline.OfflineAudioPlayerManager
+import com.phantom.tube.ui.components.PhantomMotion
+import com.phantom.tube.ui.components.iosBounceClick
 
 @Composable
 fun OfflineMiniPlayer(
@@ -72,9 +73,7 @@ fun OfflineMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(YouTubeSurface)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+            .phantomGlassSurface(shape = RoundedCornerShape(16.dp))
             .clickable { showFullSheet = true }
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -89,7 +88,7 @@ fun OfflineMiniPlayer(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF181818)),
+                        .background(MediaPlaceholderBg),
                     contentAlignment = Alignment.Center
                 ) {
                     if (track.thumbnailUrl.isNotBlank()) {
@@ -137,23 +136,39 @@ fun OfflineMiniPlayer(
                     )
                 }
 
-                // Play / Pause Button
-                IconButton(
-                    onClick = { OfflineAudioPlayerManager.togglePlayPause(context) },
-                    modifier = Modifier.size(48.dp)
+                // Play / Pause Button (48.dp touch target)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .iosBounceClick(scaleDown = 0.88f) {
+                            OfflineAudioPlayerManager.togglePlayPause(context)
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
-                        tint = TextPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    AnimatedContent(
+                        targetState = isPlaying,
+                        transitionSpec = { PhantomMotion.IconSwapTransition },
+                        label = "offline_play_pause_icon"
+                    ) { playing ->
+                        Icon(
+                            imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (playing) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
+                            tint = TextPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
 
-                // Next Button
-                IconButton(
-                    onClick = { OfflineAudioPlayerManager.playNext(context) },
-                    modifier = Modifier.size(48.dp)
+                // Next Button (48.dp touch target)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .iosBounceClick(scaleDown = 0.88f) {
+                            OfflineAudioPlayerManager.playNext(context)
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
@@ -163,10 +178,15 @@ fun OfflineMiniPlayer(
                     )
                 }
 
-                // Close Button
-                IconButton(
-                    onClick = { OfflineAudioPlayerManager.stop(context) },
-                    modifier = Modifier.size(48.dp)
+                // Close Button (48.dp touch target)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .iosBounceClick(scaleDown = 0.85f) {
+                            OfflineAudioPlayerManager.stop(context)
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,

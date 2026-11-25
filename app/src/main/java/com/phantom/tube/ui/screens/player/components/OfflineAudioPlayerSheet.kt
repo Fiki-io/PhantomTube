@@ -76,6 +76,7 @@ import com.phantom.tube.R
 import com.phantom.tube.core.image.PhantomAsyncImage
 import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.core.theme.CardBorder
+import com.phantom.tube.core.theme.GlassSheetScrim
 import com.phantom.tube.core.theme.GlassSurface
 import com.phantom.tube.core.theme.MediaPlaceholderBg
 import com.phantom.tube.core.theme.OverlayTrackSubtle
@@ -84,6 +85,7 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.phantomGlassSheet
 import com.phantom.tube.player.offline.OfflineAudioPlayerManager
 import java.util.Locale
 
@@ -115,18 +117,21 @@ fun OfflineAudioPlayerSheet(
 
     val track = currentTrack ?: return
 
+    val sheetShape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = YouTubeSurface,
+        containerColor = Color.Transparent,
+        scrimColor = GlassSheetScrim,
         tonalElevation = 0.dp,
         windowInsets = WindowInsets(0, 0, 0, 0),
         dragHandle = null,
-        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
+        shape = sheetShape
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .phantomGlassSheet(shape = sheetShape)
                 .then(if (!showQueue) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 .navigationBarsPadding()
                 .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 28.dp),

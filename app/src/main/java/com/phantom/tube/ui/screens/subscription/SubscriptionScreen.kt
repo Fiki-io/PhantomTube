@@ -1,10 +1,9 @@
 package com.phantom.tube.ui.screens.subscription
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -81,8 +80,10 @@ import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.PhantomEmptyStateView
+import com.phantom.tube.ui.components.PhantomMotion
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.VideoCardSkeleton
+import com.phantom.tube.ui.components.iosBounceClick
 import com.phantom.tube.ui.screens.player.components.DownloadFormatSheet
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -203,10 +204,10 @@ fun SubscriptionScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp)
                 .testTag("subs_downloads_shortcut")
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(14.dp))
                 .background(CardBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                .clickable(onClick = onDownloadsClick)
+                .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                .iosBounceClick(scaleDown = 0.98f, onClick = onDownloadsClick)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -255,29 +256,35 @@ fun SubscriptionScreen(
         Spacer(modifier = Modifier.height(6.dp))
 
 
-        if (subscriptions.isEmpty() && favorites.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                PhantomEmptyStateView(
-                    icon = Icons.Default.Subscriptions,
-                    title = stringResource(R.string.empty_subscriptions_title),
-                    subtitle = stringResource(R.string.empty_subscriptions_desc),
-                    actionLabel = stringResource(R.string.explore_home),
-                    actionIcon = Icons.Default.Explore,
-                    onActionClick = onExploreClick,
-                    actionTestTag = "subs_explore_home_btn"
-                )
-            }
-        } else {
-            val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clipToBounds()
-                    .nestedScroll(pullRefreshState.nestedScrollConnection)
-            ) {
+        AnimatedContent(
+            targetState = subscriptions.isEmpty() && favorites.isEmpty(),
+            transitionSpec = { PhantomMotion.ContentStateTransition },
+            label = "subscriptions_content_state",
+            modifier = Modifier.fillMaxSize()
+        ) { isLibraryEmpty ->
+            if (isLibraryEmpty) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    PhantomEmptyStateView(
+                        icon = Icons.Default.Subscriptions,
+                        title = stringResource(R.string.empty_subscriptions_title),
+                        subtitle = stringResource(R.string.empty_subscriptions_desc),
+                        actionLabel = stringResource(R.string.explore_home),
+                        actionIcon = Icons.Default.Explore,
+                        onActionClick = onExploreClick,
+                        actionTestTag = "subs_explore_home_btn"
+                    )
+                }
+            } else {
+                val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clipToBounds()
+                        .nestedScroll(pullRefreshState.nestedScrollConnection)
+                ) {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                     val columns = when {
                         maxWidth >= 840.dp -> 3
@@ -309,11 +316,9 @@ fun SubscriptionScreen(
                                             modifier = Modifier
                                                 .width(64.dp)
                                                 .testTag("sub_channel_${sub.channelId}")
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null,
-                                                    onClick = { onChannelClick(sub.channelId, sub.channelTitle) }
-                                                )
+                                                .iosBounceClick(scaleDown = 0.90f) {
+                                                    onChannelClick(sub.channelId, sub.channelTitle)
+                                                }
                                         ) {
                                             Box(
                                                 modifier = Modifier
@@ -473,6 +478,7 @@ fun SubscriptionScreen(
                     )
                 }
             }
+        }
         }
     }
 

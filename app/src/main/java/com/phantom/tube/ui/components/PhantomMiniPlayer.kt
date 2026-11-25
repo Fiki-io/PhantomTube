@@ -1,5 +1,6 @@
 package com.phantom.tube.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -53,13 +54,12 @@ import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
 import com.phantom.tube.core.image.PhantomAsyncImage
 import com.phantom.tube.core.image.PhantomImageRequest
-import com.phantom.tube.core.theme.ControlBorderSubtle
 import com.phantom.tube.core.theme.MiniMediaPlaceholderBg
 import com.phantom.tube.core.theme.OverlayButtonTint
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
-import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.phantomGlassSurface
 import com.phantom.tube.data.model.VideoItem
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
@@ -175,9 +175,7 @@ fun PhantomMiniPlayer(
                     }
                 )
             }
-            .clip(RoundedCornerShape(12.dp))
-            .background(YouTubeSurface)
-            .border(1.dp, ControlBorderSubtle, RoundedCornerShape(12.dp))
+            .phantomGlassSurface(shape = RoundedCornerShape(16.dp))
             .testTag("miniplayer_root")
             .clickable(onClick = onExpand)
     ) {
@@ -271,12 +269,18 @@ fun PhantomMiniPlayer(
                             .background(OverlayButtonTint),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.player_play),
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        AnimatedContent(
+                            targetState = isPlaying,
+                            transitionSpec = { PhantomMotion.IconSwapTransition },
+                            label = "miniplayer_play_pause_icon"
+                        ) { playing ->
+                            Icon(
+                                imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = stringResource(if (playing) R.string.player_pause else R.string.player_play),
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
 

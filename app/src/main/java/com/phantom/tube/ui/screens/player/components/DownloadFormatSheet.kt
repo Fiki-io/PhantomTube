@@ -79,11 +79,14 @@ import com.phantom.tube.R
 import androidx.compose.ui.unit.sp
 import com.phantom.tube.core.image.PhantomAsyncImage
 import com.phantom.tube.core.image.PhantomImageRequest
+import com.phantom.tube.core.theme.GlassHandleColor
+import com.phantom.tube.core.theme.GlassSheetScrim
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.theme.phantomGlassSheet
 import com.phantom.tube.data.download.AvailableQuality
 import com.phantom.tube.data.download.DownloadState
 import com.phantom.tube.data.download.PhantomDownloadEngine
@@ -168,32 +171,40 @@ fun DownloadFormatSheet(
         )
     }
 
+    val sheetShape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = com.phantom.tube.core.theme.YouTubeSurface,
+        containerColor = Color.Transparent,
+        scrimColor = GlassSheetScrim,
         contentColor = TextPrimary,
         tonalElevation = 0.dp,
         windowInsets = WindowInsets(0, 0, 0, 0),
-        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 10.dp)
-                    .width(36.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(Color(0xFF3F3F3F))
-            )
-        }
+        shape = sheetShape,
+        dragHandle = null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .phantomGlassSheet(shape = sheetShape)
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 28.dp)
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(38.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(GlassHandleColor)
+                )
+            }
             // HEADER BAR
             Row(
                 modifier = Modifier.fillMaxWidth(),

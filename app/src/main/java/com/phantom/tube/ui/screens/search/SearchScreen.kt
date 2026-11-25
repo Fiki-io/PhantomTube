@@ -3,13 +3,7 @@ package com.phantom.tube.ui.screens.search
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import com.phantom.tube.ui.components.PhantomMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -612,12 +606,8 @@ fun SearchScreen(
 
         AnimatedVisibility(
             visible = hasSearched && isFilterBarVisible,
-            enter = expandVertically(
-                animationSpec = tween(durationMillis = 200, easing = LinearOutSlowInEasing)
-            ) + fadeIn(animationSpec = tween(durationMillis = 180)),
-            exit = shrinkVertically(
-                animationSpec = tween(durationMillis = 180, easing = FastOutLinearInEasing)
-            ) + fadeOut(animationSpec = tween(durationMillis = 140))
+            enter = PhantomMotion.TopBarEnter,
+            exit = PhantomMotion.TopBarExit
         ) {
             val filterScrollState = rememberScrollState()
             Row(

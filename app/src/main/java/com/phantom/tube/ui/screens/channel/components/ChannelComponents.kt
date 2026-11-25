@@ -1,23 +1,26 @@
 package com.phantom.tube.ui.screens.channel.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -53,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -60,14 +64,21 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.phantom.tube.core.image.PhantomAsyncImage
 import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.R
+import com.phantom.tube.core.theme.BubblePillGlassBorderBottom
+import com.phantom.tube.core.theme.BubblePillGlassBorderTop
+import com.phantom.tube.core.theme.BubblePillGlassBottom
+import com.phantom.tube.core.theme.BubblePillGlassTop
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.GlassBorderDim
 import com.phantom.tube.core.theme.GlassBorderLight
+import com.phantom.tube.core.theme.GlassHandleColor
+import com.phantom.tube.core.theme.GlassSheetScrim
 import com.phantom.tube.core.theme.GlassSurface
 import com.phantom.tube.core.theme.OverlayBadgeScrim
 import com.phantom.tube.core.theme.TextMuted
@@ -76,9 +87,15 @@ import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.phantomGlassSheet
+import com.phantom.tube.core.theme.phantomGlassSurface
 import com.phantom.tube.data.model.ChannelProfile
 import com.phantom.tube.data.model.VideoItem
+import com.phantom.tube.ui.components.IosSpringSpecs
+import com.phantom.tube.ui.components.PhantomMotion
 import com.phantom.tube.ui.components.iosBounceClick
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 enum class ChannelTabType(val labelRes: Int) {
     HOME(R.string.channel_tab_home),
@@ -108,13 +125,15 @@ fun ChannelTopBar(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(
-            onClick = {
-                if (isSearchActive) onToggleSearch() else onBack()
-            },
+        Box(
             modifier = Modifier
                 .size(48.dp)
+                .clip(CircleShape)
                 .testTag("channel_back_btn")
+                .iosBounceClick(scaleDown = 0.88f) {
+                    if (isSearchActive) onToggleSearch() else onBack()
+                },
+            contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
@@ -143,11 +162,13 @@ fun ChannelTopBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        IconButton(
-            onClick = onToggleSearch,
+        Box(
             modifier = Modifier
                 .size(48.dp)
+                .clip(CircleShape)
                 .testTag("channel_search_btn")
+                .iosBounceClick(scaleDown = 0.88f, onClick = onToggleSearch),
+            contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
@@ -156,19 +177,27 @@ fun ChannelTopBar(
                     .background(GlassSurface),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = if (isSearchActive) Icons.Rounded.Close else Icons.Rounded.Search,
-                    contentDescription = stringResource(R.string.search_hint),
-                    tint = TextPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
+                AnimatedContent(
+                    targetState = isSearchActive,
+                    transitionSpec = { PhantomMotion.IconSwapTransition },
+                    label = "channel_search_icon"
+                ) { active ->
+                    Icon(
+                        imageVector = if (active) Icons.Rounded.Close else Icons.Rounded.Search,
+                        contentDescription = stringResource(R.string.search_hint),
+                        tint = TextPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
-        IconButton(
-            onClick = onShareChannel,
+        Box(
             modifier = Modifier
                 .size(48.dp)
+                .clip(CircleShape)
                 .testTag("channel_share_btn")
+                .iosBounceClick(scaleDown = 0.88f, onClick = onShareChannel),
+            contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
@@ -361,12 +390,12 @@ fun ChannelHeaderSection(
 
         val subBgColor by animateColorAsState(
             targetValue = if (isSubscribed) GlassSurface else Color.White,
-            animationSpec = tween(200),
+            animationSpec = IosSpringSpecs.ColorFade,
             label = "sub_btn_bg"
         )
         val subTextColor by animateColorAsState(
             targetValue = if (isSubscribed) TextPrimary else Color.Black,
-            animationSpec = tween(200),
+            animationSpec = IosSpringSpecs.ColorFade,
             label = "sub_btn_txt"
         )
 
@@ -392,12 +421,18 @@ fun ChannelHeaderSection(
                 contentAlignment = Alignment.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = if (isSubscribed) Icons.Rounded.NotificationsActive else Icons.Rounded.Check,
-                        contentDescription = null,
-                        tint = subTextColor,
-                        modifier = Modifier.size(17.dp)
-                    )
+                    AnimatedContent(
+                        targetState = isSubscribed,
+                        transitionSpec = { PhantomMotion.IconSwapTransition },
+                        label = "channel_sub_icon"
+                    ) { subscribed ->
+                        Icon(
+                            imageVector = if (subscribed) Icons.Rounded.NotificationsActive else Icons.Rounded.Check,
+                            contentDescription = null,
+                            tint = subTextColor,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (isSubscribed) {
@@ -422,47 +457,89 @@ fun ChannelTabBar(
     selectedTab: ChannelTabType,
     onSelectTab: (ChannelTabType) -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
+    if (tabs.isEmpty()) return
+    val activeIndex = tabs.indexOf(selectedTab).coerceAtLeast(0)
+    val trackShape = remember { RoundedCornerShape(26.dp) }
+    val pillShape = remember { RoundedCornerShape(22.dp) }
+    val activePillBrush = remember {
+        Brush.verticalGradient(colors = listOf(BubblePillGlassTop, BubblePillGlassBottom))
+    }
+    val activePillBorderBrush = remember {
+        Brush.verticalGradient(colors = listOf(BubblePillGlassBorderTop, BubblePillGlassBorderBottom))
+    }
+
+    val animatedIndex by animateFloatAsState(
+        targetValue = activeIndex.toFloat(),
+        animationSpec = IosSpringSpecs.DockPillGlide,
+        label = "channel_tab_pill_pos"
+    )
+    val travelStretch = abs(activeIndex.toFloat() - animatedIndex).coerceIn(0f, 1f)
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .widthIn(max = 520.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .height(48.dp)
+                .phantomGlassSurface(shape = trackShape, shadowElevation = 6.dp)
+                .padding(horizontal = 4.dp, vertical = 3.dp)
         ) {
-            tabs.forEach { tab ->
-                val isSelected = tab == selectedTab
-                val bgColor by animateColorAsState(
-                    targetValue = if (isSelected) Color.White else GlassSurface,
-                    animationSpec = tween(180),
-                    label = "ch_tab_bg"
-                )
-                val txtColor by animateColorAsState(
-                    targetValue = if (isSelected) Color.Black else TextSecondary,
-                    animationSpec = tween(180),
-                    label = "ch_tab_txt"
-                )
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val totalWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
+                val tabWidthPx = totalWidthPx / tabs.size
+
                 Box(
                     modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(bgColor)
-                        .border(
-                            width = if (isSelected) 0.dp else 1.dp,
-                            color = if (isSelected) Color.Transparent else GlassBorderLight,
-                            shape = RoundedCornerShape(24.dp)
-                        )
-                        .clickable { onSelectTab(tab) }
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center
+                        .offset { IntOffset((animatedIndex * tabWidthPx).roundToInt(), 0) }
+                        .width(maxWidth / tabs.size)
+                        .fillMaxHeight()
+                        .padding(horizontal = 2.dp, vertical = 1.dp)
+                        .graphicsLayer {
+                            scaleX = 1f + (travelStretch * 0.10f)
+                            scaleY = 1f - (travelStretch * 0.06f)
+                        }
+                        .clip(pillShape)
+                        .background(activePillBrush)
+                        .border(0.75.dp, activePillBorderBrush, pillShape)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = stringResource(tab.labelRes),
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                        ),
-                        color = txtColor
-                    )
+                    tabs.forEach { tab ->
+                        val isSelected = tab == selectedTab
+                        val txtColor by animateColorAsState(
+                            targetValue = if (isSelected) TextPrimary else TextSecondary,
+                            animationSpec = IosSpringSpecs.ColorFade,
+                            label = "ch_tab_txt"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clip(pillShape)
+                                .testTag("channel_tab_${tab.name.lowercase()}")
+                                .iosBounceClick(scaleDown = 0.94f) {
+                                    onSelectTab(tab)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(tab.labelRes),
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                color = txtColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -486,17 +563,32 @@ fun ChannelSortFilterBar(
     ) {
         ChannelSortOrder.entries.forEach { order ->
             val isSelected = order == selectedSort
+            val bgColor by animateColorAsState(
+                targetValue = if (isSelected) YouTubeRed.copy(alpha = 0.16f) else GlassSurface,
+                animationSpec = IosSpringSpecs.ColorFade,
+                label = "ch_sort_bg"
+            )
+            val borderColor by animateColorAsState(
+                targetValue = if (isSelected) YouTubeRed else GlassBorderLight,
+                animationSpec = IosSpringSpecs.ColorFade,
+                label = "ch_sort_border"
+            )
+            val txtColor by animateColorAsState(
+                targetValue = if (isSelected) YouTubeRed else TextSecondary,
+                animationSpec = IosSpringSpecs.ColorFade,
+                label = "ch_sort_txt"
+            )
             Box(
                 modifier = Modifier
                     .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (isSelected) YouTubeRed.copy(alpha = 0.16f) else GlassSurface)
+                    .background(bgColor)
                     .border(
                         width = 1.dp,
-                        color = if (isSelected) YouTubeRed else GlassBorderLight,
+                        color = borderColor,
                         shape = RoundedCornerShape(12.dp)
                     )
-                    .clickable { onSelectSort(order) }
+                    .iosBounceClick(scaleDown = 0.94f) { onSelectSort(order) }
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -505,7 +597,7 @@ fun ChannelSortFilterBar(
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     ),
-                    color = if (isSelected) YouTubeRed else TextSecondary
+                    color = txtColor
                 )
             }
         }
@@ -723,21 +815,38 @@ fun ChannelAboutBottomSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetShape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = YouTubeSurface,
+        containerColor = Color.Transparent,
+        scrimColor = GlassSheetScrim,
         tonalElevation = 0.dp,
         windowInsets = WindowInsets(0, 0, 0, 0),
-        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
+        dragHandle = null,
+        shape = sheetShape
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .phantomGlassSheet(shape = sheetShape)
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(bottom = 28.dp)
+                .padding(top = 10.dp, bottom = 28.dp)
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 38.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(GlassHandleColor)
+                )
+            }
             ChannelAboutCard(
                 profile = profile,
                 onChannelClick = onChannelClick,

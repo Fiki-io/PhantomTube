@@ -1,5 +1,6 @@
 package com.phantom.tube.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -29,7 +30,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,9 +55,9 @@ import com.phantom.tube.core.image.PhantomImageRequest
 import com.phantom.tube.R
 import com.phantom.tube.PhantomApp
 import com.phantom.tube.core.theme.ControlSurfaceMuted
+import com.phantom.tube.core.theme.GlassSheetBgTop
+import com.phantom.tube.core.theme.GlassSheetTopRim
 import com.phantom.tube.core.theme.MediaPlaceholderBg
-import com.phantom.tube.core.theme.MenuBorderSubtle
-import com.phantom.tube.core.theme.MenuSurfaceDark
 import com.phantom.tube.core.theme.OverlayBadgeScrim
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -184,16 +184,21 @@ fun PhantomVideoCard(
 
             // Real Watch Progress Bar from SQLite history
             if (progressFraction > 0f) {
+                val animatedProgress by animateFloatAsState(
+                    targetValue = progressFraction.coerceIn(0f, 1f),
+                    animationSpec = IosSpringSpecs.Gentle,
+                    label = "video_card_progress"
+                )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(3.dp)
                         .align(Alignment.BottomCenter)
-                        .background(Color(0x66000000))
+                        .background(OverlayBadgeScrim)
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(fraction = progressFraction.coerceIn(0f, 1f))
+                            .fillMaxWidth(fraction = animatedProgress.coerceIn(0f, 1f))
                             .fillMaxHeight()
                             .background(YouTubeRed)
                     )
@@ -318,17 +323,19 @@ fun PhantomVideoCard(
             }
 
             Box {
-                IconButton(
-                    onClick = {
-                        if (onMoreClick != null) {
-                            onMoreClick()
-                        } else {
-                            showMenu = true
-                        }
-                    },
+                Box(
                     modifier = Modifier
                         .size(48.dp)
+                        .clip(CircleShape)
                         .testTag("video_more_${video.id}")
+                        .iosBounceClick(scaleDown = 0.86f) {
+                            if (onMoreClick != null) {
+                                onMoreClick()
+                            } else {
+                                showMenu = true
+                            }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
@@ -342,8 +349,8 @@ fun PhantomVideoCard(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false },
                     modifier = Modifier
-                        .background(MenuSurfaceDark)
-                        .border(1.dp, MenuBorderSubtle, RoundedCornerShape(8.dp))
+                        .background(GlassSheetBgTop)
+                        .border(0.85.dp, GlassSheetTopRim, RoundedCornerShape(12.dp))
                 ) {
                     DropdownMenuItem(
                         text = {

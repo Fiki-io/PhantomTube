@@ -1,5 +1,6 @@
 package com.phantom.tube.ui.screens.player.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -36,6 +37,7 @@ import com.phantom.tube.R
 import com.phantom.tube.core.theme.OverlayControlScrim
 import com.phantom.tube.core.theme.OverlayTrackSubtle
 import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.ui.components.PhantomMotion
 import com.phantom.tube.ui.components.iosBounceClick
 
 /**
@@ -151,12 +153,18 @@ fun BoxScope.FloatingMiniPlayerOverlay(
                     .background(OverlayControlScrim),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = stringResource(if (isPlaying) R.string.player_pause else R.string.player_play),
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
+                AnimatedContent(
+                    targetState = isPlaying,
+                    transitionSpec = { PhantomMotion.IconSwapTransition },
+                    label = "floating_play_pause_icon"
+                ) { playing ->
+                    Icon(
+                        imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = stringResource(if (playing) R.string.player_pause else R.string.player_play),
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
 

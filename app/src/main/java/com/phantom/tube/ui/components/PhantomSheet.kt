@@ -29,7 +29,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,11 +57,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.phantom.tube.R
 import com.phantom.tube.core.theme.GlassBorderDim
-import com.phantom.tube.core.theme.GlassBorderLight
+import com.phantom.tube.core.theme.GlassHandleColor
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.phantomGlassSheet
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -119,7 +118,7 @@ fun PhantomAnchoredPlayerSheet(
                 dragOffsetY.snapTo(total)
                 dragOffsetY.animateTo(
                     targetValue = 0f,
-                    animationSpec = IosSpringSpecs.Gentle
+                    animationSpec = IosSpringSpecs.SheetSpringFloat
                 )
             }
         }
@@ -175,7 +174,7 @@ fun PhantomAnchoredPlayerSheet(
                 scope.launch(start = CoroutineStart.UNDISPATCHED) {
                     rawDragOffsetY = 0f
                     dragOffsetY.snapTo(total)
-                    dragOffsetY.animateTo(0f, IosSpringSpecs.Gentle)
+                    dragOffsetY.animateTo(0f, IosSpringSpecs.SheetSpringFloat)
                 }
             }
         )
@@ -202,15 +201,13 @@ fun PhantomAnchoredPlayerSheet(
                     exit = PhantomMotion.SheetSlideExit,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    val sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                    val sheetShape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
 
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .offset { IntOffset(0, currentOffset().roundToInt()) }
-                            .clip(sheetShape)
-                            .background(YouTubeSurface)
-                            .border(0.75.dp, GlassBorderLight, sheetShape)
+                            .phantomGlassSheet(shape = sheetShape)
                             .pointerInput(Unit) {
                                 detectTapGestures { /* Consume tap on sheet surface */ }
                             }
@@ -237,7 +234,7 @@ fun PhantomAnchoredPlayerSheet(
                                         modifier = Modifier
                                             .size(width = 38.dp, height = 4.dp)
                                             .clip(CircleShape)
-                                            .background(TextMuted.copy(alpha = 0.45f))
+                                            .background(GlassHandleColor)
                                     )
                                 }
 
@@ -279,11 +276,13 @@ fun PhantomAnchoredPlayerSheet(
                                         }
                                     }
 
-                                    IconButton(
-                                        onClick = onDismiss,
+                                    Box(
                                         modifier = Modifier
                                             .size(48.dp)
+                                            .clip(CircleShape)
                                             .testTag("sheet_close_btn")
+                                            .iosBounceClick(scaleDown = 0.86f, onClick = onDismiss),
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.Close,

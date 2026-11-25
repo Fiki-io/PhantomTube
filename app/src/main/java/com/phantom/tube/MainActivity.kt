@@ -11,14 +11,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,6 +28,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalConfiguration
@@ -46,11 +44,12 @@ import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.PhantomTheme
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.ui.components.BubbleBottomNav
+import com.phantom.tube.ui.components.IosSpringSpecs
 import com.phantom.tube.ui.components.NavTab
+import com.phantom.tube.ui.components.PhantomMotion
 import com.phantom.tube.ui.screens.history.HistoryScreen
 import com.phantom.tube.ui.screens.home.HomeScreen
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import android.widget.Toast
@@ -253,6 +252,47 @@ class MainActivity : ComponentActivity() {
 
                 val isFullPlayerCovering = activeVideo != null && !isPlayerMinimized
                 val isAnyOverlayOpen = activeChannelId != null || isSettingsOpen || isDownloadsOpen || isFullPlayerCovering
+                var isDockCompact by remember { mutableStateOf(false) }
+
+                LaunchedEffect(pagerState.currentPage, isAnyOverlayOpen) {
+                    isDockCompact = false
+                }
+
+                val dockScrollConnection = remember {
+                    object : NestedScrollConnection {
+                        private var accumulatedDeltaY = 0f
+
+                        override fun onPostScroll(
+                            consumed: Offset,
+                            available: Offset,
+                            source: NestedScrollSource
+                        ): Offset {
+                            val threshold = PhantomMotion.DockScrollThresholdPx
+                            when {
+                                consumed.y < -0.5f -> {
+                                    accumulatedDeltaY = if (accumulatedDeltaY > 0f) consumed.y else accumulatedDeltaY + consumed.y
+                                    if (accumulatedDeltaY <= -threshold) {
+                                        if (!isDockCompact) isDockCompact = true
+                                        accumulatedDeltaY = 0f
+                                    }
+                                }
+                                consumed.y > 0.5f -> {
+                                    accumulatedDeltaY = if (accumulatedDeltaY < 0f) consumed.y else accumulatedDeltaY + consumed.y
+                                    if (accumulatedDeltaY >= threshold) {
+                                        if (isDockCompact) isDockCompact = false
+                                        accumulatedDeltaY = 0f
+                                    }
+                                }
+                                consumed.y == 0f && available.y > threshold && isDockCompact -> {
+                                    isDockCompact = false
+                                    accumulatedDeltaY = 0f
+                                }
+                            }
+                            return Offset.Zero
+                        }
+                    }
+                }
+
                 val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
                 val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 
@@ -294,7 +334,9 @@ class MainActivity : ComponentActivity() {
                     // 1. BASE SCREEN TABS (Always active in background, edge-to-edge, swipeable)
                     HorizontalPager(
                         state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .nestedScroll(dockScrollConnection),
                         key = { page -> navTabs[page].name },
                         beyondBoundsPageCount = 0,
                         userScrollEnabled = !isAnyOverlayOpen
@@ -358,18 +400,14 @@ class MainActivity : ComponentActivity() {
 
                     AnimatedVisibility(
                         visible = isBottomDockVisible,
-                        enter = androidx.compose.animation.slideInVertically(
-                            initialOffsetY = { it },
-                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
-                        ) + fadeIn(tween(180)),
-                        exit = androidx.compose.animation.slideOutVertically(
-                            targetOffsetY = { it },
-                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
-                        ) + fadeOut(tween(150)),
+                        enter = PhantomMotion.DockBarEnter,
+                        exit = PhantomMotion.DockBarExit,
                         modifier = Modifier.align(Alignment.BottomCenter)
                     ) {
                         BubbleBottomNav(
                             currentTab = navTabs[pagerState.targetPage],
+                            isCompact = isDockCompact,
+                            onExpandRequest = { isDockCompact = false },
                             pagePositionProvider = {
                                 pagerState.currentPage + pagerState.currentPageOffsetFraction
                             },
@@ -382,14 +420,8 @@ class MainActivity : ComponentActivity() {
                     // 3. CHANNEL SCREEN OVERLAY (Preserves rememberedChannelId during exit transition)
                     AnimatedVisibility(
                         visible = activeChannelId != null,
-                        enter = slideInHorizontally(
-                            initialOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
-                        ) + fadeIn(animationSpec = tween(180)),
-                        exit = slideOutHorizontally(
-                            targetOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
-                        ) + fadeOut(animationSpec = tween(180))
+                        enter = PhantomMotion.OverlayScreenEnter,
+                        exit = PhantomMotion.OverlayScreenExit
                     ) {
                         val targetChannelId = activeChannelId ?: rememberedChannelId
                         if (targetChannelId.isNotBlank()) {
@@ -414,14 +446,8 @@ class MainActivity : ComponentActivity() {
                     // 3.5 SETTINGS SCREEN OVERLAY
                     AnimatedVisibility(
                         visible = isSettingsOpen,
-                        enter = slideInHorizontally(
-                            initialOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
-                        ) + fadeIn(animationSpec = tween(180)),
-                        exit = slideOutHorizontally(
-                            targetOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
-                        ) + fadeOut(animationSpec = tween(180))
+                        enter = PhantomMotion.OverlayScreenEnter,
+                        exit = PhantomMotion.OverlayScreenExit
                     ) {
                         SettingsScreen(
                             preferences = app.preferences,
@@ -435,14 +461,8 @@ class MainActivity : ComponentActivity() {
                     // 3.6 DOWNLOADS SCREEN OVERLAY
                     AnimatedVisibility(
                         visible = isDownloadsOpen,
-                        enter = slideInHorizontally(
-                            initialOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
-                        ) + fadeIn(animationSpec = tween(180)),
-                        exit = slideOutHorizontally(
-                            targetOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
-                        ) + fadeOut(animationSpec = tween(180))
+                        enter = PhantomMotion.OverlayScreenEnter,
+                        exit = PhantomMotion.OverlayScreenExit
                     ) {
                         DownloadsScreen(
                             repository = repository,
@@ -463,20 +483,23 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     val hasBottomNav = activeChannelId == null && !isSettingsOpen && !isDownloadsOpen
+                    val offlineMiniBottomPadding by animateDpAsState(
+                        targetValue = when {
+                            !hasBottomNav -> 12.dp
+                            isDockCompact -> 62.dp
+                            else -> 80.dp
+                        },
+                        animationSpec = IosSpringSpecs.DockMorphDp,
+                        label = "offline_mini_bottom_padding"
+                    )
                     AnimatedVisibility(
                         visible = offlineTrack != null && activeVideo == null && !isInPipMode,
-                        enter = androidx.compose.animation.slideInVertically(
-                            initialOffsetY = { it },
-                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
-                        ) + fadeIn(tween(200)),
-                        exit = androidx.compose.animation.slideOutVertically(
-                            targetOffsetY = { it },
-                            animationSpec = com.phantom.tube.ui.components.IosSpringSpecs.GentleOffset
-                        ) + fadeOut(tween(160)),
+                        enter = PhantomMotion.MiniPlayerEnter,
+                        exit = PhantomMotion.MiniPlayerExit,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .navigationBarsPadding()
-                            .padding(bottom = if (hasBottomNav) 76.dp else 12.dp)
+                            .padding(bottom = offlineMiniBottomPadding.coerceAtLeast(0.dp))
                     ) {
                         OfflineMiniPlayer()
                     }
@@ -489,6 +512,7 @@ class MainActivity : ComponentActivity() {
                             isMinimized = isPlayerMinimized,
                             isInPipMode = isInPipMode,
                             isBottomNavVisible = (activeChannelId == null && !isSettingsOpen && !isDownloadsOpen),
+                            isBottomDockCompact = isDockCompact,
                             onMinimize = {
                                 isPlayerMinimized = true
                             },

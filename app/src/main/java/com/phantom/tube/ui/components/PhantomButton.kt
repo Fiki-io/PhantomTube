@@ -1,5 +1,6 @@
 package com.phantom.tube.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -59,6 +60,12 @@ fun PhantomIconButton(
         label = "button_scale"
     )
 
+    val containerColor by animateColorAsState(
+        targetValue = if (isPressed) IconBtnBgPressed else IconBtnBgDefault,
+        animationSpec = IosSpringSpecs.ColorFade,
+        label = "button_bg_color"
+    )
+
     LaunchedEffect(isPressed) {
         if (isPressed) {
             try {
@@ -80,9 +87,7 @@ fun PhantomIconButton(
             }
             .then(borderModifier)
             .clip(shape)
-            .background(
-                if (isPressed) IconBtnBgPressed else IconBtnBgDefault
-            )
+            .background(containerColor)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -114,9 +119,25 @@ fun PhantomChip(
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1.0f,
+        targetValue = when {
+            isPressed -> 0.92f
+            isSelected -> 1.03f
+            else -> 1.0f
+        },
         animationSpec = IosSpringSpecs.Bouncy,
         label = "chip_scale"
+    )
+
+    val containerColor by animateColorAsState(
+        targetValue = if (isSelected) Color.White else ControlSurfaceMuted,
+        animationSpec = IosSpringSpecs.ColorFade,
+        label = "chip_bg_color"
+    )
+
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) ChipTextSelected else ChipTextDefault,
+        animationSpec = IosSpringSpecs.ColorFade,
+        label = "chip_text_color"
     )
 
     LaunchedEffect(isPressed) {
@@ -134,9 +155,7 @@ fun PhantomChip(
                 scaleY = scale
             }
             .clip(RoundedCornerShape(10.dp))
-            .background(
-                if (isSelected) Color.White else ControlSurfaceMuted
-            )
+            .background(containerColor)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -150,7 +169,7 @@ fun PhantomChip(
             style = MaterialTheme.typography.labelLarge.copy(
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
             ),
-            color = if (isSelected) ChipTextSelected else ChipTextDefault
+            color = contentColor
         )
     }
 }

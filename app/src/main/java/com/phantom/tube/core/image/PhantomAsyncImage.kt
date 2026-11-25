@@ -1,6 +1,8 @@
 package com.phantom.tube.core.image
 
 import android.graphics.drawable.BitmapDrawable
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
@@ -14,8 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.DefaultAlpha
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import com.phantom.tube.ui.components.PhantomMotion
 
 @Composable
 fun PhantomAsyncImage(
@@ -44,6 +48,7 @@ fun PhantomAsyncImage(
     }
 
     var loadedBitmap by remember(cacheKey) { mutableStateOf(initialBitmap) }
+    val revealAlpha = remember(cacheKey) { Animatable(if (initialBitmap != null) 1f else 0f) }
 
     LaunchedEffect(cacheKey) {
         if (loadedBitmap == null && request.urlString.isNotBlank()) {
@@ -52,6 +57,13 @@ fun PhantomAsyncImage(
                 val bmp = (res.drawable as? BitmapDrawable)?.bitmap
                 if (bmp != null && !bmp.isRecycled) {
                     loadedBitmap = bmp
+                    revealAlpha.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(
+                            durationMillis = PhantomMotion.ImageFadeInDurationMs,
+                            easing = PhantomMotion.SmoothOutEasing
+                        )
+                    )
                 }
             }
         }
@@ -63,7 +75,9 @@ fun PhantomAsyncImage(
         Image(
             bitmap = imageBitmap,
             contentDescription = contentDescription,
-            modifier = modifier,
+            modifier = modifier.graphicsLayer {
+                this.alpha = revealAlpha.value
+            },
             alignment = alignment,
             contentScale = contentScale,
             alpha = alpha,

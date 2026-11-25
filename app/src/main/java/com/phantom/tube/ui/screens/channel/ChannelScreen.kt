@@ -2,11 +2,9 @@ package com.phantom.tube.ui.screens.channel
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import com.phantom.tube.ui.components.PhantomMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -98,6 +96,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
+
+private enum class ChannelLoadUiState { LOADING, ERROR, CONTENT }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -385,8 +385,8 @@ fun ChannelScreen(
 
         AnimatedVisibility(
             visible = isSearchActive,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
+            enter = PhantomMotion.TopBarEnter,
+            exit = PhantomMotion.TopBarExit
         ) {
             Row(
                 modifier = Modifier
@@ -447,27 +447,39 @@ fun ChannelScreen(
             }
         }
 
-        when {
-            isLoading && currentProfile == null -> {
-                ChannelScreenSkeleton()
-            }
+        val channelUiState = when {
+            isLoading && currentProfile == null -> ChannelLoadUiState.LOADING
+            errorMessage != null && currentProfile == null -> ChannelLoadUiState.ERROR
+            else -> ChannelLoadUiState.CONTENT
+        }
 
-            errorMessage != null && currentProfile == null -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    PhantomErrorStateView(
-                        title = errorMessage ?: stringResource(R.string.channel_load_failed),
-                        detail = stringResource(R.string.channel_load_failed_hint),
-                        retryLabel = stringResource(R.string.action_retry),
-                        onRetry = { loadChannel() },
-                        retryTestTag = "channel_error_retry"
-                    )
+        AnimatedContent(
+            targetState = channelUiState,
+            transitionSpec = { PhantomMotion.ContentStateTransition },
+            label = "channel_load_state",
+            modifier = Modifier.fillMaxSize()
+        ) { uiState ->
+            when (uiState) {
+                ChannelLoadUiState.LOADING -> {
+                    ChannelScreenSkeleton()
                 }
-            }
 
-            currentProfile != null -> {
+                ChannelLoadUiState.ERROR -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        PhantomErrorStateView(
+                            title = errorMessage ?: stringResource(R.string.channel_load_failed),
+                            detail = stringResource(R.string.channel_load_failed_hint),
+                            retryLabel = stringResource(R.string.action_retry),
+                            onRetry = { loadChannel() },
+                            retryTestTag = "channel_error_retry"
+                        )
+                    }
+                }
+
+                ChannelLoadUiState.CONTENT -> if (currentProfile != null) {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                     val columns = if (maxWidth >= 600.dp) 2 else 1
                     LazyVerticalGrid(
@@ -691,6 +703,7 @@ fun ChannelScreen(
                     }
                 }
             }
+        }
         }
     }
 
