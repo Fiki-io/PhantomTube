@@ -563,8 +563,10 @@ class PlayerSessionState(
                         }
                     }
                     2 -> {
+                        if (isResumePending) {
+                            return@runOnMain
+                        }
                         isPlaybackStalled = false
-                        isResumePending = false
                         wasPlayingBeforeOffline = false
                         if (isAppInBackground) {
                             controller.setBackgroundPriorityProtected(false)
@@ -597,12 +599,23 @@ class PlayerSessionState(
                         if (wasPlaying && !networkObserver.isConnected()) {
                             wasPlayingBeforeOffline = true
                         }
-                        mediaService?.updatePlaybackState(
-                            playing = wasPlaying,
-                            currentPositionMs = (currentPositionSec * 1000).toLong(),
-                            forceNotify = false,
-                            isBuffering = true
-                        )
+                        if (isResumePending) {
+                            // Keep MediaService in PLAYING state during quick pause->play resume
+                            // so system media controls do not get stuck showing a loading spinner.
+                            mediaService?.updatePlaybackState(
+                                playing = true,
+                                currentPositionMs = (currentPositionSec * 1000).toLong(),
+                                forceNotify = false,
+                                isBuffering = false
+                            )
+                        } else {
+                            mediaService?.updatePlaybackState(
+                                playing = wasPlaying,
+                                currentPositionMs = (currentPositionSec * 1000).toLong(),
+                                forceNotify = false,
+                                isBuffering = true
+                            )
+                        }
                     }
                     0 -> {
                         isPlaybackStalled = false
@@ -661,22 +674,21 @@ class PlayerSessionState(
                 }
 
                 if (kotlin.math.abs(current - lastObservedPlaybackSec) >= 0.1f) {
-                    val isAdvancing = current > lastObservedPlaybackSec
+                    val delta = current - lastObservedPlaybackSec
+                    val isNormalAdvance = delta > 0.1f && delta < 10f
                     lastObservedPlaybackSec = current
                     lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
-                    if (isPlaybackStalled || (isAdvancing && (playerState.isBuffering || isResumePending))) {
+                    val effectivePlaying = playerState.isPlaying || isResumePending
+                    if (effectivePlaying && (isPlaybackStalled || (isNormalAdvance && (playerState.isBuffering || isResumePending)))) {
                         isPlaybackStalled = false
-                        val effectivePlaying = playerState.isPlaying || isResumePending
                         isResumePending = false
-                        if (effectivePlaying) {
-                            playerState = playerState.copy(isPlaying = true, isBuffering = false)
-                            mediaService?.updatePlaybackState(
-                                playing = true,
-                                currentPositionMs = (current * 1000).toLong(),
-                                forceNotify = false,
-                                isBuffering = false
-                            )
-                        }
+                        playerState = playerState.copy(isPlaying = true, isBuffering = false)
+                        mediaService?.updatePlaybackState(
+                            playing = true,
+                            currentPositionMs = (current * 1000).toLong(),
+                            forceNotify = false,
+                            isBuffering = false
+                        )
                     }
                 }
 

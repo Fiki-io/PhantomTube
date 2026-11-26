@@ -140,6 +140,8 @@ object PlayerWebAssets {
         var isBackgroundMode = false;
         var keepLightweightTicker = false;
         var lastReportedYtState = -999;
+        var desiredPlayState = null;
+        var stateSyncTimer = null;
 
         var urlParams = new URLSearchParams(window.location.search);
         var initialVideoId = urlParams.get('v') || '';
@@ -309,8 +311,24 @@ object PlayerWebAssets {
             } else {
                 stopTimeTicker();
             }
-            syncTimeSnapshot();
+            if (desiredPlayState === true && event.data === 2) {
+                try {
+                    if (player && typeof player.playVideo === 'function') player.playVideo();
+                } catch(e) {}
+                return;
+            }
+            if (desiredPlayState === false && (event.data === 1 || event.data === 3)) {
+                try {
+                    if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+                } catch(e) {}
+                return;
+            }
+            if ((desiredPlayState === true && event.data === 1) ||
+                (desiredPlayState === false && event.data === 2)) {
+                desiredPlayState = null;
+            }
             lastReportedYtState = event.data;
+            syncTimeSnapshot();
             if (window.PhantomBridge) {
                 window.PhantomBridge.onStateChange(event.data);
             }
@@ -395,6 +413,11 @@ object PlayerWebAssets {
             try {
                 activeVideoId = videoId;
                 lastReportedYtState = -999;
+                desiredPlayState = null;
+                if (stateSyncTimer) {
+                    clearTimeout(stateSyncTimer);
+                    stateSyncTimer = null;
+                }
                 stopTimeTicker();
                 notifyIframeMediaState(true);
                 if (player && typeof player.loadVideoById === 'function') {
@@ -417,21 +440,27 @@ object PlayerWebAssets {
 
         window.playVideo = function() {
             try {
+                desiredPlayState = true;
                 notifyIframeMediaState(true);
                 if (player) {
                     ensureHostAudioFull();
                     if (typeof player.playVideo === 'function') player.playVideo();
                     startTimeTicker();
                 }
+                if (stateSyncTimer) clearTimeout(stateSyncTimer);
+                stateSyncTimer = setTimeout(syncTimeSnapshot, 350);
             } catch(e) {}
         };
 
         window.pauseVideo = function() {
             try {
+                desiredPlayState = false;
                 stopTimeTicker();
                 notifyIframeMediaState(false);
                 if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
                 syncTimeSnapshot();
+                if (stateSyncTimer) clearTimeout(stateSyncTimer);
+                stateSyncTimer = setTimeout(syncTimeSnapshot, 350);
             } catch(e) {}
         };
 

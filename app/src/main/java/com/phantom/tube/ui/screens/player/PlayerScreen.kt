@@ -352,12 +352,14 @@ fun PlayerScreen(
                 onExpand = onExpand,
                 onTogglePlayPause = {
                     if (session.playerState.isPlaying) {
+                        session.isResumePending = false
                         session.controller.pause()
                     } else {
                         if (!session.networkObserver.isConnected()) {
                             session.showNotice(context.getString(R.string.player_no_internet_notice))
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         } else {
+                            session.isResumePending = true
                             session.controller.play()
                         }
                     }
@@ -591,12 +593,14 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerViewportBridgeSect
         },
         onTogglePlayPause = {
             if (session.playerState.isPlaying) {
+                session.isResumePending = false
                 session.controller.pause()
             } else {
                 if (!session.networkObserver.isConnected()) {
                     session.showNotice(context.getString(R.string.player_no_internet_notice))
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 } else {
+                    session.isResumePending = true
                     session.controller.play()
                 }
             }
@@ -635,6 +639,7 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerViewportBridgeSect
             if (scrubbing && !session.isScrubbing) {
                 session.wasPlayingBeforeScrub = session.playerState.isPlaying
                 if (session.playerState.isPlaying) {
+                    session.isResumePending = false
                     session.controller.pause()
                 }
             }
