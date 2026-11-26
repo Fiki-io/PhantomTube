@@ -142,6 +142,11 @@ object PlayerWebAssets {
         var lastReportedYtState = -999;
         var desiredPlayState = null;
         var stateSyncTimer = null;
+        var currentFadeVolume = 1.0;
+        var sleepFadeFactor = 1.0;
+        var fadeTimerId = null;
+        var activeFadeSeq = 0;
+        var pendingFadeInOnPlay = false;
 
         var urlParams = new URLSearchParams(window.location.search);
         var initialVideoId = urlParams.get('v') || '';
@@ -255,19 +260,85 @@ object PlayerWebAssets {
             } catch(e) {}
         }
 
-        function ensureHostAudioFull() {
+        function applyHostVolume(vol01) {
             try {
+                currentFadeVolume = Math.max(0, Math.min(1, vol01));
+                var effective = Math.max(0, Math.min(1, currentFadeVolume * sleepFadeFactor));
+                var targetPct = Math.round(effective * 100);
                 if (player) {
                     if (typeof player.isMuted === 'function' && player.isMuted()) {
                         if (typeof player.unMute === 'function') player.unMute();
                     }
-                    if (typeof player.getVolume === 'function' && player.getVolume() < 100) {
-                        if (typeof player.setVolume === 'function') player.setVolume(100);
+                    if (typeof player.setVolume === 'function') {
+                        player.setVolume(targetPct);
                     }
                 }
                 var iframe = document.querySelector('iframe');
                 if (iframe && iframe.contentWindow) {
-                    iframe.contentWindow.postMessage({ type: 'PHANTOM_ENSURE_AUDIO_HEALTH' }, '*');
+                    iframe.contentWindow.postMessage({ type: 'PHANTOM_SET_TARGET_VOLUME', volume: effective }, '*');
+                }
+            } catch(e) {}
+        }
+
+        function cancelAudioFade() {
+            activeFadeSeq++;
+            if (fadeTimerId) {
+                clearInterval(fadeTimerId);
+                fadeTimerId = null;
+            }
+        }
+
+        function startVolumeFade(targetVol, durationMs, onComplete) {
+            cancelAudioFade();
+            var seq = activeFadeSeq;
+            var clampedTarget = Math.max(0, Math.min(1, targetVol));
+            var startVol = currentFadeVolume;
+            if (Math.abs(clampedTarget - startVol) < 0.02 || durationMs <= 0) {
+                applyHostVolume(clampedTarget);
+                if (onComplete) onComplete();
+                return;
+            }
+            var startTime = Date.now();
+            var isFadeIn = clampedTarget > startVol;
+            fadeTimerId = setInterval(function() {
+                if (seq !== activeFadeSeq) {
+                    if (fadeTimerId) {
+                        clearInterval(fadeTimerId);
+                        fadeTimerId = null;
+                    }
+                    return;
+                }
+                var elapsed = Date.now() - startTime;
+                var t = Math.min(1, elapsed / durationMs);
+                var eased = isFadeIn ? (t * t) : (1 - Math.pow(1 - t, 1.5));
+                var nextVol = startVol + (clampedTarget - startVol) * eased;
+                applyHostVolume(nextVol);
+                if (t >= 1) {
+                    if (fadeTimerId) {
+                        clearInterval(fadeTimerId);
+                        fadeTimerId = null;
+                    }
+                    applyHostVolume(clampedTarget);
+                    if (onComplete) onComplete();
+                }
+            }, 30);
+        }
+
+        function ensureHostAudioFull() {
+            try {
+                var effective = Math.max(0, Math.min(1, currentFadeVolume * sleepFadeFactor));
+                var targetPct = Math.round(effective * 100);
+                if (player) {
+                    if (typeof player.isMuted === 'function' && player.isMuted()) {
+                        if (typeof player.unMute === 'function') player.unMute();
+                    }
+                    if (typeof player.getVolume === 'function' && Math.abs(player.getVolume() - targetPct) >= 2) {
+                        if (typeof player.setVolume === 'function') player.setVolume(targetPct);
+                    }
+                }
+                var iframe = document.querySelector('iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: 'PHANTOM_SET_TARGET_VOLUME', volume: effective }, '*');
                 }
             } catch(e) {}
         }
@@ -276,7 +347,8 @@ object PlayerWebAssets {
             if (window.PhantomBridge) {
                 window.PhantomBridge.onReady();
             }
-            ensureHostAudioFull();
+            applyHostVolume(0.0);
+            pendingFadeInOnPlay = true;
             startTimeTicker();
             setTimeout(sendStoryboard, 1000);
             if (event.target && typeof event.target.playVideo === 'function') {
@@ -292,7 +364,7 @@ object PlayerWebAssets {
                 startTimeTicker();
                 return;
             }
-            if (desiredPlayState === false && (event.data === 1 || event.data === 3)) {
+            if (desiredPlayState === false && !fadeTimerId && (event.data === 1 || event.data === 3)) {
                 try {
                     if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
                 } catch(e) {}
@@ -302,6 +374,10 @@ object PlayerWebAssets {
             if ((desiredPlayState === true && event.data === 1) ||
                 (desiredPlayState === false && event.data === 2)) {
                 desiredPlayState = null;
+            }
+            if (event.data === 1 && pendingFadeInOnPlay) {
+                pendingFadeInOnPlay = false;
+                startVolumeFade(1.0, 1200);
             }
             if (!isBackgroundMode) {
                 try {
@@ -425,21 +501,24 @@ object PlayerWebAssets {
 
         window.loadVideo = function(videoId, startSec) {
             try {
+                cancelAudioFade();
+                sleepFadeFactor = 1.0;
                 activeVideoId = videoId;
                 lastReportedYtState = -999;
                 desiredPlayState = null;
+                pendingFadeInOnPlay = true;
                 if (stateSyncTimer) {
                     clearTimeout(stateSyncTimer);
                     stateSyncTimer = null;
                 }
                 stopTimeTicker();
                 notifyIframeMediaState(true);
+                applyHostVolume(0.0);
                 if (player && typeof player.loadVideoById === 'function') {
                     player.loadVideoById({
                         'videoId': videoId,
                         'startSeconds': startSec || 0
                     });
-                    ensureHostAudioFull();
                     startTimeTicker();
                 }
                 setTimeout(sendStoryboard, 1500);
@@ -454,27 +533,64 @@ object PlayerWebAssets {
 
         window.playVideo = function() {
             try {
+                cancelAudioFade();
                 desiredPlayState = true;
                 notifyIframeMediaState(true);
+                var pState = (player && typeof player.getPlayerState === 'function') ? player.getPlayerState() : -1;
+                if (pState !== 1 && pState !== 3 && currentFadeVolume >= 0.98) {
+                    applyHostVolume(0.0);
+                } else {
+                    applyHostVolume(currentFadeVolume);
+                }
                 if (player) {
-                    ensureHostAudioFull();
                     if (typeof player.playVideo === 'function') player.playVideo();
                     startTimeTicker();
+                }
+                if (pState === 1) {
+                    pendingFadeInOnPlay = false;
+                    startVolumeFade(1.0, 1200);
+                } else {
+                    pendingFadeInOnPlay = true;
                 }
                 if (stateSyncTimer) clearTimeout(stateSyncTimer);
                 stateSyncTimer = setTimeout(syncTimeSnapshot, 350);
             } catch(e) {}
         };
 
-        window.pauseVideo = function() {
+        window.pauseVideo = function(immediate) {
             try {
+                cancelAudioFade();
                 desiredPlayState = false;
+                pendingFadeInOnPlay = false;
                 stopTimeTicker();
                 notifyIframeMediaState(false);
-                if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
-                syncTimeSnapshot();
-                if (stateSyncTimer) clearTimeout(stateSyncTimer);
-                stateSyncTimer = setTimeout(syncTimeSnapshot, 350);
+                var pState = (player && typeof player.getPlayerState === 'function') ? player.getPlayerState() : -1;
+                if (immediate || (pState !== 1 && pState !== 3) || currentFadeVolume <= 0.02) {
+                    if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+                    applyHostVolume(0.0);
+                    syncTimeSnapshot();
+                    if (stateSyncTimer) clearTimeout(stateSyncTimer);
+                    stateSyncTimer = setTimeout(syncTimeSnapshot, 350);
+                } else {
+                    var pauseFadeSeq = activeFadeSeq;
+                    startVolumeFade(0.0, 360, function() {
+                        if (pauseFadeSeq !== activeFadeSeq || desiredPlayState !== false) return;
+                        if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+                        syncTimeSnapshot();
+                        if (stateSyncTimer) clearTimeout(stateSyncTimer);
+                        stateSyncTimer = setTimeout(syncTimeSnapshot, 350);
+                    });
+                }
+            } catch(e) {}
+        };
+
+        window.setFadeVolume = function(ratio) {
+            try {
+                var r = Number(ratio);
+                if (!isNaN(r)) {
+                    sleepFadeFactor = Math.max(0, Math.min(1, r));
+                    applyHostVolume(currentFadeVolume);
+                }
             } catch(e) {}
         };
 
@@ -1394,6 +1510,12 @@ a[href*="youtube.com/watch"] {
                     }
                 }
             } catch(err) {}
+        } else if (e.data && e.data.type === 'PHANTOM_SET_TARGET_VOLUME') {
+            var tv = Number(e.data.volume);
+            if (!isNaN(tv)) {
+                phantomTargetVolume = Math.max(0, Math.min(1, tv));
+                applyTargetVolumeDirect();
+            }
         } else if (e.data && e.data.type === 'PHANTOM_ENSURE_AUDIO_HEALTH') {
             enforceAudioHealth();
         }
@@ -1423,9 +1545,50 @@ a[href*="youtube.com/watch"] {
         } catch(e) {}
     }
 
+    var phantomTargetVolume = 1.0;
     var isEnforcingAudio = false;
     var audioFixWindowStart = 0;
     var audioFixBurstCount = 0;
+    function applyTargetVolumeDirect() {
+        if (isEnforcingAudio) return false;
+        isEnforcingAudio = true;
+        var changed = false;
+        try {
+            var targetVol = phantomTargetVolume;
+            var targetPct = Math.round(targetVol * 100);
+            var vid = document.querySelector('video.html5-main-video') || document.querySelector('video');
+            if (vid) {
+                if (vid.muted) {
+                    vid.muted = false;
+                    changed = true;
+                }
+                if (typeof vid.volume === 'number' && Math.abs(vid.volume - targetVol) > 0.015) {
+                    vid.volume = targetVol;
+                    changed = true;
+                }
+            }
+            var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+            if (p) {
+                if (typeof p.isMuted === 'function' && p.isMuted()) {
+                    if (typeof p.unMute === 'function') {
+                        p.unMute();
+                        changed = true;
+                    }
+                }
+                if (typeof p.getVolume === 'function' && Math.abs(p.getVolume() - targetPct) >= 2) {
+                    if (typeof p.setVolume === 'function') {
+                        p.setVolume(targetPct);
+                        changed = true;
+                    }
+                }
+            }
+        } catch(e) {
+        } finally {
+            isEnforcingAudio = false;
+        }
+        return changed;
+    }
+
     function enforceAudioHealth() {
         if (isEnforcingAudio) return;
         var now = Date.now();
@@ -1434,42 +1597,8 @@ a[href*="youtube.com/watch"] {
             audioFixBurstCount = 0;
         }
         if (audioFixBurstCount >= 8) return;
-
-        isEnforcingAudio = true;
-        try {
-            var fixed = false;
-            var vid = document.querySelector('video.html5-main-video') || document.querySelector('video');
-            if (vid) {
-                if (vid.muted) {
-                    vid.muted = false;
-                    fixed = true;
-                }
-                if (typeof vid.volume === 'number' && vid.volume < 0.99) {
-                    vid.volume = 1.0;
-                    fixed = true;
-                }
-            }
-            var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
-            if (p) {
-                if (typeof p.isMuted === 'function' && p.isMuted()) {
-                    if (typeof p.unMute === 'function') {
-                        p.unMute();
-                        fixed = true;
-                    }
-                }
-                if (typeof p.getVolume === 'function' && p.getVolume() < 100) {
-                    if (typeof p.setVolume === 'function') {
-                        p.setVolume(100);
-                        fixed = true;
-                    }
-                }
-            }
-            if (fixed) {
-                audioFixBurstCount++;
-            }
-        } catch(e) {
-        } finally {
-            isEnforcingAudio = false;
+        if (applyTargetVolumeDirect()) {
+            audioFixBurstCount++;
         }
     }
     document.addEventListener('play', enforceAudioHealth, true);

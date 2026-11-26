@@ -640,7 +640,7 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerViewportBridgeSect
                 session.wasPlayingBeforeScrub = session.playerState.isPlaying
                 if (session.playerState.isPlaying) {
                     session.isResumePending = false
-                    session.controller.pause()
+                    session.controller.pauseImmediate()
                 }
             }
             session.isScrubbing = scrubbing
@@ -736,6 +736,9 @@ private fun androidx.compose.foundation.layout.BoxScope.PlayerSheetsBridgeSectio
         onSleepTimerSelected = { option ->
             session.sleepTimerOption = option
             session.sleepTimerRemainingSec = if (option.seconds != null && option.seconds > 0) option.seconds else null
+            if (option == SleepTimerOption.OFF) {
+                session.controller.setFadeVolume(1.0f)
+            }
         },
         onLoopToggle = { loop ->
             session.isLoopEnabled = loop
@@ -966,7 +969,7 @@ private fun PlayerLifecycleEffects(
 
     LaunchedEffect(isOfflinePlaying) {
         if (isOfflinePlaying) {
-            session.controller.pause()
+            session.controller.pauseImmediate()
         }
     }
 
@@ -1081,10 +1084,16 @@ private fun PlayerLifecycleEffects(
             if (session.playerState.isPlaying) {
                 val current = (session.sleepTimerRemainingSec ?: 0) - 1
                 if (current <= 0) {
-                    session.controller.pause()
+                    session.controller.pauseImmediate()
+                    session.controller.setFadeVolume(1.0f)
                     session.sleepTimerRemainingSec = null
                     session.sleepTimerOption = SleepTimerOption.OFF
                 } else {
+                    if (current in 1..10) {
+                        session.controller.setFadeVolume(current / 10f)
+                    } else {
+                        session.controller.setFadeVolume(1.0f)
+                    }
                     session.sleepTimerRemainingSec = current
                 }
             }
@@ -1514,7 +1523,7 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                         session.playPrevious()
                     }
                     onOfflineTimeoutAction = {
-                        session.controller.pause()
+                        session.controller.pauseImmediate()
                         session.isOfflineWaiting = false
                         session.wasPlayingBeforeOffline = false
                         session.showNotice(context.getString(R.string.player_stopped_offline_timeout))
@@ -1597,7 +1606,7 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                             session.controller.setBackgroundExecutionAllowed(false)
                             session.controller.setBackgroundPriorityProtected(false)
                             session.controller.setBackgroundMode(backgrounded = true, keepSponsorTick = false)
-                            session.controller.pause()
+                            session.controller.pauseImmediate()
                             session.controller.setIdleSuspended(true)
                         } else {
                             val currentQ = session.playerState.currentQuality

@@ -41,6 +41,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.abs
+import kotlin.math.pow
 import kotlin.random.Random
 
 /**
@@ -63,7 +65,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     private val becomingNoisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
-                pausePlayback(fromFocusLoss = false)
+                pausePlayback(fromFocusLoss = false, immediate = true)
             }
         }
     }
@@ -71,6 +73,10 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var progressJob: Job? = null
     private var idleStopJob: Job? = null
+    private var fadeJob: Job? = null
+    private var currentVolume: Float = 1.0f
+    private var isDucked: Boolean = false
+    private var isFadingOutToPause: Boolean = false
     private var isInForeground: Boolean = false
     private var currentBitmap: Bitmap? = null
     private var lastThumbnailUrl: String = ""
@@ -79,6 +85,10 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         const val CHANNEL_ID = "phantom_offline_audio_playback"
         const val NOTIFICATION_ID = 2002
         private const val IDLE_PAUSE_STOP_TIMEOUT_MS = 3 * 60 * 1000L
+        private const val FADE_IN_DURATION_MS = 1200L
+        private const val FADE_OUT_DURATION_MS = 360L
+        private const val FADE_STEP_MS = 30L
+        private const val DUCK_VOLUME = 0.25f
 
         const val ACTION_PLAY_QUEUE = "com.phantom.tube.offline.PLAY_QUEUE"
         const val ACTION_TOGGLE_PLAY_PAUSE = "com.phantom.tube.offline.TOGGLE_PLAY_PAUSE"
@@ -344,10 +354,15 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 setOnPreparedListener { mp ->
                     isPrepared = true
                     resumeOnFocusGain = false
+                    isFadingOutToPause = false
                     requestAudioFocus()
                     registerNoisyReceiver()
-                    mp.setVolume(1.0f, 1.0f)
+                    cancelVolumeFade()
+                    currentVolume = 0f
+                    mp.setVolume(0f, 0f)
                     mp.start()
+                    val targetVol = if (isDucked) DUCK_VOLUME else 1.0f
+                    startVolumeFade(targetVolume = targetVol, durationMs = FADE_IN_DURATION_MS)
                     val dur = mp.duration.toLong().coerceAtLeast(0L)
                     OfflineAudioPlayerManager.updateDuration(dur)
                     OfflineAudioPlayerManager.updatePlaybackState(true)
@@ -391,10 +406,56 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         }
     }
 
+    private fun cancelVolumeFade() {
+        fadeJob?.cancel()
+        fadeJob = null
+    }
+
+    private fun applyPlayerVolume(volume: Float) {
+        val clamped = volume.coerceIn(0f, 1f)
+        currentVolume = clamped
+        val mp = mediaPlayer ?: return
+        if (!isPrepared) return
+        try {
+            mp.setVolume(clamped, clamped)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun startVolumeFade(
+        targetVolume: Float,
+        durationMs: Long,
+        onComplete: (() -> Unit)? = null
+    ) {
+        cancelVolumeFade()
+        val clampedTarget = targetVolume.coerceIn(0f, 1f)
+        val startVol = currentVolume
+        if (abs(clampedTarget - startVol) < 0.02f || durationMs <= 0L) {
+            applyPlayerVolume(clampedTarget)
+            onComplete?.invoke()
+            return
+        }
+        val isFadeIn = clampedTarget > startVol
+        val startMs = SystemClock.elapsedRealtime()
+        fadeJob = serviceScope.launch {
+            while (isActive) {
+                val elapsed = (SystemClock.elapsedRealtime() - startMs).coerceAtLeast(0L)
+                val t = (elapsed.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                val eased = if (isFadeIn) t * t else 1f - (1f - t).pow(1.5f)
+                applyPlayerVolume(startVol + (clampedTarget - startVol) * eased)
+                if (t >= 1f) break
+                delay(FADE_STEP_MS)
+            }
+            applyPlayerVolume(clampedTarget)
+            fadeJob = null
+            onComplete?.invoke()
+        }
+    }
+
     private fun togglePlayPause() {
         val mp = mediaPlayer ?: return
         if (!isPrepared) return
-        if (mp.isPlaying) {
+        if (mp.isPlaying && !isFadingOutToPause) {
             pausePlayback(fromFocusLoss = false)
         } else {
             resumePlayback()
@@ -404,14 +465,25 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     private fun resumePlayback() {
         val mp = mediaPlayer ?: return
         if (!isPrepared) return
-        if (!mp.isPlaying) {
+        val wasFadingOut = isFadingOutToPause
+        if (!mp.isPlaying || wasFadingOut) {
+            isFadingOutToPause = false
+            cancelVolumeFade()
             idleStopJob?.cancel()
             idleStopJob = null
             resumeOnFocusGain = false
             requestAudioFocus()
             registerNoisyReceiver()
-            mp.setVolume(1.0f, 1.0f)
-            mp.start()
+            if (!mp.isPlaying) {
+                if (currentVolume >= 0.98f) {
+                    applyPlayerVolume(0f)
+                } else {
+                    applyPlayerVolume(currentVolume)
+                }
+                mp.start()
+            }
+            val targetVol = if (isDucked) DUCK_VOLUME else 1.0f
+            startVolumeFade(targetVolume = targetVol, durationMs = FADE_IN_DURATION_MS)
             val remainingMs = (mp.duration - mp.currentPosition).toLong().coerceAtLeast(10_000L)
             acquireWakeLockForDuration(remainingMs)
             OfflineAudioPlayerManager.updatePlaybackState(true)
@@ -428,7 +500,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         }
     }
 
-    private fun pausePlayback(fromFocusLoss: Boolean = false) {
+    private fun finalizePause(fromFocusLoss: Boolean) {
+        isFadingOutToPause = false
         if (!fromFocusLoss) {
             resumeOnFocusGain = false
             abandonAudioFocus()
@@ -437,17 +510,17 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         releaseWakeLockSafe()
         val mp = mediaPlayer
         if (mp != null && isPrepared && mp.isPlaying) {
-            mp.pause()
-            OfflineAudioPlayerManager.updatePlaybackState(false)
-            stopProgressTracker()
-            val track = OfflineAudioPlayerManager.currentTrack.value
-            if (track != null) {
-                updateMediaSessionState(false, mp.currentPosition.toLong())
-                updateNotification(track, false)
-            }
-        } else {
-            OfflineAudioPlayerManager.updatePlaybackState(false)
-            stopProgressTracker()
+            try {
+                mp.pause()
+            } catch (_: Exception) {}
+        }
+        applyPlayerVolume(0f)
+        OfflineAudioPlayerManager.updatePlaybackState(false)
+        stopProgressTracker()
+        val track = OfflineAudioPlayerManager.currentTrack.value
+        if (track != null && mp != null && isPrepared) {
+            updateMediaSessionState(false, mp.currentPosition.toLong())
+            updateNotification(track, false)
         }
         if (isInForeground) {
             try {
@@ -467,6 +540,34 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 }
             }
         }
+    }
+
+    private fun pausePlayback(fromFocusLoss: Boolean = false, immediate: Boolean = false) {
+        cancelVolumeFade()
+        val mp = mediaPlayer
+        val shouldSmoothFade = !fromFocusLoss &&
+            !immediate &&
+            mp != null &&
+            isPrepared &&
+            mp.isPlaying &&
+            currentVolume > 0.02f
+
+        if (shouldSmoothFade && mp != null) {
+            isFadingOutToPause = true
+            OfflineAudioPlayerManager.updatePlaybackState(false)
+            val track = OfflineAudioPlayerManager.currentTrack.value
+            if (track != null) {
+                updateMediaSessionState(false, mp.currentPosition.toLong())
+                updateNotification(track, false)
+            }
+            startVolumeFade(targetVolume = 0f, durationMs = FADE_OUT_DURATION_MS) {
+                if (isFadingOutToPause) {
+                    finalizePause(fromFocusLoss = false)
+                }
+            }
+            return
+        }
+        finalizePause(fromFocusLoss = fromFocusLoss)
     }
 
     private fun playNext() {
@@ -732,6 +833,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     }
 
     private fun releasePlayer() {
+        cancelVolumeFade()
+        isFadingOutToPause = false
         isPrepared = false
         try {
             mediaPlayer?.stop()
@@ -743,33 +846,33 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     override fun onAudioFocusChange(focusChange: Int) {
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS -> {
+                isDucked = false
                 resumeOnFocusGain = false
-                pausePlayback(fromFocusLoss = true)
+                pausePlayback(fromFocusLoss = true, immediate = true)
                 abandonAudioFocus()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                isDucked = false
                 val wasPlaying = isPrepared && (mediaPlayer?.isPlaying == true)
                 resumeOnFocusGain = wasPlaying
                 if (wasPlaying) {
-                    pausePlayback(fromFocusLoss = true)
+                    pausePlayback(fromFocusLoss = true, immediate = true)
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                if (isPrepared) {
-                    try {
-                        mediaPlayer?.setVolume(0.25f, 0.25f)
-                    } catch (_: Exception) {}
+                isDucked = true
+                if (isPrepared && !isFadingOutToPause) {
+                    cancelVolumeFade()
+                    applyPlayerVolume(DUCK_VOLUME)
                 }
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
-                if (isPrepared) {
-                    try {
-                        mediaPlayer?.setVolume(1.0f, 1.0f)
-                    } catch (_: Exception) {}
-                }
+                isDucked = false
                 if (resumeOnFocusGain) {
                     resumeOnFocusGain = false
                     resumePlayback()
+                } else if (isPrepared && !isFadingOutToPause && mediaPlayer?.isPlaying == true) {
+                    startVolumeFade(targetVolume = 1.0f, durationMs = 450L)
                 }
             }
         }
@@ -784,6 +887,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     }
 
     override fun onDestroy() {
+        cancelVolumeFade()
+        isFadingOutToPause = false
         idleStopJob?.cancel()
         idleStopJob = null
         stopProgressTracker()

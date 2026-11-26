@@ -223,7 +223,16 @@ class PhantomPlayerController(context: Context) {
     }
 
     fun pause() {
-        evaluateJs("window.pauseVideo();")
+        evaluateJs("window.pauseVideo(false);")
+    }
+
+    fun pauseImmediate() {
+        evaluateJs("window.pauseVideo(true);")
+    }
+
+    fun setFadeVolume(ratio: Float) {
+        val clamped = ratio.coerceIn(0f, 1f)
+        evaluateJs("if (window.setFadeVolume) window.setFadeVolume($clamped);")
     }
 
     fun seekTo(seconds: Float) {
