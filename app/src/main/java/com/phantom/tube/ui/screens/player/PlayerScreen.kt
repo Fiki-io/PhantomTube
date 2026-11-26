@@ -985,31 +985,62 @@ private fun PlayerLifecycleEffects(
         }
     }
 
-    LaunchedEffect(session.playerState.isPlaying, session.isAppInBackground) {
-        if (session.playerState.isPlaying && !session.isAppInBackground) {
+    LaunchedEffect(session.playerState.isPlaying, session.playerState.isBuffering, session.isAppInBackground, session.currentVideo.id) {
+        val active = session.playerState.isPlaying || session.playerState.isBuffering
+        if (active) {
             OfflineAudioPlayerManager.stop(context)
             session.lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
             session.lastObservedPlaybackSec = session.currentPositionSec
-            while (session.playerState.isPlaying && !session.isAppInBackground) {
-                delay(1500L)
+            var bgRecoveryAttempts = 0
+            while ((session.playerState.isPlaying || session.playerState.isBuffering) &&
+                session.playerState.errorCode == null
+            ) {
+                delay(2000L)
                 val now = SystemClock.elapsedRealtime()
-                if (session.playerState.isPlaying && !session.isAppInBackground && (now - session.lastProgressElapsedRealtime > 2500L)) {
-                    if (!session.isPlaybackStalled) {
-                        session.isPlaybackStalled = true
+                val elapsedSinceProgress = now - session.lastProgressElapsedRealtime
+                if (!session.isAppInBackground) {
+                    if (session.playerState.isPlaying && elapsedSinceProgress > 2500L) {
+                        if (!session.isPlaybackStalled) {
+                            session.isPlaybackStalled = true
+                            if (!session.networkObserver.isConnected()) {
+                                session.wasPlayingBeforeOffline = true
+                            }
+                            session.playerState = session.playerState.copy(isBuffering = true)
+                            session.mediaService?.updatePlaybackState(
+                                playing = true,
+                                currentPositionMs = (session.currentPositionSec * 1000).toLong(),
+                                forceNotify = false,
+                                isBuffering = true
+                            )
+                        }
+                    }
+                } else {
+                    val thresholdMs = if (session.playerState.isBuffering) 10000L else 6000L
+                    if (elapsedSinceProgress > thresholdMs) {
                         if (!session.networkObserver.isConnected()) {
                             session.wasPlayingBeforeOffline = true
+                            if (!session.isPlaybackStalled) {
+                                session.isPlaybackStalled = true
+                                session.playerState = session.playerState.copy(isBuffering = true)
+                            }
+                        } else if (bgRecoveryAttempts < 2) {
+                            bgRecoveryAttempts++
+                            session.lastProgressElapsedRealtime = now
+                            session.controller.setIdleSuspended(false)
+                            session.controller.setBackgroundExecutionAllowed(true)
+                            session.controller.setBackgroundPriorityProtected(true)
+                            if (bgRecoveryAttempts == 1 && session.playerState.isPlaying) {
+                                session.controller.play()
+                            } else {
+                                session.controller.loadVideo(session.currentVideo.id, session.currentPositionSec)
+                            }
                         }
-                        session.playerState = session.playerState.copy(isBuffering = true)
-                        session.mediaService?.updatePlaybackState(
-                            playing = true,
-                            currentPositionMs = (session.currentPositionSec * 1000).toLong(),
-                            forceNotify = false,
-                            isBuffering = true
-                        )
+                    } else {
+                        bgRecoveryAttempts = 0
                     }
                 }
             }
-        } else if (!session.playerState.isPlaying) {
+        } else {
             session.isPlaybackStalled = false
         }
     }
@@ -1049,13 +1080,16 @@ private fun PlayerLifecycleEffects(
     LaunchedEffect(session.mediaService) {
         val service = session.mediaService ?: return@LaunchedEffect
         val lastPos = (session.currentPositionSec * 1000).toLong()
+        val isPendingLoad = session.playerState.isBuffering ||
+            (!session.playerState.isPlaying && !session.playerState.isEnded && session.playerState.errorCode == null)
         service.updateMediaInfo(
             title = session.currentVideo.title,
             channel = session.currentVideo.channelTitle,
             durationMs = (session.currentDurationSec * 1000).toLong(),
             playing = session.playerState.isPlaying,
             thumbnailUrl = session.currentVideo.thumbnailUrl,
-            currentPositionMs = lastPos
+            currentPositionMs = lastPos,
+            isBuffering = isPendingLoad
         )
     }
 
@@ -1136,7 +1170,8 @@ private fun PlayerLifecycleEffects(
             durationMs = 0L,
             playing = true,
             thumbnailUrl = video.thumbnailUrl,
-            currentPositionMs = lastPos
+            currentPositionMs = lastPos,
+            isBuffering = true
         )
 
         launch {
@@ -1190,13 +1225,16 @@ private fun PlayerLifecycleEffects(
                         durationMs = (session.currentDurationSec * 1000).toLong()
                     )
                 }
+                val isPendingLoad = session.playerState.isBuffering ||
+                    (!session.playerState.isPlaying && !session.playerState.isEnded && session.playerState.errorCode == null)
                 session.mediaService?.updateMediaInfo(
                     title = enrichedVideo.title,
                     channel = enrichedVideo.channelTitle,
                     durationMs = (session.currentDurationSec * 1000).toLong(),
                     playing = session.playerState.isPlaying,
                     thumbnailUrl = enrichedVideo.thumbnailUrl,
-                    currentPositionMs = (session.currentPositionSec * 1000).toLong()
+                    currentPositionMs = (session.currentPositionSec * 1000).toLong(),
+                    isBuffering = isPendingLoad
                 )
                 session.recommendedVideos = nextData.recommendations.filter { it.id != video.id }
                 session.recContinuationToken = nextData.recommendationsContinuationToken
@@ -1291,9 +1329,10 @@ private fun PlayerLifecycleEffects(
             session.dragOffsetY = 0f
             session.portraitDragPx = 0f
             if (!session.isAudioOnly) {
-                val restoreQ = session.playerState.currentQuality.ifBlank {
-                    repository.preferences?.defaultQuality?.value ?: "auto"
-                }
+                val restoreQ = session.playerState.currentQuality
+                    .takeIf { it.isNotBlank() && it != "tiny" }
+                    ?: session.qualityBeforeBackground.takeIf { it.isNotBlank() && it != "tiny" }
+                    ?: (repository.preferences?.defaultQuality?.value ?: "auto")
                 session.controller.setVideoSurfaceActive(true, restoreQ)
             }
             try {
@@ -1421,11 +1460,20 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                         session.controller.pause()
                         if (session.isAppInBackground) {
                             session.controller.setBackgroundPriorityProtected(false)
-                            session.controller.setIdleSuspended(true)
                         }
                     }
-                    onNextAction = { session.playNext() }
-                    onPreviousAction = { session.playPrevious() }
+                    onNextAction = {
+                        session.controller.setIdleSuspended(false)
+                        session.controller.setBackgroundExecutionAllowed(true)
+                        session.controller.setBackgroundPriorityProtected(true)
+                        session.playNext()
+                    }
+                    onPreviousAction = {
+                        session.controller.setIdleSuspended(false)
+                        session.controller.setBackgroundExecutionAllowed(true)
+                        session.controller.setBackgroundPriorityProtected(true)
+                        session.playPrevious()
+                    }
                     onOfflineTimeoutAction = {
                         session.controller.pause()
                         session.isOfflineWaiting = false
@@ -1507,21 +1555,24 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                             }
                         }
                         if (!isBgAllowed) {
+                            session.controller.setBackgroundExecutionAllowed(false)
                             session.controller.setBackgroundPriorityProtected(false)
                             session.controller.setBackgroundMode(backgrounded = true, keepSponsorTick = false)
                             session.controller.pause()
                             session.controller.setIdleSuspended(true)
                         } else {
+                            val currentQ = session.playerState.currentQuality
+                            if (currentQ.isNotBlank() && currentQ != "tiny") {
+                                session.qualityBeforeBackground = currentQ
+                            }
                             val activePlayback = session.playerState.isPlaying || session.playerState.isBuffering
+                            session.controller.setBackgroundExecutionAllowed(true)
                             session.controller.setBackgroundPriorityProtected(activePlayback)
                             session.controller.setBackgroundMode(
                                 backgrounded = true,
                                 keepSponsorTick = activePlayback && session.hasPendingSponsorSegments()
                             )
                             session.controller.setVideoSurfaceActive(false)
-                            if (!activePlayback) {
-                                session.controller.setIdleSuspended(true)
-                            }
                         }
                     }
                 }
@@ -1529,15 +1580,17 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                     session.isAppInBackground = false
                     session.lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
                     session.controller.setIdleSuspended(false)
+                    session.controller.setBackgroundExecutionAllowed(true)
                     session.controller.setBackgroundPriorityProtected(true)
                     session.controller.setBackgroundMode(backgrounded = false, keepSponsorTick = false)
                     if (session.storyboardData == null) {
                         session.controller.requestStoryboard()
                     }
                     if (!session.isAudioOnly) {
-                        val restoreQ = session.playerState.currentQuality.ifBlank {
-                            repository.preferences?.defaultQuality?.value ?: "auto"
-                        }
+                        val restoreQ = session.qualityBeforeBackground
+                            .takeIf { it.isNotBlank() && it != "tiny" }
+                            ?: session.playerState.currentQuality.takeIf { it.isNotBlank() && it != "tiny" }
+                            ?: (repository.preferences?.defaultQuality?.value ?: "auto")
                         session.controller.setVideoSurfaceActive(true, restoreQ)
                     }
                 }

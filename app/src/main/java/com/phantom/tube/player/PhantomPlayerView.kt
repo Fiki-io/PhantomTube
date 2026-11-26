@@ -29,7 +29,7 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
 ) : WebView(context, attrs, defStyleAttr) {
 
     @Volatile
-    var allowBackgroundExecution: Boolean = false
+    var allowBackgroundExecution: Boolean = true
 
     private var isIdleSuspended: Boolean = false
 
@@ -40,7 +40,7 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
         isHorizontalScrollBarEnabled = false
         overScrollMode = View.OVER_SCROLL_NEVER
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            setRendererPriorityPolicy(RENDERER_PRIORITY_BOUND, true)
+            setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, false)
         }
     }
 
@@ -59,7 +59,6 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
         try {
             super.onWindowVisibilityChanged(View.GONE)
             super.onPause()
-            pauseTimers()
         } catch (_: Exception) {
         }
     }
@@ -76,7 +75,8 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
     }
 
     override fun onWindowVisibilityChanged(visibility: Int) {
-        // Only force VISIBLE while actively playing in background; otherwise let Chromium suspend WebContents
+        // Keep WebContents visible while background playback session is allowed so Chromium does not
+        // suspend WebMediaPlayer or MSE decoding on background pause/track transitions.
         if (visibility == View.VISIBLE || allowBackgroundExecution) {
             super.onWindowVisibilityChanged(View.VISIBLE)
         } else {
@@ -117,6 +117,13 @@ class PhantomPlayerController(context: Context) {
     fun setBackgroundExecutionAllowed(allowed: Boolean) {
         val target = webView as? PhantomBackgroundWebView ?: return
         target.allowBackgroundExecution = allowed
+        if (allowed) {
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                target.resumeFromIdleBackground()
+            } else {
+                target.post { target.resumeFromIdleBackground() }
+            }
+        }
     }
 
     fun setIdleSuspended(suspended: Boolean) {
@@ -144,8 +151,7 @@ class PhantomPlayerController(context: Context) {
         if (isRendererProtected == protected) return
         isRendererProtected = protected
         val target = webView as? PhantomBackgroundWebView ?: return
-        target.allowBackgroundExecution = protected
-        target.post {
+        val applyPriority = {
             try {
                 if (protected) {
                     target.resumeFromIdleBackground()
@@ -155,6 +161,11 @@ class PhantomPlayerController(context: Context) {
                 }
             } catch (_: Exception) {
             }
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            applyPriority()
+        } else {
+            target.post(applyPriority)
         }
     }
 
@@ -196,6 +207,7 @@ class PhantomPlayerController(context: Context) {
 
     fun loadVideo(videoId: String, startSeconds: Float = 0f) {
         setIdleSuspended(false)
+        setBackgroundPriorityProtected(true)
         if (isReady && webView != null) {
             evaluateJs("window.loadVideo('${escapeJsArg(videoId)}', $startSeconds);")
         } else {
@@ -206,6 +218,7 @@ class PhantomPlayerController(context: Context) {
 
     fun play() {
         setIdleSuspended(false)
+        setBackgroundPriorityProtected(true)
         evaluateJs("window.playVideo();")
     }
 

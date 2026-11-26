@@ -2,6 +2,8 @@ package com.phantom.tube.ui.screens.player
 
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.lazy.LazyListState
@@ -122,6 +124,7 @@ class PlayerSessionState(
     var isAutoplayNext by mutableStateOf(true)
     var isAudioOnly by mutableStateOf(false)
     var previousQualityBeforeAudioOnly by mutableStateOf("auto")
+    var qualityBeforeBackground by mutableStateOf("auto")
     var sleepTimerOption by mutableStateOf(SleepTimerOption.OFF)
     var sleepTimerRemainingSec by mutableStateOf<Int?>(null)
     var lastRecordedPositionSec by mutableFloatStateOf(0f)
@@ -135,6 +138,15 @@ class PlayerSessionState(
     var lastObservedPlaybackSec by mutableFloatStateOf(0f)
     var isPlaybackStalled by mutableStateOf(false)
     var isAppInBackground by mutableStateOf(false)
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private inline fun runOnMain(crossinline block: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            block()
+        } else {
+            mainHandler.post { block() }
+        }
+    }
 
     fun hasPendingSponsorSegments(): Boolean {
         val sbEnabled = repository.preferences?.sponsorBlockEnabled?.value ?: true
@@ -222,8 +234,11 @@ class PlayerSessionState(
         if (!networkObserver.isConnected()) {
             showNotice(context.getString(R.string.player_no_internet_notice))
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            mediaService?.updatePlaybackState(false, (currentPositionSec * 1000).toLong(), forceNotify = false, isBuffering = false)
             return
         }
+        controller.setIdleSuspended(false)
+        controller.setBackgroundPriorityProtected(true)
         if (mixPlaylist.isNotEmpty()) {
             val activeIdx = if (currentMixIndex in mixPlaylist.indices && mixPlaylist[currentMixIndex].id == currentVideo.id) {
                 currentMixIndex
@@ -271,6 +286,8 @@ class PlayerSessionState(
                         if (fallbackRec != null) {
                             isInternalNavigation = false
                             onPlayNextVideoCallback(fallbackRec.copy(playlistId = null, isPlaylist = false))
+                        } else {
+                            mediaService?.updatePlaybackState(false, (currentPositionSec * 1000).toLong(), forceNotify = false, isBuffering = false)
                         }
                     }
                     isLoadingQueue = false
@@ -331,6 +348,8 @@ class PlayerSessionState(
                 if (nextVid != null) {
                     isInternalNavigation = false
                     onPlayNextVideoCallback(nextVid.copy(playlistId = null, isPlaylist = false))
+                } else {
+                    mediaService?.updatePlaybackState(false, (currentPositionSec * 1000).toLong(), forceNotify = false, isBuffering = false)
                 }
             }
         }
@@ -469,278 +488,298 @@ class PlayerSessionState(
 
     val bridge = PhantomPlayerBridge(
         onReadyCallback = {
-            controller.onReady()
-            if (isCaptionsEnabled) {
-                controller.setCaptionsEnabled(true)
+            runOnMain {
+                controller.onReady()
+                if (isCaptionsEnabled) {
+                    controller.setCaptionsEnabled(true)
+                }
             }
         },
         onStoryboardSpecCallback = { spec ->
             val parsed = StoryboardHelper.parse(spec)
             if (parsed != null) {
-                storyboardData = parsed
+                runOnMain {
+                    storyboardData = parsed
+                }
             }
         },
         onStateChangeCallback = { state ->
-            when (state) {
-                1 -> {
-                    isPlaybackStalled = false
-                    lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
-                    lastObservedPlaybackSec = currentPositionSec
-                    controller.setBackgroundPriorityProtected(true)
-                    playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
-                    mediaService?.updatePlaybackState(
-                        playing = true,
-                        currentPositionMs = (currentPositionSec * 1000).toLong(),
-                        forceNotify = false,
-                        isBuffering = false
-                    )
-                    if (isCaptionsEnabled) {
-                        controller.setCaptionsEnabled(true)
-                    }
-                    if (isAudioOnly) {
-                        controller.setAudioOnly(true)
-                    }
-                    if (appliedDefaultsVideoId != currentVideo.id) {
-                        appliedDefaultsVideoId = currentVideo.id
-                        val targetSpeed = playerState.playbackSpeed
-                        if (targetSpeed != 1.0f) {
-                            controller.setPlaybackRate(targetSpeed)
+            runOnMain {
+                when (state) {
+                    1 -> {
+                        isPlaybackStalled = false
+                        lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+                        lastObservedPlaybackSec = currentPositionSec
+                        controller.setBackgroundPriorityProtected(true)
+                        playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
+                        mediaService?.updatePlaybackState(
+                            playing = true,
+                            currentPositionMs = (currentPositionSec * 1000).toLong(),
+                            forceNotify = false,
+                            isBuffering = false
+                        )
+                        if (isCaptionsEnabled) {
+                            controller.setCaptionsEnabled(true)
                         }
                         if (isAudioOnly) {
-                            playerState = playerState.copy(currentQuality = "tiny")
                             controller.setAudioOnly(true)
-                        } else {
-                            val defQuality = repository.preferences?.defaultQuality?.value ?: "auto"
-                            if (defQuality != "auto") {
-                                playerState = playerState.copy(currentQuality = defQuality)
-                                controller.setPlaybackQuality(defQuality)
+                        }
+                        if (appliedDefaultsVideoId != currentVideo.id) {
+                            appliedDefaultsVideoId = currentVideo.id
+                            val targetSpeed = playerState.playbackSpeed
+                            if (targetSpeed != 1.0f) {
+                                controller.setPlaybackRate(targetSpeed)
+                            }
+                            if (isAudioOnly) {
+                                playerState = playerState.copy(currentQuality = "tiny")
+                                controller.setAudioOnly(true)
+                            } else if (!isAppInBackground) {
+                                val defQuality = repository.preferences?.defaultQuality?.value ?: "auto"
+                                if (defQuality != "auto") {
+                                    qualityBeforeBackground = defQuality
+                                    playerState = playerState.copy(currentQuality = defQuality)
+                                    controller.setPlaybackQuality(defQuality)
+                                }
+                            }
+                        }
+                        val activeVid = currentVideo
+                        if (playerState.videoId == activeVid.id &&
+                            recordedHistoryVideoId != activeVid.id &&
+                            activeVid.title.isNotBlank() &&
+                            repository.preferences?.pauseWatchHistory?.value != true
+                        ) {
+                            recordedHistoryVideoId = activeVid.id
+                            val posMs = (currentPositionSec * 1000).toLong()
+                            val durMs = (currentDurationSec * 1000).toLong()
+                            scope.launch {
+                                repository.recordWatch(
+                                    video = activeVid,
+                                    positionMs = posMs,
+                                    durationMs = durMs
+                                )
                             }
                         }
                     }
-                    val activeVid = currentVideo
-                    if (playerState.videoId == activeVid.id &&
-                        recordedHistoryVideoId != activeVid.id &&
-                        activeVid.title.isNotBlank() &&
-                        repository.preferences?.pauseWatchHistory?.value != true
-                    ) {
-                        recordedHistoryVideoId = activeVid.id
-                        val posMs = (currentPositionSec * 1000).toLong()
-                        val durMs = (currentDurationSec * 1000).toLong()
-                        scope.launch {
-                            repository.recordWatch(
-                                video = activeVid,
-                                positionMs = posMs,
-                                durationMs = durMs
-                            )
-                        }
-                    }
-                }
-                2 -> {
-                    isPlaybackStalled = false
-                    wasPlayingBeforeOffline = false
-                    if (isAppInBackground) {
-                        controller.setBackgroundPriorityProtected(false)
-                        controller.setIdleSuspended(true)
-                    }
-                    playerState = playerState.copy(isPlaying = false, isBuffering = false)
-                    mediaService?.updatePlaybackState(
-                        playing = false,
-                        currentPositionMs = (currentPositionSec * 1000).toLong(),
-                        forceNotify = false,
-                        isBuffering = false
-                    )
-                    val activeVid = currentVideo
-                    val pos = currentPositionSec
-                    val dur = currentDurationSec
-                    if (pos > 1f) {
-                        scope.launch {
-                            repository.recordWatch(
-                                video = activeVid,
-                                positionMs = (pos * 1000).toLong(),
-                                durationMs = (dur * 1000).toLong()
-                            )
-                        }
-                    }
-                }
-                3 -> {
-                    val wasPlaying = playerState.isPlaying
-                    controller.setBackgroundPriorityProtected(true)
-                    playerState = playerState.copy(isBuffering = true)
-                    if (wasPlaying && !networkObserver.isConnected()) {
-                        wasPlayingBeforeOffline = true
-                    }
-                    mediaService?.updatePlaybackState(
-                        playing = wasPlaying,
-                        currentPositionMs = (currentPositionSec * 1000).toLong(),
-                        forceNotify = false,
-                        isBuffering = true
-                    )
-                }
-                0 -> {
-                    isPlaybackStalled = false
-                    wasPlayingBeforeOffline = false
-                    playerState = playerState.copy(isPlaying = false, isEnded = true)
-                    mediaService?.updatePlaybackState(false, 0L, forceNotify = false, isBuffering = false)
-                    val endedVid = currentVideo
-                    val endedDurMs = (currentDurationSec * 1000).toLong()
-                    val shouldRecordEnded = playerState.videoId == endedVid.id &&
-                        endedVid.title.isNotBlank() &&
-                        repository.preferences?.pauseWatchHistory?.value != true
-                    if (shouldRecordEnded) {
-                        recordedHistoryVideoId = endedVid.id
-                    }
-                    scope.launch {
-                        if (shouldRecordEnded) {
-                            repository.recordWatch(
-                                video = endedVid,
-                                positionMs = 0L,
-                                durationMs = endedDurMs
-                            )
-                        } else {
-                            repository.resetWatchPosition(endedVid.id)
-                        }
-                    }
-                    if (isLoopEnabled) {
-                        controller.seekTo(0f)
-                        controller.play()
-                    } else if (sleepTimerOption == SleepTimerOption.END_OF_VIDEO) {
-                        controller.pause()
+                    2 -> {
+                        isPlaybackStalled = false
+                        wasPlayingBeforeOffline = false
                         if (isAppInBackground) {
                             controller.setBackgroundPriorityProtected(false)
-                            controller.setIdleSuspended(true)
                         }
-                        sleepTimerOption = SleepTimerOption.OFF
-                        sleepTimerRemainingSec = null
-                    } else if (isAutoplayNext) {
-                        playNext()
-                    } else if (isAppInBackground) {
-                        controller.setBackgroundPriorityProtected(false)
-                        controller.setIdleSuspended(true)
+                        playerState = playerState.copy(isPlaying = false, isBuffering = false)
+                        mediaService?.updatePlaybackState(
+                            playing = false,
+                            currentPositionMs = (currentPositionSec * 1000).toLong(),
+                            forceNotify = false,
+                            isBuffering = false
+                        )
+                        val activeVid = currentVideo
+                        val pos = currentPositionSec
+                        val dur = currentDurationSec
+                        if (pos > 1f) {
+                            scope.launch {
+                                repository.recordWatch(
+                                    video = activeVid,
+                                    positionMs = (pos * 1000).toLong(),
+                                    durationMs = (dur * 1000).toLong()
+                                )
+                            }
+                        }
+                    }
+                    3 -> {
+                        val wasPlaying = playerState.isPlaying
+                        lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+                        controller.setBackgroundPriorityProtected(true)
+                        playerState = playerState.copy(isBuffering = true)
+                        if (wasPlaying && !networkObserver.isConnected()) {
+                            wasPlayingBeforeOffline = true
+                        }
+                        mediaService?.updatePlaybackState(
+                            playing = wasPlaying,
+                            currentPositionMs = (currentPositionSec * 1000).toLong(),
+                            forceNotify = false,
+                            isBuffering = true
+                        )
+                    }
+                    0 -> {
+                        isPlaybackStalled = false
+                        wasPlayingBeforeOffline = false
+                        playerState = playerState.copy(isPlaying = false, isEnded = true)
+                        val endedVid = currentVideo
+                        val endedDurMs = (currentDurationSec * 1000).toLong()
+                        val shouldRecordEnded = playerState.videoId == endedVid.id &&
+                            endedVid.title.isNotBlank() &&
+                            repository.preferences?.pauseWatchHistory?.value != true
+                        if (shouldRecordEnded) {
+                            recordedHistoryVideoId = endedVid.id
+                        }
+                        scope.launch {
+                            if (shouldRecordEnded) {
+                                repository.recordWatch(
+                                    video = endedVid,
+                                    positionMs = 0L,
+                                    durationMs = endedDurMs
+                                )
+                            } else {
+                                repository.resetWatchPosition(endedVid.id)
+                            }
+                        }
+                        if (isLoopEnabled) {
+                            mediaService?.updatePlaybackState(true, 0L, forceNotify = false, isBuffering = true)
+                            controller.seekTo(0f)
+                            controller.play()
+                        } else if (sleepTimerOption == SleepTimerOption.END_OF_VIDEO) {
+                            mediaService?.updatePlaybackState(false, 0L, forceNotify = false, isBuffering = false)
+                            controller.pause()
+                            if (isAppInBackground) {
+                                controller.setBackgroundPriorityProtected(false)
+                            }
+                            sleepTimerOption = SleepTimerOption.OFF
+                            sleepTimerRemainingSec = null
+                        } else if (isAutoplayNext) {
+                            // Keep Foreground Service & WakeLock held continuously across autoplay transitions
+                            mediaService?.updatePlaybackState(true, 0L, forceNotify = false, isBuffering = true)
+                            playNext()
+                        } else {
+                            mediaService?.updatePlaybackState(false, 0L, forceNotify = false, isBuffering = false)
+                            if (isAppInBackground) {
+                                controller.setBackgroundPriorityProtected(false)
+                            }
+                        }
                     }
                 }
             }
         },
         onTimeUpdateCallback = { reportingVideoId, current, duration, buffered ->
-            if (reportingVideoId.isNotBlank() && reportingVideoId != currentVideo.id) {
-                return@PhantomPlayerBridge
-            }
+            runOnMain {
+                if (reportingVideoId.isNotBlank() && reportingVideoId != currentVideo.id) {
+                    return@runOnMain
+                }
 
-            if (kotlin.math.abs(current - lastObservedPlaybackSec) >= 0.1f) {
-                lastObservedPlaybackSec = current
-                lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
-                if (isPlaybackStalled) {
-                    isPlaybackStalled = false
-                    if (playerState.isPlaying) {
-                        playerState = playerState.copy(isBuffering = false)
-                        mediaService?.updatePlaybackState(
-                            playing = true,
-                            currentPositionMs = (current * 1000).toLong(),
-                            forceNotify = false,
-                            isBuffering = false
+                if (kotlin.math.abs(current - lastObservedPlaybackSec) >= 0.1f) {
+                    lastObservedPlaybackSec = current
+                    lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
+                    if (isPlaybackStalled) {
+                        isPlaybackStalled = false
+                        if (playerState.isPlaying) {
+                            playerState = playerState.copy(isBuffering = false)
+                            mediaService?.updatePlaybackState(
+                                playing = true,
+                                currentPositionMs = (current * 1000).toLong(),
+                                forceNotify = false,
+                                isBuffering = false
+                            )
+                        }
+                    }
+                }
+
+                val wasZeroDuration = currentDurationSec <= 0f && duration > 0f
+                currentPositionSec = current
+                currentDurationSec = duration
+                currentBufferedFraction = buffered
+
+                if (wasZeroDuration) {
+                    playerState = playerState.copy(durationSec = duration)
+                    mediaService?.updateDuration((duration * 1000).toLong(), (current * 1000).toLong())
+                }
+
+                val isEffectivelyPlaying = playerState.isPlaying && !isPlaybackStalled && !playerState.isBuffering
+                val syncIntervalSec = if (isAppInBackground) 10f else 5f
+                if (!hasSyncedMediaSessionInitialPosition && current > 0.5f) {
+                    hasSyncedMediaSessionInitialPosition = true
+                    lastSyncedMediaSessionSec = current
+                    mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
+                } else if (kotlin.math.abs(current - lastSyncedMediaSessionSec) >= syncIntervalSec) {
+                    lastSyncedMediaSessionSec = current
+                    mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
+                }
+
+                if (!isAppInBackground && current > 2f && (current - lastRecordedPositionSec >= 5f || current < lastRecordedPositionSec)) {
+                    lastRecordedPositionSec = current
+                    val activeVid = currentVideo
+                    scope.launch {
+                        repository.recordWatch(
+                            video = activeVid,
+                            positionMs = (current * 1000).toLong(),
+                            durationMs = (duration * 1000).toLong()
                         )
                     }
                 }
-            }
 
-            val wasZeroDuration = currentDurationSec <= 0f && duration > 0f
-            currentPositionSec = current
-            currentDurationSec = duration
-            currentBufferedFraction = buffered
-
-            if (wasZeroDuration) {
-                playerState = playerState.copy(durationSec = duration)
-                mediaService?.updateDuration((duration * 1000).toLong(), (current * 1000).toLong())
-            }
-
-            val isEffectivelyPlaying = playerState.isPlaying && !isPlaybackStalled && !playerState.isBuffering
-            if (!hasSyncedMediaSessionInitialPosition && current > 0.5f) {
-                hasSyncedMediaSessionInitialPosition = true
-                lastSyncedMediaSessionSec = current
-                mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
-            } else if (!isAppInBackground && kotlin.math.abs(current - lastSyncedMediaSessionSec) >= 5f) {
-                lastSyncedMediaSessionSec = current
-                mediaService?.updatePlaybackState(isEffectivelyPlaying, (current * 1000).toLong())
-            }
-
-            if (!isAppInBackground && current > 2f && (current - lastRecordedPositionSec >= 5f || current < lastRecordedPositionSec)) {
-                lastRecordedPositionSec = current
-                val activeVid = currentVideo
-                scope.launch {
-                    repository.recordWatch(
-                        video = activeVid,
-                        positionMs = (current * 1000).toLong(),
-                        durationMs = (duration * 1000).toLong()
-                    )
-                }
-            }
-
-            val match = SponsorBlockEvaluator.findMatchingSegment(
-                currentSec = current,
-                durationSec = duration,
-                segments = sponsorSegments,
-                preferences = repository.preferences,
-                skippedUuids = skippedSegmentUuids,
-                undoneUuids = undoneSegmentUuids
-            )
-            if (match != null) {
-                skippedSegmentUuids.add(match.uuid)
-                lastSkippedFromSec = current
-                lastTargetSkipEndSec = match.endSecond
-                lastSkippedSeconds = match.skippedSeconds
-                lastSkippedCategory = match.category
-                if (match.autoSkip) {
-                    controller.seekTo(match.endSecond)
-                    currentPositionSec = match.endSecond
-                    lastSyncedMediaSessionSec = match.endSecond
-                    mediaService?.updatePlaybackState(playerState.isPlaying, (match.endSecond * 1000).toLong())
-                }
-                if (isAppInBackground) {
-                    syncBackgroundTickerMode()
-                }
-                showSponsorPill = true
-                sponsorPillJob?.cancel()
-                sponsorPillJob = scope.launch {
-                    delay(4000)
-                    showSponsorPill = false
-                }
-                if (match.category == "outro") {
-                    val activeVid = currentVideo
-                    scope.launch {
-                        repository.resetWatchPosition(activeVid.id)
+                val match = SponsorBlockEvaluator.findMatchingSegment(
+                    currentSec = current,
+                    durationSec = duration,
+                    segments = sponsorSegments,
+                    preferences = repository.preferences,
+                    skippedUuids = skippedSegmentUuids,
+                    undoneUuids = undoneSegmentUuids
+                )
+                if (match != null) {
+                    skippedSegmentUuids.add(match.uuid)
+                    lastSkippedFromSec = current
+                    lastTargetSkipEndSec = match.endSecond
+                    lastSkippedSeconds = match.skippedSeconds
+                    lastSkippedCategory = match.category
+                    if (match.autoSkip) {
+                        controller.seekTo(match.endSecond)
+                        currentPositionSec = match.endSecond
+                        lastSyncedMediaSessionSec = match.endSecond
+                        mediaService?.updatePlaybackState(playerState.isPlaying, (match.endSecond * 1000).toLong())
+                    }
+                    if (isAppInBackground) {
+                        syncBackgroundTickerMode()
+                    }
+                    showSponsorPill = true
+                    sponsorPillJob?.cancel()
+                    sponsorPillJob = scope.launch {
+                        delay(4000)
+                        showSponsorPill = false
+                    }
+                    if (match.category == "outro") {
+                        val activeVid = currentVideo
+                        scope.launch {
+                            repository.resetWatchPosition(activeVid.id)
+                        }
                     }
                 }
             }
         },
         onErrorCallback = { errorCode ->
-            val msg = when (errorCode) {
-                100 -> context.getString(R.string.player_err_not_available)
-                101, 150 -> context.getString(R.string.player_err_restricted)
-                152 -> context.getString(R.string.player_err_unsupported)
-                2 -> context.getString(R.string.player_err_invalid)
-                5 -> context.getString(R.string.player_error_load)
-                else -> "${context.getString(R.string.player_error_load)} ($errorCode)"
+            runOnMain {
+                val msg = when (errorCode) {
+                    100 -> context.getString(R.string.player_err_not_available)
+                    101, 150 -> context.getString(R.string.player_err_restricted)
+                    152 -> context.getString(R.string.player_err_unsupported)
+                    2 -> context.getString(R.string.player_err_invalid)
+                    5 -> context.getString(R.string.player_error_load)
+                    else -> "${context.getString(R.string.player_error_load)} ($errorCode)"
+                }
+                isPlaybackStalled = false
+                controller.setBackgroundPriorityProtected(false)
+                playerState = playerState.copy(isPlaying = false, isBuffering = false, errorCode = msg)
+                mediaService?.updatePlaybackState(
+                    playing = false,
+                    currentPositionMs = (currentPositionSec * 1000).toLong(),
+                    forceNotify = false,
+                    isBuffering = false
+                )
             }
-            isPlaybackStalled = false
-            controller.setBackgroundPriorityProtected(false)
-            if (isAppInBackground) {
-                controller.setIdleSuspended(true)
-            }
-            playerState = playerState.copy(isPlaying = false, isBuffering = false, errorCode = msg)
-            mediaService?.updatePlaybackState(
-                playing = false,
-                currentPositionMs = (currentPositionSec * 1000).toLong(),
-                forceNotify = false,
-                isBuffering = false
-            )
         },
         onQualityChangeCallback = { currentQuality, availableQualities ->
-            playerState = playerState.copy(
-                currentQuality = currentQuality,
-                availableQualities = availableQualities
-            )
+            runOnMain {
+                if (!isAppInBackground && !isAudioOnly && currentQuality.isNotBlank() && currentQuality != "tiny") {
+                    qualityBeforeBackground = currentQuality
+                }
+                playerState = playerState.copy(
+                    currentQuality = currentQuality,
+                    availableQualities = availableQualities
+                )
+            }
         },
         onCaptionsAvailableCallback = { available ->
-            hasCaptions = available
+            runOnMain {
+                hasCaptions = available
+            }
         },
         onEndscreenDataCallback = { itemsJson ->
             try {
@@ -762,7 +801,7 @@ class PlayerSessionState(
                     }
                 }
                 if (items.isNotEmpty()) {
-                    scope.launch {
+                    runOnMain {
                         liveEndscreenVideos = items
                     }
                 }

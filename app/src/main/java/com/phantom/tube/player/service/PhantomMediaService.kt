@@ -57,6 +57,7 @@ class PhantomMediaService : Service() {
     private var currentTitle: String = "Phantom Player"
     private var currentChannel: String = ""
     private var isPlaying: Boolean = false
+    private var isBufferingState: Boolean = false
 
     private var currentDurationMs: Long = 0L
     private var currentPositionMs: Long = 0L
@@ -211,6 +212,12 @@ class PhantomMediaService : Service() {
                         showNoInternetToast()
                         return
                     }
+                    cancelIdleStopTimer()
+                    mediaSession?.isActive = true
+                    if (!isInForeground) {
+                        startForegroundCompat(buildNotification())
+                    }
+                    acquireWakeLock()
                     onPlayAction?.invoke()
                 }
 
@@ -225,6 +232,12 @@ class PhantomMediaService : Service() {
                         showNoInternetToast()
                         return
                     }
+                    cancelIdleStopTimer()
+                    mediaSession?.isActive = true
+                    if (!isInForeground) {
+                        startForegroundCompat(buildNotification())
+                    }
+                    acquireWakeLock()
                     onNextAction?.invoke()
                 }
 
@@ -233,6 +246,12 @@ class PhantomMediaService : Service() {
                         showNoInternetToast()
                         return
                     }
+                    cancelIdleStopTimer()
+                    mediaSession?.isActive = true
+                    if (!isInForeground) {
+                        startForegroundCompat(buildNotification())
+                    }
+                    acquireWakeLock()
                     onPreviousAction?.invoke()
                 }
 
@@ -258,12 +277,15 @@ class PhantomMediaService : Service() {
         durationMs: Long = 0L,
         playing: Boolean,
         thumbnailUrl: String = "",
-        currentPositionMs: Long = -1L
+        currentPositionMs: Long = -1L,
+        isBuffering: Boolean = false
     ) {
         val metaChanged = (title != currentTitle || channel != currentChannel)
         currentTitle = title
         currentChannel = channel
         isPlaying = playing
+        isBufferingState = isBuffering
+        isBufferingState = isBuffering
         if (durationMs > 0L) {
             currentDurationMs = durationMs
         }
@@ -277,7 +299,7 @@ class PhantomMediaService : Service() {
             loadThumbnail(thumbnailUrl)
         } else {
             applyMetadata(currentBitmap)
-            updatePlaybackState(playing, this.currentPositionMs, forceNotify = metaChanged)
+            updatePlaybackState(playing, this.currentPositionMs, forceNotify = metaChanged, isBuffering = isBuffering)
         }
     }
 
@@ -288,13 +310,13 @@ class PhantomMediaService : Service() {
         if (durationMs > 0L && durationMs != currentDurationMs) {
             currentDurationMs = durationMs
             applyMetadata(currentBitmap)
-            updatePlaybackState(isPlaying, this.currentPositionMs, forceNotify = false)
+            updatePlaybackState(isPlaying, this.currentPositionMs, forceNotify = false, isBuffering = isBufferingState)
         }
     }
 
     private fun loadThumbnail(url: String) {
         applyMetadata(null)
-        updatePlaybackState(isPlaying, this.currentPositionMs, forceNotify = true)
+        updatePlaybackState(isPlaying, this.currentPositionMs, forceNotify = true, isBuffering = isBufferingState)
 
         serviceScope.launch(Dispatchers.IO) {
             try {
@@ -357,6 +379,7 @@ class PhantomMediaService : Service() {
             forceNotify
 
         isPlaying = playing
+        isBufferingState = isBuffering
         if (currentPositionMs >= 0L) {
             this.currentPositionMs = currentPositionMs
         }
@@ -574,6 +597,7 @@ class PhantomMediaService : Service() {
                     demoteForegroundIfActive()
                 } else {
                     cancelIdleStopTimer()
+                    acquireWakeLock()
                     onPlayAction?.invoke()
                 }
             }
@@ -591,6 +615,7 @@ class PhantomMediaService : Service() {
                     demoteForegroundIfActive()
                 } else {
                     cancelIdleStopTimer()
+                    acquireWakeLock()
                     onNextAction?.invoke()
                 }
             }
@@ -600,6 +625,7 @@ class PhantomMediaService : Service() {
                     demoteForegroundIfActive()
                 } else {
                     cancelIdleStopTimer()
+                    acquireWakeLock()
                     onPreviousAction?.invoke()
                 }
             }
