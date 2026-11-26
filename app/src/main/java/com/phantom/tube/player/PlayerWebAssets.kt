@@ -285,6 +285,24 @@ object PlayerWebAssets {
         }
 
         function onPlayerStateChange(event) {
+            if (desiredPlayState === true && event.data === 2) {
+                try {
+                    if (player && typeof player.playVideo === 'function') player.playVideo();
+                } catch(e) {}
+                startTimeTicker();
+                return;
+            }
+            if (desiredPlayState === false && (event.data === 1 || event.data === 3)) {
+                try {
+                    if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+                } catch(e) {}
+                stopTimeTicker();
+                return;
+            }
+            if ((desiredPlayState === true && event.data === 1) ||
+                (desiredPlayState === false && event.data === 2)) {
+                desiredPlayState = null;
+            }
             if (!isBackgroundMode) {
                 try {
                     var iframe = document.querySelector('iframe');
@@ -311,22 +329,6 @@ object PlayerWebAssets {
             } else {
                 stopTimeTicker();
             }
-            if (desiredPlayState === true && event.data === 2) {
-                try {
-                    if (player && typeof player.playVideo === 'function') player.playVideo();
-                } catch(e) {}
-                return;
-            }
-            if (desiredPlayState === false && (event.data === 1 || event.data === 3)) {
-                try {
-                    if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
-                } catch(e) {}
-                return;
-            }
-            if ((desiredPlayState === true && event.data === 1) ||
-                (desiredPlayState === false && event.data === 2)) {
-                desiredPlayState = null;
-            }
             lastReportedYtState = event.data;
             syncTimeSnapshot();
             if (window.PhantomBridge) {
@@ -351,7 +353,19 @@ object PlayerWebAssets {
                     }
                     if (typeof player.getPlayerState === 'function') {
                         var ytState = player.getPlayerState();
-                        if ((ytState === 1 || ytState === 2) && ytState !== lastReportedYtState && window.PhantomBridge) {
+                        if (desiredPlayState === true && ytState === 2) {
+                            try {
+                                if (typeof player.playVideo === 'function') player.playVideo();
+                            } catch(e) {}
+                        } else if (desiredPlayState === false && (ytState === 1 || ytState === 3)) {
+                            try {
+                                if (typeof player.pauseVideo === 'function') player.pauseVideo();
+                            } catch(e) {}
+                        } else if ((ytState === 1 || ytState === 2) && ytState !== lastReportedYtState && window.PhantomBridge) {
+                            if ((desiredPlayState === true && ytState === 1) ||
+                                (desiredPlayState === false && ytState === 2)) {
+                                desiredPlayState = null;
+                            }
                             lastReportedYtState = ytState;
                             window.PhantomBridge.onStateChange(ytState);
                         }

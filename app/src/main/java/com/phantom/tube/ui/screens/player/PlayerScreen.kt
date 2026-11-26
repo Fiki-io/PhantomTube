@@ -1456,6 +1456,8 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                         if (!session.networkObserver.isConnected()) {
                             session.showNotice(context.getString(R.string.player_no_internet_notice))
                         } else {
+                            session.isPlaybackStalled = false
+                            session.lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
                             session.isResumePending = true
                             session.controller.setIdleSuspended(false)
                             session.controller.setBackgroundExecutionAllowed(true)

@@ -599,9 +599,9 @@ class PlayerSessionState(
                         if (wasPlaying && !networkObserver.isConnected()) {
                             wasPlayingBeforeOffline = true
                         }
-                        if (isResumePending) {
-                            // Keep MediaService in PLAYING state during quick pause->play resume
-                            // so system media controls do not get stuck showing a loading spinner.
+                        if (wasPlaying) {
+                            // Keep MediaService in PLAYING state during transient mid-stream buffering
+                            // or quick pause->play resume; genuine stalls (>2.5s) promote STATE_BUFFERING.
                             mediaService?.updatePlaybackState(
                                 playing = true,
                                 currentPositionMs = (currentPositionSec * 1000).toLong(),
@@ -610,7 +610,7 @@ class PlayerSessionState(
                             )
                         } else {
                             mediaService?.updatePlaybackState(
-                                playing = wasPlaying,
+                                playing = false,
                                 currentPositionMs = (currentPositionSec * 1000).toLong(),
                                 forceNotify = false,
                                 isBuffering = true
