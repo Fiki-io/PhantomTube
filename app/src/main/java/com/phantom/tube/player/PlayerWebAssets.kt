@@ -572,9 +572,8 @@ object PlayerWebAssets {
                     if (stateSyncTimer) clearTimeout(stateSyncTimer);
                     stateSyncTimer = setTimeout(syncTimeSnapshot, 350);
                 } else {
-                    var pauseFadeSeq = activeFadeSeq;
                     startVolumeFade(0.0, 360, function() {
-                        if (pauseFadeSeq !== activeFadeSeq || desiredPlayState !== false) return;
+                        if (desiredPlayState !== false) return;
                         if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
                         syncTimeSnapshot();
                         if (stateSyncTimer) clearTimeout(stateSyncTimer);
