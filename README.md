@@ -4,6 +4,7 @@
 
 - **Official GitHub Repository:** [https://github.com/Fiki-io/PhantomTube](https://github.com/Fiki-io/PhantomTube)
 - **Download Latest Phantom Tube APK:** [GitHub Releases](https://github.com/Fiki-io/PhantomTube/releases)
+- **Official Telegram Community:** [t.me/phantomtubeofficial](https://t.me/phantomtubeofficial)
 - **Android Package ID:** `com.phantom.tube`
 - **Binary Footprint:** ~1.5 MB APK | Active Heap Usage: < 80 MB RAM
 - **License:** MIT
@@ -200,3 +201,12 @@ This software is developed for educational and research purposes as a lightweigh
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## Community & Support
+
+Have questions, feature requests, or bug reports? Join our official community channel to get updates and connect with other users:
+
+- **Telegram Group:** [https://t.me/phantomtubeofficial](https://t.me/phantomtubeofficial)
+- **GitHub Issues:** [Report a Bug or Request a Feature](https://github.com/Fiki-io/PhantomTube/issues)
