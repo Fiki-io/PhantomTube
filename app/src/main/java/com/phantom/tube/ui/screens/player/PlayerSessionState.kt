@@ -570,6 +570,10 @@ class PlayerSessionState(
                         wasPlayingBeforeOffline = false
                         if (isAppInBackground) {
                             controller.setBackgroundPriorityProtected(false)
+                            com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                                context = context,
+                                aggressiveGraphicsPurge = false
+                            )
                         }
                         playerState = playerState.copy(isPlaying = false, isBuffering = false)
                         mediaService?.updatePlaybackState(

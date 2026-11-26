@@ -1000,7 +1000,7 @@ private fun PlayerLifecycleEffects(
             while ((session.playerState.isPlaying || session.playerState.isBuffering) &&
                 session.playerState.errorCode == null
             ) {
-                delay(2000L)
+                delay(if (session.isAppInBackground) 5000L else 2000L)
                 val now = SystemClock.elapsedRealtime()
                 val elapsedSinceProgress = now - session.lastProgressElapsedRealtime
                 if (!session.isAppInBackground) {
@@ -1020,7 +1020,7 @@ private fun PlayerLifecycleEffects(
                         }
                     }
                 } else {
-                    val thresholdMs = if (session.playerState.isBuffering) 10000L else 6000L
+                    val thresholdMs = if (session.playerState.isBuffering) 14000L else 10000L
                     if (elapsedSinceProgress > thresholdMs) {
                         if (!session.networkObserver.isConnected()) {
                             session.wasPlayingBeforeOffline = true
@@ -1047,6 +1047,31 @@ private fun PlayerLifecycleEffects(
             }
         } else {
             session.isPlaybackStalled = false
+        }
+    }
+
+    LaunchedEffect(
+        session.isAppInBackground,
+        session.playerState.isPlaying,
+        session.playerState.isBuffering,
+        session.isResumePending
+    ) {
+        val isBgAllowed = repository.preferences?.backgroundPlaybackEnabled?.value ?: true
+        if (isBgAllowed &&
+            session.isAppInBackground &&
+            !session.playerState.isPlaying &&
+            !session.playerState.isBuffering &&
+            !session.isResumePending
+        ) {
+            delay(25_000L)
+            if (session.isAppInBackground &&
+                !session.playerState.isPlaying &&
+                !session.playerState.isBuffering &&
+                !session.isResumePending
+            ) {
+                session.controller.setBackgroundPriorityProtected(false)
+                session.controller.setIdleSuspended(true)
+            }
         }
     }
 
@@ -1470,6 +1495,10 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                         session.controller.pause()
                         if (session.isAppInBackground) {
                             session.controller.setBackgroundPriorityProtected(false)
+                            com.phantom.tube.core.util.PhantomMemoryOptimizer.trimNow(
+                                context = context,
+                                aggressiveGraphicsPurge = false
+                            )
                         }
                     }
                     onNextAction = {

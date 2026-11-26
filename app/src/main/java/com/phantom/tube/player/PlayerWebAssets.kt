@@ -391,7 +391,7 @@ object PlayerWebAssets {
             if (timeTicker) clearInterval(timeTicker);
             timeTicker = null;
             if (isBackgroundMode) {
-                timeTicker = setInterval(syncTimeSnapshot, 2000);
+                timeTicker = setInterval(syncTimeSnapshot, keepLightweightTicker ? 2500 : 5000);
                 return;
             }
             timeTicker = setInterval(syncTimeSnapshot, 500);
@@ -973,12 +973,16 @@ a[href*="youtube.com/watch"] {
                 return -bgRafSeq++;
             }
             var fakeId = -bgRafSeq++;
+            var rafDelayMs = 16;
+            if (isIframeBackground) {
+                rafDelayMs = isIframeMediaActive ? 1000 : 250;
+            }
             bgRafTimers[fakeId] = setTimeout(function() {
                 delete bgRafTimers[fakeId];
                 try {
                     cb((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now());
                 } catch(err) {}
-            }, isIframeBackground ? 250 : 16);
+            }, rafDelayMs);
             return fakeId;
         };
         window.cancelAnimationFrame = function(id) {
@@ -1311,7 +1315,7 @@ a[href*="youtube.com/watch"] {
                     (document.head || document.documentElement).appendChild(aEl);
                 }
                 if (audioOnly) {
-                    aEl.textContent = 'html, body, #player, #movie_player, .html5-video-player { width: 1px !important; height: 1px !important; overflow: hidden !important; contain: strict !important; } .html5-video-container, video.html5-main-video, video { opacity: 0 !important; pointer-events: none !important; width: 1px !important; height: 1px !important; }';
+                    aEl.textContent = 'html, body, #player, #movie_player, .html5-video-player { width: 1px !important; height: 1px !important; overflow: hidden !important; contain: strict !important; } .html5-video-container, video.html5-main-video, video { visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; width: 1px !important; height: 1px !important; }';
                     var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
                     if (p) {
                         try { if (typeof p.setPlaybackQualityRange === 'function') p.setPlaybackQualityRange('tiny', 'tiny'); } catch(err) {}
@@ -1332,7 +1336,7 @@ a[href*="youtube.com/watch"] {
                 }
                 var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
                 if (!isActive) {
-                    sLock.textContent = 'html, body, #player, #movie_player, .html5-video-player { width: 1px !important; height: 1px !important; overflow: hidden !important; contain: strict !important; } .html5-video-container, video.html5-main-video, video { opacity: 0 !important; pointer-events: none !important; width: 1px !important; height: 1px !important; }';
+                    sLock.textContent = 'html, body, #player, #movie_player, .html5-video-player { width: 1px !important; height: 1px !important; overflow: hidden !important; contain: strict !important; } .html5-video-container, video.html5-main-video, video { visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; width: 1px !important; height: 1px !important; }';
                     if (p) {
                         try { if (typeof p.setPlaybackQualityRange === 'function') p.setPlaybackQualityRange('tiny', 'tiny'); } catch(err) {}
                         try { if (typeof p.setPlaybackQuality === 'function') p.setPlaybackQuality('tiny'); } catch(err) {}
