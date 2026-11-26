@@ -213,17 +213,24 @@ class PhantomMediaService : Service() {
                         return
                     }
                     cancelIdleStopTimer()
-                    mediaSession?.isActive = true
-                    if (!isInForeground) {
-                        startForegroundCompat(buildNotification())
-                    }
-                    acquireWakeLock()
+                    updatePlaybackState(
+                        playing = true,
+                        currentPositionMs = currentPositionMs,
+                        forceNotify = true,
+                        isBuffering = false
+                    )
                     onPlayAction?.invoke()
                 }
 
                 override fun onPause() {
                     wasPlayingBeforeDisconnect = false
                     unregisterBecomingNoisyReceiver()
+                    updatePlaybackState(
+                        playing = false,
+                        currentPositionMs = currentPositionMs,
+                        forceNotify = true,
+                        isBuffering = false
+                    )
                     onPauseAction?.invoke()
                 }
 
@@ -284,7 +291,6 @@ class PhantomMediaService : Service() {
         currentTitle = title
         currentChannel = channel
         isPlaying = playing
-        isBufferingState = isBuffering
         isBufferingState = isBuffering
         if (durationMs > 0L) {
             currentDurationMs = durationMs
@@ -383,6 +389,7 @@ class PhantomMediaService : Service() {
         if (currentPositionMs >= 0L) {
             this.currentPositionMs = currentPositionMs
         }
+        var postedByStartForeground = false
         if (keepSessionActive) {
             cancelIdleStopTimer()
             mediaSession?.isActive = true
@@ -390,6 +397,10 @@ class PhantomMediaService : Service() {
             acquireWakeLock()
             if (!isInForeground) {
                 startForegroundCompat(buildNotification())
+                lastNotifiedPlaying = playing
+                lastNotifiedTitle = currentTitle
+                lastNotifiedChannel = currentChannel
+                postedByStartForeground = true
             }
         } else {
             unregisterBecomingNoisyReceiver()
@@ -415,7 +426,7 @@ class PhantomMediaService : Service() {
             .build()
         mediaSession?.setPlaybackState(playbackState)
 
-        if (stateChangedForNotification) {
+        if (!postedByStartForeground && stateChangedForNotification) {
             lastNotifiedPlaying = playing
             lastNotifiedTitle = currentTitle
             lastNotifiedChannel = currentChannel
@@ -587,29 +598,49 @@ class PhantomMediaService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
-        if (action != ACTION_STOP && !isInForeground) {
-            startForegroundCompat(buildNotification())
-        }
         when (action) {
             ACTION_PLAY -> {
                 if (!networkConnectivityObserver.isConnected()) {
+                    if (!isInForeground) {
+                        startForegroundCompat(buildNotification())
+                    }
                     showNoInternetToast()
                     demoteForegroundIfActive()
                 } else {
                     cancelIdleStopTimer()
-                    acquireWakeLock()
+                    updatePlaybackState(
+                        playing = true,
+                        currentPositionMs = currentPositionMs,
+                        forceNotify = true,
+                        isBuffering = false
+                    )
                     onPlayAction?.invoke()
                 }
             }
             ACTION_PAUSE -> {
                 wasPlayingBeforeDisconnect = false
+                isPlaying = false
+                isBufferingState = false
+                if (!isInForeground) {
+                    startForegroundCompat(buildNotification())
+                    lastNotifiedPlaying = false
+                    lastNotifiedTitle = currentTitle
+                    lastNotifiedChannel = currentChannel
+                }
                 unregisterBecomingNoisyReceiver()
                 releaseWakeLock()
+                updatePlaybackState(
+                    playing = false,
+                    currentPositionMs = currentPositionMs,
+                    forceNotify = true,
+                    isBuffering = false
+                )
                 onPauseAction?.invoke()
-                demoteForegroundIfActive()
-                scheduleIdleStopTimer()
             }
             ACTION_NEXT -> {
+                if (!isInForeground) {
+                    startForegroundCompat(buildNotification())
+                }
                 if (!networkConnectivityObserver.isConnected()) {
                     showNoInternetToast()
                     demoteForegroundIfActive()
@@ -620,6 +651,9 @@ class PhantomMediaService : Service() {
                 }
             }
             ACTION_PREVIOUS -> {
+                if (!isInForeground) {
+                    startForegroundCompat(buildNotification())
+                }
                 if (!networkConnectivityObserver.isConnected()) {
                     showNoInternetToast()
                     demoteForegroundIfActive()
@@ -638,6 +672,11 @@ class PhantomMediaService : Service() {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 isInForeground = false
                 stopSelf()
+            }
+            else -> {
+                if (!isInForeground) {
+                    startForegroundCompat(buildNotification())
+                }
             }
         }
         return START_NOT_STICKY

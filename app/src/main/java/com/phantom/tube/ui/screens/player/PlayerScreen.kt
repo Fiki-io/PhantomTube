@@ -1124,6 +1124,7 @@ private fun PlayerLifecycleEffects(
         session.sponsorSegments = emptyList()
         session.lastRecordedPositionSec = 0f
         session.isPlaybackStalled = false
+        session.isResumePending = false
         session.lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
         session.lastObservedPlaybackSec = 0f
         session.storyboardData = null
@@ -1450,6 +1451,7 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                         if (!session.networkObserver.isConnected()) {
                             session.showNotice(context.getString(R.string.player_no_internet_notice))
                         } else {
+                            session.isResumePending = true
                             session.controller.setIdleSuspended(false)
                             session.controller.setBackgroundExecutionAllowed(true)
                             session.controller.setBackgroundPriorityProtected(true)
@@ -1457,6 +1459,7 @@ private fun PlayerMediaServiceEffect(session: PlayerSessionState) {
                         }
                     }
                     onPauseAction = {
+                        session.isResumePending = false
                         session.controller.pause()
                         if (session.isAppInBackground) {
                             session.controller.setBackgroundPriorityProtected(false)

@@ -137,6 +137,7 @@ class PlayerSessionState(
     var lastProgressElapsedRealtime by mutableLongStateOf(0L)
     var lastObservedPlaybackSec by mutableFloatStateOf(0f)
     var isPlaybackStalled by mutableStateOf(false)
+    var isResumePending by mutableStateOf(false)
     var isAppInBackground by mutableStateOf(false)
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -508,6 +509,7 @@ class PlayerSessionState(
                 when (state) {
                     1 -> {
                         isPlaybackStalled = false
+                        isResumePending = false
                         lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
                         lastObservedPlaybackSec = currentPositionSec
                         controller.setBackgroundPriorityProtected(true)
@@ -562,6 +564,7 @@ class PlayerSessionState(
                     }
                     2 -> {
                         isPlaybackStalled = false
+                        isResumePending = false
                         wasPlayingBeforeOffline = false
                         if (isAppInBackground) {
                             controller.setBackgroundPriorityProtected(false)
@@ -587,7 +590,7 @@ class PlayerSessionState(
                         }
                     }
                     3 -> {
-                        val wasPlaying = playerState.isPlaying
+                        val wasPlaying = playerState.isPlaying || isResumePending
                         lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
                         controller.setBackgroundPriorityProtected(true)
                         playerState = playerState.copy(isBuffering = true)
@@ -603,6 +606,7 @@ class PlayerSessionState(
                     }
                     0 -> {
                         isPlaybackStalled = false
+                        isResumePending = false
                         wasPlayingBeforeOffline = false
                         playerState = playerState.copy(isPlaying = false, isEnded = true)
                         val endedVid = currentVideo
@@ -657,12 +661,15 @@ class PlayerSessionState(
                 }
 
                 if (kotlin.math.abs(current - lastObservedPlaybackSec) >= 0.1f) {
+                    val isAdvancing = current > lastObservedPlaybackSec
                     lastObservedPlaybackSec = current
                     lastProgressElapsedRealtime = SystemClock.elapsedRealtime()
-                    if (isPlaybackStalled) {
+                    if (isPlaybackStalled || (isAdvancing && (playerState.isBuffering || isResumePending))) {
                         isPlaybackStalled = false
-                        if (playerState.isPlaying) {
-                            playerState = playerState.copy(isBuffering = false)
+                        val effectivePlaying = playerState.isPlaying || isResumePending
+                        isResumePending = false
+                        if (effectivePlaying) {
+                            playerState = playerState.copy(isPlaying = true, isBuffering = false)
                             mediaService?.updatePlaybackState(
                                 playing = true,
                                 currentPositionMs = (current * 1000).toLong(),
@@ -755,6 +762,7 @@ class PlayerSessionState(
                     else -> "${context.getString(R.string.player_error_load)} ($errorCode)"
                 }
                 isPlaybackStalled = false
+                isResumePending = false
                 controller.setBackgroundPriorityProtected(false)
                 playerState = playerState.copy(isPlaying = false, isBuffering = false, errorCode = msg)
                 mediaService?.updatePlaybackState(
